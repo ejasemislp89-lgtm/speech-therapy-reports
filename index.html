@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>گزارش‌نویسی گفتاردرمانی احسان جاسمی</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f3f4f6; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white; }
+            .print-border { border: none !important; box-shadow: none !important; }
+            input, textarea { border: none !important; resize: none; background: transparent !important; }
+            ::placeholder { color: transparent !important; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-12">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10 print-border border border-gray-200">
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b-4 border-blue-700 pb-6 mb-8">
+            <div class="text-right">
+                <h1 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-2">گفتاردرمانی احسان جاسمی</h1>
+                <p class="text-gray-700 font-medium text-lg">شماره نظام پزشکی: گ-۱۸۸۰</p>
+                <p class="text-gray-700 font-medium text-lg">تلفن پذیرش: ۰۹۳۰۳۸۹۶۰۳۶</p>
+            </div>
+            <div class="text-left hidden md:block">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-20 h-20 text-blue-700">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form class="space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-blue-900 font-bold mb-2">نام و نام خانوادگی مراجع:</label>
+                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="نام مراجع را وارد کنید...">
+                </div>
+                <div>
+                    <label class="block text-blue-900 font-bold mb-2">تاریخ جلسه:</label>
+                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: ۱۴۰۵/۰۸/۱۲">
+                </div>
+                <div>
+                    <label class="block text-blue-900 font-bold mb-2">شماره جلسه:</label>
+                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: جلسه پنجم">
+                </div>
+                <div>
+                    <label class="block text-blue-900 font-bold mb-2">تشخیص / مشکل گفتاری:</label>
+                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: لکنت، تاخیر زبانی...">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-blue-900 font-bold mb-2 text-xl border-b-2 border-gray-100 pb-2">شرح ارزیابی / گزارش جلسه:</label>
+                <textarea rows="6" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg leading-loose transition" placeholder="شرح وضعیت مراجع و تمرینات انجام شده در این جلسه..."></textarea>
+            </div>
+
+            <div>
+                <label class="block text-blue-900 font-bold mb-2 text-xl border-b-2 border-gray-100 pb-2">برنامه و تمرینات برای منزل (توصیه به والدین):</label>
+                <textarea rows="4" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg leading-loose transition" placeholder="تمریناتی که باید در خانه انجام شود..."></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-blue-900 font-bold mb-2">تاریخ جلسه آینده:</label>
+                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: دوشنبه ساعت ۱۷">
+                </div>
+                <div>
+                    <label class="block text-blue-900 font-bold mb-2">مهر و امضای درمانگر:</label>
+                    <div class="w-full h-16 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50"></div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Footer -->
+        <div class="mt-12 pt-6 border-t-2 border-gray-200 text-sm md:text-base text-gray-600 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="font-medium">📍 اهواز، گلستان، کوی سعدی، خیابان پوشینه باف، بین غزالی و شمس، پلاک ۶۴</p>
+            <p class="font-medium" dir="ltr">Instagram: <span class="text-blue-700 font-bold">@jasemislp</span></p>
+        </div>
+
+        <!-- Buttons -->
+        <div class="mt-10 flex justify-center gap-4 no-print">
+            <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition duration-300 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+                </svg>
+                چاپ / ذخیره PDF
+            </button>
+            <button onclick="document.querySelector('form').reset()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-10 rounded-xl shadow-md transition duration-300 border border-gray-300">
+                پاکسازی فرم
+            </button>
+        </div>
+    </div>
+</body>
+</html>
