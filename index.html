@@ -16,9 +16,16 @@
             input, textarea { border: none !important; resize: none; background: transparent !important; }
             ::placeholder { color: transparent !important; }
         }
-        /* Loader */
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #1d4ed8; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; margin: auto;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Voice Recording Animation */
+        @keyframes pulse-red {
+            0% { transform: scale(1); background-color: #fee2e2; }
+            50% { transform: scale(1.15); background-color: #fca5a5; }
+            100% { transform: scale(1); background-color: #fee2e2; }
+        }
+        .recording { animation: pulse-red 1.5s infinite !important; border: 2px solid #ef4444 !important; }
+        .modal-scroll { max-height: 70vh; overflow-y: auto; }
     </style>
 </head>
 <body class="p-4 md:p-10">
@@ -120,12 +127,18 @@
             </div>
 
             <div>
-                <label class="block text-blue-900 font-bold mb-2 text-lg border-b-2 border-gray-100 pb-2">شرح ارزیابی / گزارش جلسه:</label>
+                <div class="flex justify-between items-center border-b-2 border-gray-100 pb-2 mb-2">
+                    <label class="block text-blue-900 font-bold text-lg">شرح ارزیابی / گزارش جلسه:</label>
+                    <button type="button" onclick="startDictation('f_eval', this)" class="bg-gray-100 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-full w-10 h-10 flex items-center justify-center transition shadow-sm border border-gray-200 text-xl" title="تایپ صوتی (صحبت کنید)">🎤</button>
+                </div>
                 <textarea id="f_eval" rows="4" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></textarea>
             </div>
 
             <div>
-                <label class="block text-blue-900 font-bold mb-2 text-lg border-b-2 border-gray-100 pb-2">برنامه منزل (توصیه به والدین):</label>
+                <div class="flex justify-between items-center border-b-2 border-gray-100 pb-2 mb-2">
+                    <label class="block text-blue-900 font-bold text-lg">برنامه منزل (توصیه به والدین):</label>
+                    <button type="button" onclick="startDictation('f_home', this)" class="bg-gray-100 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-full w-10 h-10 flex items-center justify-center transition shadow-sm border border-gray-200 text-xl" title="تایپ صوتی (صحبت کنید)">🎤</button>
+                </div>
                 <textarea id="f_home" rows="3" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></textarea>
             </div>
             
@@ -166,37 +179,103 @@
         <div class="flex flex-col md:flex-row justify-between items-center border-b-4 border-blue-900 pb-4 mb-6">
             <div>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-blue-900">داشبورد مدیریت کلینیک</h1>
-                <p class="text-gray-600">گزارش لحظه‌ای ثبت مراجعین توسط درمانگران</p>
+                <p class="text-gray-600 mt-1">سامانه جامع گزارشات و پرونده الکترونیک (EHR)</p>
             </div>
             <div class="flex gap-4 mt-4 md:mt-0">
-                <button onclick="loadAdminData()" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-lg transition">
-                    🔄 بروزرسانی لیست
+                <button onclick="loadAdminData()" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-lg transition shadow-sm">
+                    🔄 بروزرسانی اطلاعات
                 </button>
-                <button onclick="logout()" class="bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 px-4 rounded-lg transition">
+                <button onclick="logout()" class="bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 px-4 rounded-lg transition shadow-sm">
                     خروج
                 </button>
             </div>
         </div>
 
-        <div id="admin-loader" class="loader mb-4"></div>
+        <!-- TABS -->
+        <div class="flex gap-2 mb-6 border-b-2 border-gray-100 pb-4 overflow-x-auto no-scrollbar">
+            <button id="tab-daily" onclick="switchAdminTab('daily')" class="bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap">📋 لیست گزارش‌های روزانه</button>
+            <button id="tab-folders" onclick="switchAdminTab('folders')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200">📁 پرونده جامع مراجعین</button>
+        </div>
 
-        <div class="overflow-x-auto bg-gray-50 rounded-lg border border-gray-200">
-            <table class="w-full text-right border-collapse">
+        <div id="admin-loader" class="loader mb-4"></div>
+        <p id="no-data-msg" class="text-center text-gray-500 py-6 hidden">هیچ گزارشی در سیستم ثبت نشده است.</p>
+
+        <!-- DAILY VIEW -->
+        <div id="admin-daily-view" class="overflow-x-auto bg-gray-50 rounded-lg border border-gray-200">
+            <table class="w-full text-right border-collapse min-w-[700px]">
                 <thead>
                     <tr class="bg-blue-900 text-white">
-                        <th class="p-3 border-b">زمان ثبت</th>
+                        <th class="p-3 border-b whitespace-nowrap">زمان ثبت</th>
                         <th class="p-3 border-b">درمانگر</th>
                         <th class="p-3 border-b">مراجع</th>
                         <th class="p-3 border-b">تاریخ جلسه</th>
                         <th class="p-3 border-b">تشخیص</th>
-                        <th class="p-3 border-b text-center">جزئیات کامل</th>
+                        <th class="p-3 border-b text-center">جزئیات</th>
                     </tr>
                 </thead>
                 <tbody id="admin-table-body">
                     <!-- Data injected via JS -->
                 </tbody>
             </table>
-            <p id="no-data-msg" class="text-center text-gray-500 py-6 hidden">هیچ گزارشی ثبت نشده است.</p>
+        </div>
+
+        <!-- FOLDERS VIEW (EHR) -->
+        <div id="admin-folders-view" class="hidden">
+            <div class="mb-6 relative">
+                <input type="text" id="patient-search" onkeyup="filterPatients()" placeholder="🔍 جستجوی سریع نام مراجع..." class="w-full border-2 border-gray-300 rounded-xl px-4 py-4 focus:outline-none focus:border-blue-600 bg-white text-lg shadow-sm transition">
+            </div>
+            
+            <div id="patients-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Patient cards injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <!-- 1. Daily Report Detail Modal -->
+    <div id="details-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border-t-8 border-blue-700">
+            <div class="flex justify-between items-center border-b-2 border-gray-100 pb-3 mb-4">
+                <h3 class="text-2xl font-extrabold text-blue-900">جزئیات گزارش جلسه</h3>
+                <button onclick="closeModal('details-modal')" class="text-gray-400 hover:text-red-500 font-bold text-3xl leading-none">&times;</button>
+            </div>
+            <div class="space-y-4 modal-scroll pr-2">
+                <div>
+                    <h4 class="font-bold text-gray-800 border-r-4 border-blue-500 pr-2">شرح ارزیابی:</h4>
+                    <p id="modal-eval" class="mt-2 text-gray-700 bg-blue-50/50 p-4 rounded-lg border border-blue-100 whitespace-pre-wrap leading-relaxed shadow-inner min-h-[80px]"></p>
+                </div>
+                <div>
+                    <h4 class="font-bold text-gray-800 border-r-4 border-green-500 pr-2">برنامه منزل:</h4>
+                    <p id="modal-home" class="mt-2 text-gray-700 bg-green-50/50 p-4 rounded-lg border border-green-100 whitespace-pre-wrap leading-relaxed shadow-inner min-h-[80px]"></p>
+                </div>
+            </div>
+            <div class="mt-6 pt-4 border-t-2 border-gray-100 text-center">
+                <button onclick="closeModal('details-modal')" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-10 rounded-xl shadow-md transition w-full md:w-auto">بستن پنجره</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Patient Full History Modal -->
+    <div id="patient-history-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 border-t-8 border-blue-900 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b-4 border-blue-100 pb-4 mb-4">
+                <div>
+                    <h3 class="text-2xl font-extrabold text-blue-900 flex items-center gap-2">
+                        📁 پرونده مراجع: <span id="history-patient-name" class="text-blue-600"></span>
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-1">مشاهده روند کامل جلسات در کلینیک (تمام درمانگران)</p>
+                </div>
+                <button onclick="closeModal('patient-history-modal')" class="text-gray-400 hover:text-red-500 font-bold text-4xl leading-none">&times;</button>
+            </div>
+            
+            <!-- Timeline Container -->
+            <div id="history-timeline" class="overflow-y-auto pr-2 space-y-6 flex-1">
+                <!-- Timeline items injected via JS -->
+            </div>
+            
+            <div class="mt-4 pt-4 border-t-2 border-gray-100 text-center shrink-0">
+                <button onclick="closeModal('patient-history-modal')" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-10 rounded-xl shadow-md transition">بستن پرونده</button>
+            </div>
         </div>
     </div>
 
@@ -208,8 +287,66 @@
         // State
         let currentRole = '';
         let currentTherapist = '';
+        let globalReportsData = []; // Store data for EHR view
 
-        // UI Management
+        // -- VOICE TO TEXT LOGIC --
+        let activeRecognition = null;
+        function startDictation(elementId, btnElement) {
+            const inputEl = document.getElementById(elementId);
+            
+            // If already recording, stop it
+            if (activeRecognition) {
+                activeRecognition.stop();
+                activeRecognition = null;
+                btnElement.classList.remove('recording');
+                inputEl.placeholder = "";
+                return;
+            }
+
+            if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognition = new SpeechRecognition();
+                
+                recognition.lang = 'fa-IR';
+                recognition.continuous = true;
+                recognition.interimResults = true;
+
+                recognition.onstart = function() {
+                    btnElement.classList.add('recording');
+                    inputEl.placeholder = "🎤 در حال شنیدن صدای شما... صحبت کنید (برای توقف دوباره روی میکروفون بزنید)";
+                    activeRecognition = recognition;
+                };
+
+                recognition.onresult = function(event) {
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            const text = event.results[i][0].transcript;
+                            // Add a space if there's already text
+                            inputEl.value += (inputEl.value.length > 0 && !inputEl.value.endsWith(' ') && !inputEl.value.endsWith('\\n') ? ' ' : '') + text;
+                        }
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    console.error("Speech error: ", event.error);
+                    btnElement.classList.remove('recording');
+                    inputEl.placeholder = "";
+                    activeRecognition = null;
+                };
+
+                recognition.onend = function() {
+                    btnElement.classList.remove('recording');
+                    inputEl.placeholder = "";
+                    activeRecognition = null;
+                };
+
+                recognition.start();
+            } else {
+                alert('مرورگر شما از تایپ صوتی پیش‌فرض پشتیبانی نمی‌کند. لطفا از مرورگر کروم استفاده کنید یا روی آیکون میکروفون در کیبورد گوشی خود کلیک کنید.');
+            }
+        }
+
+        // -- UI Management --
         function hideAll() {
             document.getElementById('login-view').classList.add('hidden');
             document.getElementById('therapist-view').classList.add('hidden');
@@ -252,7 +389,7 @@
                     alert('لطفا نام درمانگر را انتخاب کنید');
                     return;
                 }
-                if (pass === 'slp1234') { // Generic therapist password
+                if (pass === 'slp1234') { 
                     currentTherapist = tName;
                     document.getElementById('active-therapist-name').innerText = tName;
                     hideAll();
@@ -270,15 +407,18 @@
             currentTherapist = '';
         }
 
-        // Database Interactions
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // -- Database Interactions --
         async function submitReport() {
-            // Validate required fields
             const patient = document.getElementById('f_patient').value;
             if(!patient) { alert('وارد کردن نام مراجع الزامی است.'); return; }
 
             const payload = {
                 therapist_name: currentTherapist,
-                patient_name: patient,
+                patient_name: patient.trim(),
                 session_date: document.getElementById('f_date').value,
                 session_number: document.getElementById('f_session').value,
                 diagnosis: document.getElementById('f_diagnosis').value,
@@ -313,7 +453,7 @@
                 }
             } catch (error) {
                 console.error(error);
-                msg.innerText = '❌ خطا در ارتباط با پایگاه داده. لطفا اتصال اینترنت را چک کنید.';
+                msg.innerText = '❌ خطا در ارتباط با پایگاه داده. لطفا اینترنت را چک کنید.';
                 msg.className = 'text-center mt-4 font-bold text-red-600';
             } finally {
                 loader.style.display = 'none';
@@ -324,11 +464,9 @@
 
         async function loadAdminData() {
             const loader = document.getElementById('admin-loader');
-            const tbody = document.getElementById('admin-table-body');
             const noData = document.getElementById('no-data-msg');
             
             loader.style.display = 'block';
-            tbody.innerHTML = '';
             noData.classList.add('hidden');
 
             try {
@@ -341,38 +479,15 @@
                 
                 if(!response.ok) throw new Error('Fetch failed');
                 
-                const data = await response.json();
+                globalReportsData = await response.json();
                 
-                if (data.length === 0) {
+                if (globalReportsData.length === 0) {
                     noData.classList.remove('hidden');
+                    document.getElementById('admin-table-body').innerHTML = '';
+                    document.getElementById('patients-list').innerHTML = '';
                 } else {
-                    data.forEach(row => {
-                        const tr = document.createElement('tr');
-                        tr.className = "border-b hover:bg-blue-50 transition";
-                        
-                        // Format date
-                        const dateObj = new Date(row.created_at);
-                        const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
-                        const dateStr = dateObj.toLocaleDateString('fa-IR');
-                        
-                        // Encode the text strictly for safe injection in alert string
-                        const evalEncoded = encodeURIComponent(row.evaluation || 'ثبت نشده');
-                        const homeEncoded = encodeURIComponent(row.home_practice || 'ثبت نشده');
-                        
-                        tr.innerHTML = `
-                            <td class="p-3 text-gray-600 text-sm">${dateStr} - ${timeStr}</td>
-                            <td class="p-3 font-bold text-blue-800">${row.therapist_name || '-'}</td>
-                            <td class="p-3 font-bold">${row.patient_name || '-'}</td>
-                            <td class="p-3">${row.session_date || '-'}</td>
-                            <td class="p-3">${row.diagnosis || '-'}</td>
-                            <td class="p-3 text-center">
-                                <button onclick="alert('شرح ارزیابی:\\n' + decodeURIComponent('${evalEncoded}') + '\\n\\nبرنامه منزل:\\n' + decodeURIComponent('${homeEncoded}'))" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm">
-                                    مشاهده
-                                </button>
-                            </td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
+                    renderDailyTable(globalReportsData);
+                    renderPatientFolders(globalReportsData);
                 }
             } catch (error) {
                 console.error(error);
@@ -381,6 +496,186 @@
             } finally {
                 loader.style.display = 'none';
             }
+        }
+
+        // -- ADMIN TABS & VIEWS --
+        function switchAdminTab(tabName) {
+            const tDaily = document.getElementById('tab-daily');
+            const tFolders = document.getElementById('tab-folders');
+            const vDaily = document.getElementById('admin-daily-view');
+            const vFolders = document.getElementById('admin-folders-view');
+
+            if(tabName === 'daily') {
+                vDaily.classList.remove('hidden');
+                vFolders.classList.add('hidden');
+                
+                tDaily.className = "bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
+                tFolders.className = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200";
+            } else {
+                vDaily.classList.add('hidden');
+                vFolders.classList.remove('hidden');
+                
+                tDaily.className = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200";
+                tFolders.className = "bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
+            }
+        }
+
+        // 1. Daily Table Render
+        function renderDailyTable(data) {
+            const tbody = document.getElementById('admin-table-body');
+            tbody.innerHTML = '';
+            
+            data.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b hover:bg-blue-50 transition";
+                
+                const dateObj = new Date(row.created_at);
+                const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
+                const dateStr = dateObj.toLocaleDateString('fa-IR');
+                
+                // Store safely in dataset
+                tr.dataset.eval = btoa(unescape(encodeURIComponent(row.evaluation || 'ثبت نشده')));
+                tr.dataset.home = btoa(unescape(encodeURIComponent(row.home_practice || 'ثبت نشده')));
+                
+                tr.innerHTML = `
+                    <td class="p-3 text-gray-600 text-sm whitespace-nowrap">${dateStr} - ${timeStr}</td>
+                    <td class="p-3 font-bold text-blue-800">${row.therapist_name || '-'}</td>
+                    <td class="p-3 font-bold">${row.patient_name || '-'}</td>
+                    <td class="p-3">${row.session_date || '-'}</td>
+                    <td class="p-3">${row.diagnosis || '-'}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="showDailyDetails(this)" class="bg-white border-2 border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 text-blue-700 font-bold px-4 py-1 rounded-lg text-sm transition">
+                            مشاهده
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showDailyDetails(btn) {
+            const tr = btn.closest('tr');
+            try {
+                document.getElementById('modal-eval').textContent = decodeURIComponent(escape(atob(tr.dataset.eval)));
+                document.getElementById('modal-home').textContent = decodeURIComponent(escape(atob(tr.dataset.home)));
+                document.getElementById('details-modal').classList.remove('hidden');
+            } catch(e) { alert("خطا در خواندن متن"); }
+        }
+
+        // 2. EHR Folders Render
+        function renderPatientFolders(data) {
+            const patientsMap = {};
+            
+            // Group by normalized patient name
+            data.forEach(row => {
+                let name = (row.patient_name || 'نامشخص').trim();
+                // simple normalization to group similar names
+                let normalized = name.replace(/\\s+/g, ' '); 
+                if(!patientsMap[normalized]) patientsMap[normalized] = [];
+                patientsMap[normalized].push(row);
+            });
+
+            const listEl = document.getElementById('patients-list');
+            listEl.innerHTML = '';
+            
+            Object.keys(patientsMap).sort().forEach(pName => {
+                const records = patientsMap[pName];
+                const count = records.length;
+                // find all therapists involved
+                const therapists = [...new Set(records.map(r => r.therapist_name).filter(Boolean))];
+                
+                const card = document.createElement('div');
+                card.className = "patient-card bg-white p-5 rounded-2xl shadow-sm border-2 border-gray-100 cursor-pointer hover:shadow-lg hover:border-blue-400 transition group flex flex-col h-full";
+                card.dataset.name = pName.toLowerCase();
+                
+                // Keep data on card for modal
+                card.onclick = () => openPatientHistory(pName, records);
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 mb-3 border-b border-gray-100 pb-3">
+                        <div class="bg-blue-100 text-blue-600 p-2 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 line-clamp-1">${pName}</h3>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm text-gray-500 mb-2">تعداد مراجعات: <span class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">${count} جلسه</span></p>
+                        <p class="text-xs text-gray-400 leading-tight">درمانگران: ${therapists.join('، ') || '-'}</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-gray-50 text-center text-blue-600 font-bold text-sm group-hover:text-blue-800">
+                        باز کردن پرونده &larr;
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        function filterPatients() {
+            const query = document.getElementById('patient-search').value.toLowerCase().trim();
+            document.querySelectorAll('.patient-card').forEach(card => {
+                const name = card.dataset.name;
+                if(name.includes(query)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function openPatientHistory(pName, records) {
+            document.getElementById('history-patient-name').innerText = pName;
+            const timeline = document.getElementById('history-timeline');
+            timeline.innerHTML = '';
+            
+            // Sort records: oldest first (chronological order)
+            const sorted = records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+            
+            sorted.forEach((row, index) => {
+                const dateObj = new Date(row.created_at);
+                const dateStr = dateObj.toLocaleDateString('fa-IR');
+                const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
+                
+                // Color coding based on therapist kind (simple logic)
+                let badgeColor = "bg-blue-100 text-blue-800 border-blue-200";
+                let tName = row.therapist_name || 'نامشخص';
+                if(tName.includes('موسوی') || tName.includes('کاردرمان')) badgeColor = "bg-purple-100 text-purple-800 border-purple-200";
+                if(tName.includes('پریسا') || tName.includes('روانشناس')) badgeColor = "bg-pink-100 text-pink-800 border-pink-200";
+                
+                const item = document.createElement('div');
+                item.className = "relative pl-4 pr-6 py-4 bg-gray-50 border border-gray-200 rounded-xl shadow-sm";
+                item.innerHTML = `
+                    <!-- Decorative timeline dot indicator (RTL so it's on the right) -->
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-full bg-blue-500 rounded-r-xl"></div>
+                    
+                    <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-3 pb-2 border-b border-gray-200 gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="font-extrabold text-gray-800 bg-white px-3 py-1 rounded shadow-sm border border-gray-100">جلسه ${index + 1}</span>
+                            <span class="text-sm text-gray-500 flex items-center gap-1">🗓️ ${row.session_date || dateStr} (ثبت: ${timeStr})</span>
+                        </div>
+                        <span class="text-sm font-bold border px-3 py-1 rounded-full shadow-sm ${badgeColor}">
+                            👤 ${tName}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        ${row.diagnosis ? `<div class="text-sm"><span class="font-bold text-gray-700">تشخیص:</span> <span class="text-gray-600">${row.diagnosis}</span></div>` : ''}
+                        
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mt-2">
+                            <span class="font-bold text-blue-900 block border-b border-gray-50 pb-1 mb-1 text-sm">شرح ارزیابی / گزارش:</span> 
+                            <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${row.evaluation || 'ثبت نشده'}</p>
+                        </div>
+                        
+                        ${row.home_practice ? `
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mt-2">
+                            <span class="font-bold text-green-700 block border-b border-gray-50 pb-1 mb-1 text-sm">برنامه منزل:</span> 
+                            <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${row.home_practice}</p>
+                        </div>` : ''}
+                    </div>
+                `;
+                timeline.appendChild(item);
+            });
+            
+            document.getElementById('patient-history-modal').classList.remove('hidden');
         }
     </script>
 </body>
