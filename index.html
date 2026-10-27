@@ -47,11 +47,19 @@
             <div id="therapist-inputs" class="hidden space-y-4">
                 <select id="therapist-select" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 bg-gray-50">
                     <option value="" disabled selected>انتخاب درمانگر...</option>
-                    <option value="درمانگر ۱">درمانگر ۱</option>
-                    <option value="درمانگر ۲">درمانگر ۲</option>
-                    <option value="درمانگر ۳">درمانگر ۳</option>
-                    <option value="درمانگر ۴">درمانگر ۴</option>
-                    <option value="درمانگر ۵">درمانگر ۵</option>
+                    <optgroup label="گفتاردرمانگران">
+                        <option value="گفتاردرمانگر ۱">گفتاردرمانگر ۱</option>
+                        <option value="گفتاردرمانگر ۲">گفتاردرمانگر ۲</option>
+                        <option value="گفتاردرمانگر ۳">گفتاردرمانگر ۳</option>
+                        <option value="گفتاردرمانگر ۴">گفتاردرمانگر ۴</option>
+                        <option value="گفتاردرمانگر ۵">گفتاردرمانگر ۵</option>
+                        <option value="گفتاردرمانگر ۶">گفتاردرمانگر ۶</option>
+                        <option value="گفتاردرمانگر ۷">گفتاردرمانگر ۷</option>
+                    </optgroup>
+                    <optgroup label="سایر تخصص‌ها">
+                        <option value="روانشناس">روانشناس</option>
+                        <option value="کاردرمانگر">کاردرمانگر</option>
+                    </optgroup>
                 </select>
             </div>
             
@@ -303,7 +311,7 @@
                 }
             } catch (error) {
                 console.error(error);
-                msg.innerText = '❌ خطا در ارتباط با پایگاه داده. لطفا تنظیمات Supabase را چک کنید.';
+                msg.innerText = '❌ خطا در ارتباط با پایگاه داده. لطفا اتصال اینترنت را چک کنید.';
                 msg.className = 'text-center mt-4 font-bold text-red-600';
             } finally {
                 loader.style.display = 'none';
@@ -345,6 +353,10 @@
                         const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
                         const dateStr = dateObj.toLocaleDateString('fa-IR');
                         
+                        // Encode the text strictly for safe injection in alert string
+                        const evalEncoded = encodeURIComponent(row.evaluation || 'ثبت نشده');
+                        const homeEncoded = encodeURIComponent(row.home_practice || 'ثبت نشده');
+                        
                         tr.innerHTML = `
                             <td class="p-3 text-gray-600 text-sm">${dateStr} - ${timeStr}</td>
                             <td class="p-3 font-bold text-blue-800">${row.therapist_name || '-'}</td>
@@ -352,7 +364,7 @@
                             <td class="p-3">${row.session_date || '-'}</td>
                             <td class="p-3">${row.diagnosis || '-'}</td>
                             <td class="p-3 text-center">
-                                <button onclick="alert('شرح ارزیابی:\\n${row.evaluation}\\n\\nبرنامه منزل:\\n${row.home_practice}')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm">
+                                <button onclick="alert('شرح ارزیابی:\\n' + decodeURIComponent('${evalEncoded}') + '\\n\\nبرنامه منزل:\\n' + decodeURIComponent('${homeEncoded}'))" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm">
                                     مشاهده
                                 </button>
                             </td>
@@ -362,7 +374,7 @@
                 }
             } catch (error) {
                 console.error(error);
-                noData.innerText = 'ارتباط با دیتابیس برقرار نشد. آیا جدول در Supabase ایجاد شده است؟';
+                noData.innerText = 'ارتباط با دیتابیس برقرار نشد. لطفا اینترنت خود را چک کنید.';
                 noData.classList.remove('hidden');
             } finally {
                 loader.style.display = 'none';
