@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>گزارش‌نویسی گفتاردرمانی احسان جاسمی</title>
+    <title>سیستم جامع کلینیک گفتاردرمانی احسان جاسمی</title>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Vazirmatn', sans-serif; background-color: #f3f4f6; }
+        .hidden-print { display: block; }
         @media print {
             .no-print { display: none !important; }
             body { background-color: white; }
@@ -15,11 +16,66 @@
             input, textarea { border: none !important; resize: none; background: transparent !important; }
             ::placeholder { color: transparent !important; }
         }
+        /* Loader */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #1d4ed8; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: none; margin: auto;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="p-4 md:p-12">
-    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10 print-border border border-gray-200">
-        <!-- Header -->
+<body class="p-4 md:p-10">
+
+    <!-- LOGIN VIEW -->
+    <div id="login-view" class="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 mt-10">
+        <div class="text-center mb-8">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-16 h-16 text-blue-700 mx-auto mb-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
+            </svg>
+            <h1 class="text-2xl font-extrabold text-blue-900">گفتاردرمانی احسان جاسمی</h1>
+            <p class="text-gray-500 mt-2">پورتال جامع ثبت و مدیریت پرونده‌ها</p>
+        </div>
+
+        <div class="space-y-4">
+            <button onclick="showLoginMode('therapist')" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold py-3 px-4 rounded-lg border border-blue-200 transition">
+                ورود به عنوان درمانگر
+            </button>
+            <button onclick="showLoginMode('admin')" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-3 px-4 rounded-lg border border-gray-200 transition">
+                ورود به پنل مدیریت
+            </button>
+        </div>
+
+        <!-- Dynamic Login Forms -->
+        <div id="login-form-area" class="mt-6 hidden">
+            <div id="therapist-inputs" class="hidden space-y-4">
+                <select id="therapist-select" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 bg-gray-50">
+                    <option value="" disabled selected>انتخاب درمانگر...</option>
+                    <option value="درمانگر ۱">درمانگر ۱</option>
+                    <option value="درمانگر ۲">درمانگر ۲</option>
+                    <option value="درمانگر ۳">درمانگر ۳</option>
+                    <option value="درمانگر ۴">درمانگر ۴</option>
+                    <option value="درمانگر ۵">درمانگر ۵</option>
+                </select>
+            </div>
+            
+            <div class="mt-4 space-y-4">
+                <input type="password" id="password-input" placeholder="رمز عبور" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 bg-gray-50 text-center" style="letter-spacing: 0.2em;">
+                <p id="login-error" class="text-red-500 text-sm text-center hidden">رمز عبور اشتباه است</p>
+                <button onclick="attemptLogin()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 rounded-lg transition">
+                    تایید و ورود
+                </button>
+                <button onclick="resetLogin()" class="w-full text-gray-500 text-sm mt-2">بازگشت</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- THERAPIST VIEW -->
+    <div id="therapist-view" class="hidden max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10 print-border border border-gray-200">
+        <div class="no-print flex justify-between items-center bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
+            <div>
+                <span class="text-blue-900 font-bold">👤 درمانگر فعال: </span>
+                <span id="active-therapist-name" class="text-blue-700 font-bold"></span>
+            </div>
+            <button onclick="logout()" class="text-red-600 font-bold text-sm hover:text-red-800">خروج از حساب</button>
+        </div>
+
         <div class="flex justify-between items-center border-b-4 border-blue-700 pb-6 mb-8">
             <div class="text-right">
                 <h1 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-2">گفتاردرمانی احسان جاسمی</h1>
@@ -33,67 +89,285 @@
             </div>
         </div>
 
-        <!-- Form -->
-        <form class="space-y-8">
+        <form id="report-form" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">نام و نام خانوادگی مراجع:</label>
-                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="نام مراجع را وارد کنید...">
+                    <input type="text" id="f_patient" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" required>
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">تاریخ جلسه:</label>
-                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: ۱۴۰۵/۰۸/۱۲">
+                    <input type="text" id="f_date" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" placeholder="۱۴۰۵/۰۸/۱۲" required>
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">شماره جلسه:</label>
-                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: جلسه پنجم">
+                    <input type="text" id="f_session" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">تشخیص / مشکل گفتاری:</label>
-                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: لکنت، تاخیر زبانی...">
+                    <input type="text" id="f_diagnosis" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
                 </div>
             </div>
 
             <div>
-                <label class="block text-blue-900 font-bold mb-2 text-xl border-b-2 border-gray-100 pb-2">شرح ارزیابی / گزارش جلسه:</label>
-                <textarea rows="6" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg leading-loose transition" placeholder="شرح وضعیت مراجع و تمرینات انجام شده در این جلسه..."></textarea>
+                <label class="block text-blue-900 font-bold mb-2 text-lg border-b-2 border-gray-100 pb-2">شرح ارزیابی / گزارش جلسه:</label>
+                <textarea id="f_eval" rows="4" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></textarea>
             </div>
 
             <div>
-                <label class="block text-blue-900 font-bold mb-2 text-xl border-b-2 border-gray-100 pb-2">برنامه و تمرینات برای منزل (توصیه به والدین):</label>
-                <textarea rows="4" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg leading-loose transition" placeholder="تمریناتی که باید در خانه انجام شود..."></textarea>
+                <label class="block text-blue-900 font-bold mb-2 text-lg border-b-2 border-gray-100 pb-2">برنامه منزل (توصیه به والدین):</label>
+                <textarea id="f_home" rows="3" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></textarea>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">تاریخ جلسه آینده:</label>
-                    <input type="text" class="w-full border-2 border-gray-200 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50 text-lg transition" placeholder="مثال: دوشنبه ساعت ۱۷">
+                    <input type="text" id="f_next" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">مهر و امضای درمانگر:</label>
-                    <div class="w-full h-16 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50"></div>
+                    <div class="w-full h-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50"></div>
                 </div>
             </div>
         </form>
 
-        <!-- Footer -->
-        <div class="mt-12 pt-6 border-t-2 border-gray-200 text-sm md:text-base text-gray-600 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p class="font-medium">📍 اهواز، گلستان، کوی سعدی، خیابان پوشینه باف، بین غزالی و شمس، پلاک ۶۴</p>
-            <p class="font-medium" dir="ltr">Instagram: <span class="text-blue-700 font-bold">@jasemislp</span></p>
+        <div class="mt-8 pt-4 border-t-2 border-gray-200 text-sm text-gray-600 flex justify-between">
+            <p>📍 اهواز، گلستان، کوی سعدی، خیابان پوشینه باف</p>
+            <p dir="ltr">Instagram: <span class="text-blue-700 font-bold">@jasemislp</span></p>
         </div>
 
-        <!-- Buttons -->
-        <div class="mt-10 flex justify-center gap-4 no-print">
-            <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition duration-300 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
-                </svg>
-                چاپ / ذخیره PDF
+        <div class="mt-8 flex flex-col md:flex-row justify-center gap-4 no-print">
+            <button onclick="submitReport()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition duration-300 w-full md:w-auto">
+                ✅ ثبت در سیستم مدیریت
             </button>
-            <button onclick="document.querySelector('form').reset()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 px-10 rounded-xl shadow-md transition duration-300 border border-gray-300">
+            <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition duration-300 w-full md:w-auto">
+                🖨️ چاپ / ذخیره PDF
+            </button>
+            <button onclick="document.getElementById('report-form').reset()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-xl transition duration-300 w-full md:w-auto">
                 پاکسازی فرم
             </button>
         </div>
+        <div id="submit-loader" class="loader mt-4"></div>
+        <p id="submit-msg" class="text-center mt-4 font-bold hidden"></p>
     </div>
+
+    <!-- ADMIN VIEW -->
+    <div id="admin-view" class="hidden max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10 border border-gray-200">
+        <div class="flex flex-col md:flex-row justify-between items-center border-b-4 border-blue-900 pb-4 mb-6">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-blue-900">داشبورد مدیریت کلینیک</h1>
+                <p class="text-gray-600">گزارش لحظه‌ای ثبت مراجعین توسط درمانگران</p>
+            </div>
+            <div class="flex gap-4 mt-4 md:mt-0">
+                <button onclick="loadAdminData()" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 px-4 rounded-lg transition">
+                    🔄 بروزرسانی لیست
+                </button>
+                <button onclick="logout()" class="bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 px-4 rounded-lg transition">
+                    خروج
+                </button>
+            </div>
+        </div>
+
+        <div id="admin-loader" class="loader mb-4"></div>
+
+        <div class="overflow-x-auto bg-gray-50 rounded-lg border border-gray-200">
+            <table class="w-full text-right border-collapse">
+                <thead>
+                    <tr class="bg-blue-900 text-white">
+                        <th class="p-3 border-b">زمان ثبت</th>
+                        <th class="p-3 border-b">درمانگر</th>
+                        <th class="p-3 border-b">مراجع</th>
+                        <th class="p-3 border-b">تاریخ جلسه</th>
+                        <th class="p-3 border-b">تشخیص</th>
+                        <th class="p-3 border-b text-center">جزئیات کامل</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-table-body">
+                    <!-- Data injected via JS -->
+                </tbody>
+            </table>
+            <p id="no-data-msg" class="text-center text-gray-500 py-6 hidden">هیچ گزارشی ثبت نشده است.</p>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Config
+        const SUPABASE_URL = 'https://gtjqzwdgmilcdgqlqhik.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_uzoljC3RKdT8tBe7WyGH_A_E7wthbmV';
+
+        // State
+        let currentRole = '';
+        let currentTherapist = '';
+
+        // UI Management
+        function hideAll() {
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('therapist-view').classList.add('hidden');
+            document.getElementById('admin-view').classList.add('hidden');
+        }
+
+        function showLoginMode(role) {
+            currentRole = role;
+            document.getElementById('login-form-area').classList.remove('hidden');
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('password-input').value = '';
+            
+            if (role === 'therapist') {
+                document.getElementById('therapist-inputs').classList.remove('hidden');
+            } else {
+                document.getElementById('therapist-inputs').classList.add('hidden');
+            }
+        }
+
+        function resetLogin() {
+            document.getElementById('login-form-area').classList.add('hidden');
+            currentRole = '';
+        }
+
+        function attemptLogin() {
+            const pass = document.getElementById('password-input').value;
+            const err = document.getElementById('login-error');
+            
+            if (currentRole === 'admin') {
+                if (pass === 'admin1880') {
+                    hideAll();
+                    document.getElementById('admin-view').classList.remove('hidden');
+                    loadAdminData();
+                } else {
+                    err.classList.remove('hidden');
+                }
+            } else if (currentRole === 'therapist') {
+                const tName = document.getElementById('therapist-select').value;
+                if (!tName) {
+                    alert('لطفا نام درمانگر را انتخاب کنید');
+                    return;
+                }
+                if (pass === 'slp1234') { // Generic therapist password
+                    currentTherapist = tName;
+                    document.getElementById('active-therapist-name').innerText = tName;
+                    hideAll();
+                    document.getElementById('therapist-view').classList.remove('hidden');
+                } else {
+                    err.classList.remove('hidden');
+                }
+            }
+        }
+
+        function logout() {
+            hideAll();
+            document.getElementById('login-view').classList.remove('hidden');
+            resetLogin();
+            currentTherapist = '';
+        }
+
+        // Database Interactions
+        async function submitReport() {
+            // Validate required fields
+            const patient = document.getElementById('f_patient').value;
+            if(!patient) { alert('وارد کردن نام مراجع الزامی است.'); return; }
+
+            const payload = {
+                therapist_name: currentTherapist,
+                patient_name: patient,
+                session_date: document.getElementById('f_date').value,
+                session_number: document.getElementById('f_session').value,
+                diagnosis: document.getElementById('f_diagnosis').value,
+                evaluation: document.getElementById('f_eval').value,
+                home_practice: document.getElementById('f_home').value,
+                next_session: document.getElementById('f_next').value
+            };
+
+            const loader = document.getElementById('submit-loader');
+            const msg = document.getElementById('submit-msg');
+            loader.style.display = 'block';
+            msg.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    msg.innerText = '✅ گزارش با موفقیت در سیستم مرکزی کلینیک ثبت شد!';
+                    msg.className = 'text-center mt-4 font-bold text-green-600';
+                    document.getElementById('report-form').reset();
+                } else {
+                    throw new Error('Database insertion failed');
+                }
+            } catch (error) {
+                console.error(error);
+                msg.innerText = '❌ خطا در ارتباط با پایگاه داده. لطفا تنظیمات Supabase را چک کنید.';
+                msg.className = 'text-center mt-4 font-bold text-red-600';
+            } finally {
+                loader.style.display = 'none';
+                msg.classList.remove('hidden');
+                setTimeout(() => { msg.classList.add('hidden'); }, 5000);
+            }
+        }
+
+        async function loadAdminData() {
+            const loader = document.getElementById('admin-loader');
+            const tbody = document.getElementById('admin-table-body');
+            const noData = document.getElementById('no-data-msg');
+            
+            loader.style.display = 'block';
+            tbody.innerHTML = '';
+            noData.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=*&order=created_at.desc`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                
+                if(!response.ok) throw new Error('Fetch failed');
+                
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    noData.classList.remove('hidden');
+                } else {
+                    data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.className = "border-b hover:bg-blue-50 transition";
+                        
+                        // Format date
+                        const dateObj = new Date(row.created_at);
+                        const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
+                        const dateStr = dateObj.toLocaleDateString('fa-IR');
+                        
+                        tr.innerHTML = `
+                            <td class="p-3 text-gray-600 text-sm">${dateStr} - ${timeStr}</td>
+                            <td class="p-3 font-bold text-blue-800">${row.therapist_name || '-'}</td>
+                            <td class="p-3 font-bold">${row.patient_name || '-'}</td>
+                            <td class="p-3">${row.session_date || '-'}</td>
+                            <td class="p-3">${row.diagnosis || '-'}</td>
+                            <td class="p-3 text-center">
+                                <button onclick="alert('شرح ارزیابی:\\n${row.evaluation}\\n\\nبرنامه منزل:\\n${row.home_practice}')" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm">
+                                    مشاهده
+                                </button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (error) {
+                console.error(error);
+                noData.innerText = 'ارتباط با دیتابیس برقرار نشد. آیا جدول در Supabase ایجاد شده است؟';
+                noData.classList.remove('hidden');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
