@@ -383,16 +383,17 @@
         function startDictation(elementId, btnElement) {
             const inputEl = document.getElementById(elementId);
             if (activeRecognition) {
-                activeRecognition.stop();
+                try { activeRecognition.stop(); } catch(e){}
                 activeRecognition = null;
                 btnElement.classList.remove('recording');
+                btnElement.style.backgroundColor = '';
                 inputEl.placeholder = "";
                 return;
             }
             try {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (!SpeechRecognition) {
-                    alert('مرورگر فعلی شما از تایپ صوتی پیش‌فرض وب پشتیبانی نمی‌کند. لطفا به جای این دکمه، از دکمه میکروفون روی کیبورد گوشی خود استفاده کنید.');
+                    alert('مرورگر فعلی شما از قابلیت تایپ صوتی پشتیبانی نمی‌کند. لطفاً لینک را در گوگل کروم (اندروید) یا سافاری (آیفون) کپی و باز کنید.');
                     return;
                 }
                 const recognition = new SpeechRecognition();
@@ -402,7 +403,8 @@
 
                 recognition.onstart = function() {
                     btnElement.classList.add('recording');
-                    inputEl.placeholder = "🎤 در حال گوش دادن... صحبت کنید";
+                    btnElement.style.backgroundColor = '#ffc107'; // هشدار بصری ضبط
+                    inputEl.placeholder = "🎤 در حال گوش دادن... صحبت کنید (سپس کمی صبر کنید)";
                     activeRecognition = recognition;
                 };
 
@@ -413,19 +415,29 @@
 
                 recognition.onerror = function(event) {
                     btnElement.classList.remove('recording');
+                    btnElement.style.backgroundColor = '';
                     inputEl.placeholder = "";
                     activeRecognition = null;
+                    if(event.error === 'not-allowed') {
+                        alert('❌ دسترسی به میکروفون مسدود است! باید از تنظیمات مرورگر اجازه استفاده از میکروفون را بدهید.');
+                    } else if(event.error === 'network') {
+                        alert('❌ خطای شبکه: برای تایپ صوتی اتصال اینترنت نیاز است.');
+                    } else if (event.error !== 'no-speech') {
+                        alert('❌ خطا در سیستم صوتی: ' + event.error);
+                    }
                 };
 
                 recognition.onend = function() {
                     btnElement.classList.remove('recording');
+                    btnElement.style.backgroundColor = '';
                     inputEl.placeholder = "";
                     activeRecognition = null;
                 };
 
                 recognition.start();
             } catch(err) {
-                alert("امکان استفاده از تایپ صوتی در این مرورگر وجود ندارد.");
+                console.error(err);
+                alert("❌ مشکل در اجرای میکروفون. مطمئن شوید آدرس سایت با https شروع شده و در تلگرام/اینستاگرام باز نکرده‌اید.");
             }
         }
 
