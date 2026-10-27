@@ -125,9 +125,15 @@
                     <label class="block text-blue-900 font-bold mb-2">تاریخ مراجعه:</label>
                     <input type="text" id="f_date" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" placeholder="۱۴۰۵/۰۸/۱۲" required>
                 </div>
-                <div id="session-div">
-                    <label class="block text-blue-900 font-bold mb-2">شماره جلسه:</label>
-                    <input type="text" id="f_session" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
+                <div id="performance-div">
+                    <label class="block text-blue-900 font-bold mb-2">وضعیت عملکرد کودک در این جلسه:</label>
+                    <select id="f_performance" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
+                        <option value="عالی">عالی</option>
+                        <option value="خوب" selected>خوب</option>
+                        <option value="متوسط">متوسط</option>
+                        <option value="ضعیف">ضعیف</option>
+                        <option value="بد">بد</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">تشخیص / مشکل (شکایت اصلی):</label>
@@ -205,15 +211,14 @@
                 <textarea id="f_home" rows="3" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></textarea>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-blue-900 font-bold mb-2">تاریخ مراجعه آینده:</label>
-                    <input type="text" id="f_next" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
-                </div>
-                <div>
-                    <label class="block text-blue-900 font-bold mb-2">مهر و امضای ارزیاب/درمانگر:</label>
-                    <div class="w-full h-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50"></div>
-                </div>
+            <div class="mb-6">
+                <label class="block text-blue-900 font-bold mb-2">اهداف جلسه آینده:</label>
+                <textarea id="f_next_goals" rows="2" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" placeholder="مهارت‌ها یا تمریناتی که جلسه بعد باید کار شود..."></textarea>
+            </div>
+
+            <div class="mb-6 no-print">
+                <label class="block text-red-600 font-bold mb-2">پیام/تیکت محرمانه برای مدیریت (در PDF چاپ نمی‌شود):</label>
+                <textarea id="f_secret_note" rows="2" class="w-full border-2 border-red-200 rounded-lg px-4 py-2 focus:outline-none focus:border-red-500 bg-red-50 transition" placeholder="یادداشت خصوصی، پیگیری مالی، درخواست‌ها و..."></textarea>
             </div>
         </form>
 
