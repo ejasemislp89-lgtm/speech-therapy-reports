@@ -111,7 +111,7 @@
                 <!-- NEW EVALUATION TOGGLE -->
                 <div id="new-eval-container" class="hidden md:col-span-2 bg-purple-50 border-2 border-purple-200 p-4 rounded-xl mb-2 flex items-center justify-between">
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" id="f_is_new_eval" class="w-6 h-6 text-purple-700 rounded focus:ring-purple-500 border-purple-300">
+                        <input type="checkbox" id="f_is_new_eval" onchange="toggleNewEvalForm()" class="w-6 h-6 text-purple-700 rounded focus:ring-purple-500 border-purple-300">
                         <span class="text-purple-900 font-bold text-lg">ثبت به عنوان «ارزیابی جدید»</span>
                     </label>
                     <span class="text-purple-600 text-sm font-bold bg-purple-100 px-3 py-1 rounded-full">ویژه مدیریت</span>
@@ -122,28 +122,71 @@
                     <input type="text" id="f_patient" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" required>
                 </div>
                 <div>
-                    <label class="block text-blue-900 font-bold mb-2">تاریخ جلسه:</label>
+                    <label class="block text-blue-900 font-bold mb-2">تاریخ مراجعه:</label>
                     <input type="text" id="f_date" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" placeholder="۱۴۰۵/۰۸/۱۲" required>
                 </div>
-                <div>
+                <div id="session-div">
                     <label class="block text-blue-900 font-bold mb-2">شماره جلسه:</label>
                     <input type="text" id="f_session" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
                 </div>
                 <div>
-                    <label class="block text-blue-900 font-bold mb-2">تشخیص / مشکل گفتاری:</label>
+                    <label class="block text-blue-900 font-bold mb-2">تشخیص / مشکل (شکایت اصلی):</label>
                     <input type="text" id="f_diagnosis" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
+                </div>
+            </div>
+
+            <!-- DYNAMIC NEW EVALUATION FIELDS -->
+            <div id="new-eval-fields" class="hidden grid-cols-1 md:grid-cols-2 gap-6 bg-purple-50 p-6 rounded-xl border-2 border-purple-100 mb-6">
+                <div class="md:col-span-2 border-b-2 border-purple-200 pb-2 mb-2">
+                    <h3 class="text-purple-900 font-bold text-xl">📝 فرم تخصصی ارزیابی اولیه</h3>
+                    <p class="text-purple-700 text-sm mt-1">این اطلاعات به صورت خودکار به متن گزارش ارزیابی اضافه خواهند شد.</p>
+                </div>
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">سن کودک:</label>
+                    <input type="text" id="f_age" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: ۳ سال و ۲ ماه">
+                </div>
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">تاریخچه / زمان شروع مشکل:</label>
+                    <input type="text" id="f_history" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: از بدو تولد / از ۲ سالگی">
+                </div>
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">سابقه مشکلات دیگر (پزشکی/رشدی):</label>
+                    <input type="text" id="f_medical" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: تشنج در کودکی، بیش فعالی">
+                </div>
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">تعداد کلمات بیانی کودک:</label>
+                    <input type="text" id="f_expressive" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: حدود ۲۰ کلمه">
+                </div>
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">وضعیت درک کودک:</label>
+                    <input type="text" id="f_receptive" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: درک دستورات یک مرحله‌ای">
+                </div>
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">درمانگر پیشنهادی برای جلسات درمانی:</label>
+                    <select id="f_referral" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white">
+                        <option value="">(انتخاب درمانگر...)</option>
+                        <option value="احسان جاسمی">احسان جاسمی</option>
+                        <option value="فاطمه امامی">فاطمه امامی</option>
+                        <option value="فاطمه کیانی">فاطمه کیانی</option>
+                        <option value="امین لب ابیان">امین لب ابیان</option>
+                        <option value="کامیاب فتحعلی">کامیاب فتحعلی</option>
+                        <option value="سارا نادری">سارا نادری</option>
+                        <option value="مهسا جوادنوری">مهسا جوادنوری</option>
+                        <option value="پریسا حق شناس (روانشناس)">پریسا حق شناس (روانشناس)</option>
+                        <option value="خانم موسوی (کاردرمانگر)">خانم موسوی (کاردرمانگر)</option>
+                    </select>
                 </div>
             </div>
 
             <div>
                 <div class="flex justify-between items-center border-b-2 border-gray-100 pb-2 mb-2">
-                    <label class="block text-blue-900 font-bold text-lg">شرح ارزیابی / گزارش جلسه:</label>
+                    <label id="eval-label" class="block text-blue-900 font-bold text-lg">شرح ارزیابی / گزارش جلسه:</label>
                     <button type="button" onclick="startDictation('f_eval', this)" class="bg-gray-100 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-full w-10 h-10 flex items-center justify-center transition shadow-sm border border-gray-200 text-xl" title="تایپ صوتی (صحبت کنید)">🎤</button>
                 </div>
                 <textarea id="f_eval" rows="4" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></textarea>
             </div>
 
-            <div>
+            <div id="home-practice-div">
                 <div class="flex justify-between items-center border-b-2 border-gray-100 pb-2 mb-2">
                     <label class="block text-blue-900 font-bold text-lg">برنامه منزل (توصیه به والدین):</label>
                     <button type="button" onclick="startDictation('f_home', this)" class="bg-gray-100 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-full w-10 h-10 flex items-center justify-center transition shadow-sm border border-gray-200 text-xl" title="تایپ صوتی (صحبت کنید)">🎤</button>
@@ -153,11 +196,11 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-blue-900 font-bold mb-2">تاریخ جلسه آینده:</label>
+                    <label class="block text-blue-900 font-bold mb-2">تاریخ مراجعه آینده:</label>
                     <input type="text" id="f_next" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition">
                 </div>
                 <div>
-                    <label class="block text-blue-900 font-bold mb-2">مهر و امضای درمانگر:</label>
+                    <label class="block text-blue-900 font-bold mb-2">مهر و امضای ارزیاب/درمانگر:</label>
                     <div class="w-full h-12 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50"></div>
                 </div>
             </div>
@@ -175,7 +218,7 @@
             <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition duration-300 w-full md:w-auto">
                 🖨️ چاپ / ذخیره PDF
             </button>
-            <button onclick="document.getElementById('report-form').reset(); document.getElementById('f_is_new_eval').checked = false;" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-xl transition duration-300 w-full md:w-auto">
+            <button onclick="document.getElementById('report-form').reset(); document.getElementById('f_is_new_eval').checked = false; toggleNewEvalForm();" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-xl transition duration-300 w-full md:w-auto">
                 پاکسازی فرم
             </button>
         </div>
@@ -264,19 +307,19 @@
     <!-- MODALS -->
     <!-- 1. Daily Report Detail Modal -->
     <div id="details-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 border-t-8 border-blue-700">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 border-t-8 border-blue-700">
             <div class="flex justify-between items-center border-b-2 border-gray-100 pb-3 mb-4">
-                <h3 class="text-2xl font-extrabold text-blue-900">جزئیات گزارش جلسه</h3>
+                <h3 class="text-2xl font-extrabold text-blue-900">جزئیات گزارش / ارزیابی</h3>
                 <button onclick="closeModal('details-modal')" class="text-gray-400 hover:text-red-500 font-bold text-3xl leading-none">&times;</button>
             </div>
             <div class="space-y-4 modal-scroll pr-2">
                 <div>
-                    <h4 class="font-bold text-gray-800 border-r-4 border-blue-500 pr-2">شرح ارزیابی:</h4>
-                    <p id="modal-eval" class="mt-2 text-gray-700 bg-blue-50/50 p-4 rounded-lg border border-blue-100 whitespace-pre-wrap leading-relaxed shadow-inner min-h-[80px]"></p>
+                    <h4 class="font-bold text-gray-800 border-r-4 border-blue-500 pr-2">متن ارزیابی / گزارش جلسه:</h4>
+                    <p id="modal-eval" class="mt-2 text-gray-800 bg-blue-50/50 p-4 rounded-lg border border-blue-100 whitespace-pre-wrap leading-loose shadow-inner min-h-[80px] text-justify"></p>
                 </div>
                 <div>
                     <h4 class="font-bold text-gray-800 border-r-4 border-green-500 pr-2">برنامه منزل:</h4>
-                    <p id="modal-home" class="mt-2 text-gray-700 bg-green-50/50 p-4 rounded-lg border border-green-100 whitespace-pre-wrap leading-relaxed shadow-inner min-h-[80px]"></p>
+                    <p id="modal-home" class="mt-2 text-gray-800 bg-green-50/50 p-4 rounded-lg border border-green-100 whitespace-pre-wrap leading-relaxed shadow-inner min-h-[80px]"></p>
                 </div>
             </div>
             <div class="mt-6 pt-4 border-t-2 border-gray-100 text-center">
@@ -323,7 +366,6 @@
         let activeRecognition = null;
         function startDictation(elementId, btnElement) {
             const inputEl = document.getElementById(elementId);
-            
             if (activeRecognition) {
                 activeRecognition.stop();
                 activeRecognition = null;
@@ -331,15 +373,12 @@
                 inputEl.placeholder = "";
                 return;
             }
-
             try {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                
                 if (!SpeechRecognition) {
                     alert('مرورگر فعلی شما از تایپ صوتی پیش‌فرض وب پشتیبانی نمی‌کند. لطفا به جای این دکمه، از دکمه میکروفون روی کیبورد گوشی خود استفاده کنید.');
                     return;
                 }
-                
                 const recognition = new SpeechRecognition();
                 recognition.lang = 'fa-IR';
                 recognition.continuous = false; 
@@ -357,12 +396,6 @@
                 };
 
                 recognition.onerror = function(event) {
-                    console.error("Speech error: ", event.error);
-                    if(event.error === 'not-allowed') {
-                        alert("لطفا دسترسی به میکروفون را در تنظیمات مرورگر فعال کنید.");
-                    } else if (event.error === 'network') {
-                        alert("برای تایپ صوتی به اینترنت نیاز است.");
-                    }
                     btnElement.classList.remove('recording');
                     inputEl.placeholder = "";
                     activeRecognition = null;
@@ -376,8 +409,7 @@
 
                 recognition.start();
             } catch(err) {
-                console.error(err);
-                alert("امکان استفاده از تایپ صوتی در این مرورگر وجود ندارد. راهکار جایگزین: کیبورد گوشی را باز کنید و روی آیکون میکروفون خود کیبورد ضربه بزنید تا صحبت‌هایتان تایپ شود.");
+                alert("امکان استفاده از تایپ صوتی در این مرورگر وجود ندارد.");
             }
         }
 
@@ -428,7 +460,6 @@
                     currentTherapist = tName;
                     document.getElementById('active-therapist-name').innerText = tName;
                     
-                    // Show "New Eval" checkbox ONLY for Ehsan Jasemi and Fatemeh Emami
                     if (tName === 'احسان جاسمی' || tName === 'فاطمه امامی') {
                         document.getElementById('new-eval-container').classList.remove('hidden');
                         document.getElementById('new-eval-container').classList.add('flex');
@@ -456,17 +487,57 @@
             document.getElementById(modalId).classList.add('hidden');
         }
 
+        function toggleNewEvalForm() {
+            const isChecked = document.getElementById('f_is_new_eval').checked;
+            const newEvalFields = document.getElementById('new-eval-fields');
+            const sessionDiv = document.getElementById('session-div');
+            const evalLabel = document.getElementById('eval-label');
+
+            if (isChecked) {
+                newEvalFields.classList.remove('hidden');
+                newEvalFields.classList.add('grid');
+                sessionDiv.classList.add('hidden');
+                evalLabel.innerText = 'شرح تکمیلی ارزیابی:';
+            } else {
+                newEvalFields.classList.add('hidden');
+                newEvalFields.classList.remove('grid');
+                sessionDiv.classList.remove('hidden');
+                evalLabel.innerText = 'شرح ارزیابی / گزارش جلسه:';
+            }
+        }
+
         // -- Database Interactions --
         async function submitReport() {
             const patient = document.getElementById('f_patient').value;
             if(!patient) { alert('وارد کردن نام مراجع الزامی است.'); return; }
 
-            // Check if New Evaluation is selected
-            let sessionNum = document.getElementById('f_session').value;
             const isNewEval = document.getElementById('f_is_new_eval').checked;
+            let sessionNum = document.getElementById('f_session').value;
+            let finalEvaluation = document.getElementById('f_eval').value;
             
             if (isNewEval) {
-                sessionNum = 'ارزیابی جدید' + (sessionNum ? ' - ' + sessionNum : '');
+                sessionNum = 'ارزیابی جدید';
+                
+                // Pack the new fields into the evaluation text so database schema remains intact
+                const age = document.getElementById('f_age').value || 'ثبت نشده';
+                const history = document.getElementById('f_history').value || 'ثبت نشده';
+                const medical = document.getElementById('f_medical').value || 'ندارد';
+                const expressive = document.getElementById('f_expressive').value || 'ثبت نشده';
+                const receptive = document.getElementById('f_receptive').value || 'ثبت نشده';
+                const referral = document.getElementById('f_referral').value || 'تعیین نشده';
+                
+                const structuredEval = `📌 [فرم ارزیابی اولیه مراجع]
+سن کودک: ${age}
+تاریخچه و زمان شروع مشکل: ${history}
+سابقه مشکلات دیگر (پزشکی/رشدی): ${medical}
+تعداد کلمات بیانی: ${expressive}
+وضعیت درک کودک: ${receptive}
+درمانگر پیشنهادی برای ادامه: ${referral}
+
+📝 شرح تکمیلی ارزیاب:
+${finalEvaluation}`;
+
+                finalEvaluation = structuredEval;
             }
 
             const payload = {
@@ -475,7 +546,7 @@
                 session_date: document.getElementById('f_date').value,
                 session_number: sessionNum,
                 diagnosis: document.getElementById('f_diagnosis').value,
-                evaluation: document.getElementById('f_eval').value,
+                evaluation: finalEvaluation,
                 home_practice: document.getElementById('f_home').value,
                 next_session: document.getElementById('f_next').value
             };
@@ -502,11 +573,11 @@
                     msg.className = 'text-center mt-4 font-bold text-green-600';
                     document.getElementById('report-form').reset();
                     document.getElementById('f_is_new_eval').checked = false;
+                    toggleNewEvalForm();
                 } else {
                     throw new Error('Database insertion failed');
                 }
             } catch (error) {
-                console.error(error);
                 msg.innerText = '❌ خطا در ارتباط با پایگاه داده. لطفا اینترنت را چک کنید.';
                 msg.className = 'text-center mt-4 font-bold text-red-600';
             } finally {
@@ -518,24 +589,16 @@
         
         async function deleteReport(id) {
             if(!confirm('آیا از حذف دائم این گزارش مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) return;
-            
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${id}`, {
                     method: 'DELETE',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
                 });
-                
                 if (response.ok) {
                     alert('گزارش با موفقیت از سرور حذف شد.');
-                    loadAdminData(); // Refresh everything
-                } else {
-                    throw new Error('Delete request failed');
-                }
+                    loadAdminData();
+                } else throw new Error();
             } catch (error) {
-                console.error(error);
                 alert('خطا در حذف گزارش. لطفا اینترنت خود را چک کنید.');
             }
         }
@@ -549,10 +612,7 @@
 
             try {
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=*&order=created_at.desc`, {
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`
-                    }
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
                 });
                 
                 if(!response.ok) throw new Error('Fetch failed');
@@ -570,7 +630,6 @@
                     renderPatientFolders(globalReportsData);
                 }
             } catch (error) {
-                console.error(error);
                 noData.innerText = 'ارتباط با دیتابیس برقرار نشد. لطفا اینترنت خود را چک کنید.';
                 noData.classList.remove('hidden');
             } finally {
@@ -578,7 +637,6 @@
             }
         }
 
-        // -- ADMIN TABS & VIEWS --
         function switchAdminTab(tabName) {
             const tDaily = document.getElementById('tab-daily');
             const tEvals = document.getElementById('tab-evals');
@@ -588,18 +646,11 @@
             const vEvals = document.getElementById('admin-evals-view');
             const vFolders = document.getElementById('admin-folders-view');
 
-            // Reset Tab styles
             const inactiveClass = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200";
-            tDaily.className = inactiveClass;
-            tEvals.className = inactiveClass;
-            tFolders.className = inactiveClass;
+            tDaily.className = inactiveClass; tEvals.className = inactiveClass; tFolders.className = inactiveClass;
             
-            // Hide all views
-            vDaily.classList.add('hidden');
-            vEvals.classList.add('hidden');
-            vFolders.classList.add('hidden');
+            vDaily.classList.add('hidden'); vEvals.classList.add('hidden'); vFolders.classList.add('hidden');
 
-            // Activate chosen
             if(tabName === 'daily') {
                 vDaily.classList.remove('hidden');
                 tDaily.className = "bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
@@ -612,15 +663,12 @@
             }
         }
 
-        // 1. Daily Table Render
         function renderDailyTable(data) {
             const tbody = document.getElementById('admin-table-body');
             tbody.innerHTML = '';
-            
             data.forEach((row) => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-blue-50 transition";
-                
                 const dateObj = new Date(row.created_at);
                 const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
                 const dateStr = dateObj.toLocaleDateString('fa-IR');
@@ -628,7 +676,6 @@
                 tr.dataset.eval = btoa(unescape(encodeURIComponent(row.evaluation || 'ثبت نشده')));
                 tr.dataset.home = btoa(unescape(encodeURIComponent(row.home_practice || 'ثبت نشده')));
                 
-                // Add tag if it's a new evaluation
                 let sessionText = row.session_number || '-';
                 if(sessionText.includes('ارزیابی جدید')) {
                     sessionText = `<span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded">${sessionText}</span>`;
@@ -649,35 +696,24 @@
             });
         }
         
-        // 1.5 New Evals Table Render
         function renderEvalsTable(data) {
             const tbody = document.getElementById('admin-evals-body');
             const noMsg = document.getElementById('no-evals-msg');
             tbody.innerHTML = '';
             
-            // Filter only rows containing 'ارزیابی جدید'
             const evalsData = data.filter(r => r.session_number && r.session_number.includes('ارزیابی جدید'));
-            
-            if (evalsData.length === 0) {
-                noMsg.classList.remove('hidden');
-                return;
-            } else {
-                noMsg.classList.add('hidden');
-            }
+            if (evalsData.length === 0) { noMsg.classList.remove('hidden'); return; } else { noMsg.classList.add('hidden'); }
             
             evalsData.forEach((row) => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-purple-100 transition";
-                
                 const dateObj = new Date(row.created_at);
-                const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
-                const dateStr = dateObj.toLocaleDateString('fa-IR');
                 
                 tr.dataset.eval = btoa(unescape(encodeURIComponent(row.evaluation || 'ثبت نشده')));
                 tr.dataset.home = btoa(unescape(encodeURIComponent(row.home_practice || 'ثبت نشده')));
                 
                 tr.innerHTML = `
-                    <td class="p-3 text-gray-600 text-sm whitespace-nowrap">${dateStr} - ${timeStr}</td>
+                    <td class="p-3 text-gray-600 text-sm whitespace-nowrap">${dateObj.toLocaleDateString('fa-IR')} - ${dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'})}</td>
                     <td class="p-3 font-bold text-purple-900">${row.therapist_name || '-'}</td>
                     <td class="p-3 font-bold">${row.patient_name || '-'}</td>
                     <td class="p-3">${row.session_date || '-'}</td>
@@ -700,31 +736,23 @@
             } catch(e) { alert("خطا در خواندن متن"); }
         }
 
-        // 2. EHR Folders Render
         function renderPatientFolders(data) {
             const patientsMap = {};
-            
             data.forEach(row => {
                 let name = (row.patient_name || 'نامشخص').trim();
                 let normalized = name.replace(/\\s+/g, ' '); 
                 if(!patientsMap[normalized]) patientsMap[normalized] = [];
                 patientsMap[normalized].push(row);
             });
-
             const listEl = document.getElementById('patients-list');
             listEl.innerHTML = '';
-            
             Object.keys(patientsMap).sort().forEach(pName => {
                 const records = patientsMap[pName];
-                const count = records.length;
                 const therapists = [...new Set(records.map(r => r.therapist_name).filter(Boolean))];
-                
                 const card = document.createElement('div');
                 card.className = "patient-card bg-white p-5 rounded-2xl shadow-sm border-2 border-gray-100 cursor-pointer hover:shadow-lg hover:border-blue-400 transition group flex flex-col h-full";
                 card.dataset.name = pName.toLowerCase();
-                
                 card.onclick = () => openPatientHistory(pName, records);
-                
                 card.innerHTML = `
                     <div class="flex items-center gap-3 mb-3 border-b border-gray-100 pb-3">
                         <div class="bg-blue-100 text-blue-600 p-2 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition">
@@ -733,7 +761,7 @@
                         <h3 class="font-bold text-lg text-gray-800 line-clamp-1">${pName}</h3>
                     </div>
                     <div class="flex-1">
-                        <p class="text-sm text-gray-500 mb-2">تعداد مراجعات: <span class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">${count} جلسه</span></p>
+                        <p class="text-sm text-gray-500 mb-2">تعداد مراجعات: <span class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">${records.length} جلسه</span></p>
                         <p class="text-xs text-gray-400 leading-tight">درمانگران: ${therapists.join('، ') || '-'}</p>
                     </div>
                     <div class="mt-4 pt-3 border-t border-gray-50 text-center text-blue-600 font-bold text-sm group-hover:text-blue-800">
@@ -747,12 +775,8 @@
         function filterPatients() {
             const query = document.getElementById('patient-search').value.toLowerCase().trim();
             document.querySelectorAll('.patient-card').forEach(card => {
-                const name = card.dataset.name;
-                if(name.includes(query)) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
+                if(card.dataset.name.includes(query)) card.style.display = 'flex';
+                else card.style.display = 'none';
             });
         }
 
@@ -760,53 +784,39 @@
             document.getElementById('history-patient-name').innerText = pName;
             const timeline = document.getElementById('history-timeline');
             timeline.innerHTML = '';
-            
             const sorted = records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-            
             sorted.forEach((row, index) => {
                 const dateObj = new Date(row.created_at);
-                const dateStr = dateObj.toLocaleDateString('fa-IR');
-                const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
-                
                 let badgeColor = "bg-blue-100 text-blue-800 border-blue-200";
                 let tName = row.therapist_name || 'نامشخص';
-                if(tName.includes('موسوی') || tName.includes('کاردرمان')) badgeColor = "bg-purple-100 text-purple-800 border-purple-200";
-                if(tName.includes('پریسا') || tName.includes('روانشناس')) badgeColor = "bg-pink-100 text-pink-800 border-pink-200";
+                if(tName.includes('موسوی')) badgeColor = "bg-purple-100 text-purple-800 border-purple-200";
+                if(tName.includes('پریسا')) badgeColor = "bg-pink-100 text-pink-800 border-pink-200";
                 
                 let sessionText = row.session_number || `جلسه ${index + 1}`;
-                if(sessionText.includes('ارزیابی جدید')) {
-                    sessionText = "ارزیابی اولیه";
-                }
+                if(sessionText.includes('ارزیابی جدید')) sessionText = "📝 ارزیابی اولیه";
                 
                 const item = document.createElement('div');
                 item.className = "relative pl-4 pr-6 py-4 bg-gray-50 border border-gray-200 rounded-xl shadow-sm";
                 item.innerHTML = `
                     <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-full bg-blue-500 rounded-r-xl"></div>
-                    
                     <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-3 pb-2 border-b border-gray-200 gap-2">
                         <div class="flex items-center gap-2">
                             <span class="font-extrabold text-gray-800 bg-white px-3 py-1 rounded shadow-sm border border-gray-100">${sessionText}</span>
-                            <span class="text-sm text-gray-500 flex items-center gap-1">🗓️ ${row.session_date || dateStr} (ثبت: ${timeStr})</span>
+                            <span class="text-sm text-gray-500">🗓️ ${row.session_date || dateObj.toLocaleDateString('fa-IR')}</span>
                         </div>
-                        <span class="text-sm font-bold border px-3 py-1 rounded-full shadow-sm ${badgeColor}">
-                            👤 ${tName}
-                        </span>
+                        <span class="text-sm font-bold border px-3 py-1 rounded-full shadow-sm ${badgeColor}">👤 ${tName}</span>
                     </div>
-                    
                     <div class="space-y-2">
                         ${row.diagnosis ? `<div class="text-sm"><span class="font-bold text-gray-700">تشخیص:</span> <span class="text-gray-600">${row.diagnosis}</span></div>` : ''}
-                        
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mt-2">
                             <span class="font-bold text-blue-900 block border-b border-gray-50 pb-1 mb-1 text-sm">شرح ارزیابی / گزارش:</span> 
                             <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${row.evaluation || 'ثبت نشده'}</p>
                         </div>
-                        
                         ${row.home_practice ? `
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mt-2">
                             <span class="font-bold text-green-700 block border-b border-gray-50 pb-1 mb-1 text-sm">برنامه منزل:</span> 
                             <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${row.home_practice}</p>
                         </div>` : ''}
-                        
                         <div class="text-left mt-2 border-t pt-2 border-gray-100">
                              <button onclick="deleteReport('${row.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold transition">🗑️ حذف این جلسه</button>
                         </div>
@@ -814,7 +824,6 @@
                 `;
                 timeline.appendChild(item);
             });
-            
             document.getElementById('patient-history-modal').classList.remove('hidden');
         }
     </script>
