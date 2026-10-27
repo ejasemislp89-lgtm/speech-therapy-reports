@@ -108,6 +108,15 @@
 
         <form id="report-form" class="space-y-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- NEW EVALUATION TOGGLE -->
+                <div id="new-eval-container" class="hidden md:col-span-2 bg-purple-50 border-2 border-purple-200 p-4 rounded-xl mb-2 flex items-center justify-between">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="f_is_new_eval" class="w-6 h-6 text-purple-700 rounded focus:ring-purple-500 border-purple-300">
+                        <span class="text-purple-900 font-bold text-lg">ثبت به عنوان «ارزیابی جدید»</span>
+                    </label>
+                    <span class="text-purple-600 text-sm font-bold bg-purple-100 px-3 py-1 rounded-full">ویژه مدیریت</span>
+                </div>
+
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">نام و نام خانوادگی مراجع:</label>
                     <input type="text" id="f_patient" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" required>
@@ -166,7 +175,7 @@
             <button onclick="window.print()" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition duration-300 w-full md:w-auto">
                 🖨️ چاپ / ذخیره PDF
             </button>
-            <button onclick="document.getElementById('report-form').reset()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-xl transition duration-300 w-full md:w-auto">
+            <button onclick="document.getElementById('report-form').reset(); document.getElementById('f_is_new_eval').checked = false;" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-8 rounded-xl transition duration-300 w-full md:w-auto">
                 پاکسازی فرم
             </button>
         </div>
@@ -175,7 +184,7 @@
     </div>
 
     <!-- ADMIN VIEW -->
-    <div id="admin-view" class="hidden max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10 border border-gray-200">
+    <div id="admin-view" class="hidden max-w-[1400px] mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10 border border-gray-200">
         <div class="flex flex-col md:flex-row justify-between items-center border-b-4 border-blue-900 pb-4 mb-6">
             <div>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-blue-900">داشبورد مدیریت کلینیک</h1>
@@ -194,6 +203,7 @@
         <!-- TABS -->
         <div class="flex gap-2 mb-6 border-b-2 border-gray-100 pb-4 overflow-x-auto no-scrollbar">
             <button id="tab-daily" onclick="switchAdminTab('daily')" class="bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap">📋 لیست گزارش‌های روزانه</button>
+            <button id="tab-evals" onclick="switchAdminTab('evals')" class="bg-gray-100 hover:bg-purple-100 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200">🔍 ارزیابی‌های جدید</button>
             <button id="tab-folders" onclick="switchAdminTab('folders')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200">📁 پرونده جامع مراجعین</button>
         </div>
 
@@ -202,7 +212,7 @@
 
         <!-- DAILY VIEW -->
         <div id="admin-daily-view" class="overflow-x-auto bg-gray-50 rounded-lg border border-gray-200">
-            <table class="w-full text-right border-collapse min-w-[700px]">
+            <table class="w-full text-right border-collapse min-w-[800px]">
                 <thead>
                     <tr class="bg-blue-900 text-white">
                         <th class="p-3 border-b whitespace-nowrap">زمان ثبت</th>
@@ -210,13 +220,33 @@
                         <th class="p-3 border-b">مراجع</th>
                         <th class="p-3 border-b">تاریخ جلسه</th>
                         <th class="p-3 border-b">تشخیص</th>
-                        <th class="p-3 border-b text-center">جزئیات</th>
+                        <th class="p-3 border-b text-center">عملیات مدیریت</th>
                     </tr>
                 </thead>
                 <tbody id="admin-table-body">
                     <!-- Data injected via JS -->
                 </tbody>
             </table>
+        </div>
+
+        <!-- NEW EVALUATIONS VIEW -->
+        <div id="admin-evals-view" class="hidden overflow-x-auto bg-purple-50 rounded-lg border border-purple-200">
+            <table class="w-full text-right border-collapse min-w-[800px]">
+                <thead>
+                    <tr class="bg-purple-800 text-white">
+                        <th class="p-3 border-b whitespace-nowrap">زمان ثبت</th>
+                        <th class="p-3 border-b">ارزیاب</th>
+                        <th class="p-3 border-b">مراجع ارزیابی شده</th>
+                        <th class="p-3 border-b">تاریخ مراجعه</th>
+                        <th class="p-3 border-b">تشخیص اولیه</th>
+                        <th class="p-3 border-b text-center">عملیات مدیریت</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-evals-body">
+                    <!-- Data injected via JS -->
+                </tbody>
+            </table>
+            <p id="no-evals-msg" class="text-center text-gray-500 py-6 hidden">هیچ ارزیابی جدیدی یافت نشد.</p>
         </div>
 
         <!-- FOLDERS VIEW (EHR) -->
@@ -312,7 +342,6 @@
                 
                 const recognition = new SpeechRecognition();
                 recognition.lang = 'fa-IR';
-                // Safari/iOS fixes
                 recognition.continuous = false; 
                 recognition.interimResults = false;
 
@@ -398,6 +427,16 @@
                 if (pass === 'slp1234') { 
                     currentTherapist = tName;
                     document.getElementById('active-therapist-name').innerText = tName;
+                    
+                    // Show "New Eval" checkbox ONLY for Ehsan Jasemi and Fatemeh Emami
+                    if (tName === 'احسان جاسمی' || tName === 'فاطمه امامی') {
+                        document.getElementById('new-eval-container').classList.remove('hidden');
+                        document.getElementById('new-eval-container').classList.add('flex');
+                    } else {
+                        document.getElementById('new-eval-container').classList.add('hidden');
+                        document.getElementById('new-eval-container').classList.remove('flex');
+                    }
+                    
                     hideAll();
                     document.getElementById('therapist-view').classList.remove('hidden');
                 } else {
@@ -422,11 +461,19 @@
             const patient = document.getElementById('f_patient').value;
             if(!patient) { alert('وارد کردن نام مراجع الزامی است.'); return; }
 
+            // Check if New Evaluation is selected
+            let sessionNum = document.getElementById('f_session').value;
+            const isNewEval = document.getElementById('f_is_new_eval').checked;
+            
+            if (isNewEval) {
+                sessionNum = 'ارزیابی جدید' + (sessionNum ? ' - ' + sessionNum : '');
+            }
+
             const payload = {
                 therapist_name: currentTherapist,
                 patient_name: patient.trim(),
                 session_date: document.getElementById('f_date').value,
-                session_number: document.getElementById('f_session').value,
+                session_number: sessionNum,
                 diagnosis: document.getElementById('f_diagnosis').value,
                 evaluation: document.getElementById('f_eval').value,
                 home_practice: document.getElementById('f_home').value,
@@ -454,6 +501,7 @@
                     msg.innerText = '✅ گزارش با موفقیت در سیستم مرکزی کلینیک ثبت شد!';
                     msg.className = 'text-center mt-4 font-bold text-green-600';
                     document.getElementById('report-form').reset();
+                    document.getElementById('f_is_new_eval').checked = false;
                 } else {
                     throw new Error('Database insertion failed');
                 }
@@ -465,6 +513,30 @@
                 loader.style.display = 'none';
                 msg.classList.remove('hidden');
                 setTimeout(() => { msg.classList.add('hidden'); }, 5000);
+            }
+        }
+        
+        async function deleteReport(id) {
+            if(!confirm('آیا از حذف دائم این گزارش مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) return;
+            
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/reports?id=eq.${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
+                
+                if (response.ok) {
+                    alert('گزارش با موفقیت از سرور حذف شد.');
+                    loadAdminData(); // Refresh everything
+                } else {
+                    throw new Error('Delete request failed');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('خطا در حذف گزارش. لطفا اینترنت خود را چک کنید.');
             }
         }
 
@@ -490,9 +562,11 @@
                 if (globalReportsData.length === 0) {
                     noData.classList.remove('hidden');
                     document.getElementById('admin-table-body').innerHTML = '';
+                    document.getElementById('admin-evals-body').innerHTML = '';
                     document.getElementById('patients-list').innerHTML = '';
                 } else {
                     renderDailyTable(globalReportsData);
+                    renderEvalsTable(globalReportsData);
                     renderPatientFolders(globalReportsData);
                 }
             } catch (error) {
@@ -507,21 +581,33 @@
         // -- ADMIN TABS & VIEWS --
         function switchAdminTab(tabName) {
             const tDaily = document.getElementById('tab-daily');
+            const tEvals = document.getElementById('tab-evals');
             const tFolders = document.getElementById('tab-folders');
+            
             const vDaily = document.getElementById('admin-daily-view');
+            const vEvals = document.getElementById('admin-evals-view');
             const vFolders = document.getElementById('admin-folders-view');
 
+            // Reset Tab styles
+            const inactiveClass = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200";
+            tDaily.className = inactiveClass;
+            tEvals.className = inactiveClass;
+            tFolders.className = inactiveClass;
+            
+            // Hide all views
+            vDaily.classList.add('hidden');
+            vEvals.classList.add('hidden');
+            vFolders.classList.add('hidden');
+
+            // Activate chosen
             if(tabName === 'daily') {
                 vDaily.classList.remove('hidden');
-                vFolders.classList.add('hidden');
-                
                 tDaily.className = "bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
-                tFolders.className = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200";
-            } else {
-                vDaily.classList.add('hidden');
+            } else if(tabName === 'evals') {
+                vEvals.classList.remove('hidden');
+                tEvals.className = "bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
+            } else if(tabName === 'folders') {
                 vFolders.classList.remove('hidden');
-                
-                tDaily.className = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200";
                 tFolders.className = "bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
             }
         }
@@ -531,7 +617,7 @@
             const tbody = document.getElementById('admin-table-body');
             tbody.innerHTML = '';
             
-            data.forEach((row, idx) => {
+            data.forEach((row) => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-blue-50 transition";
                 
@@ -539,9 +625,14 @@
                 const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
                 const dateStr = dateObj.toLocaleDateString('fa-IR');
                 
-                // Store safely in dataset
                 tr.dataset.eval = btoa(unescape(encodeURIComponent(row.evaluation || 'ثبت نشده')));
                 tr.dataset.home = btoa(unescape(encodeURIComponent(row.home_practice || 'ثبت نشده')));
+                
+                // Add tag if it's a new evaluation
+                let sessionText = row.session_number || '-';
+                if(sessionText.includes('ارزیابی جدید')) {
+                    sessionText = `<span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded">${sessionText}</span>`;
+                }
                 
                 tr.innerHTML = `
                     <td class="p-3 text-gray-600 text-sm whitespace-nowrap">${dateStr} - ${timeStr}</td>
@@ -549,10 +640,51 @@
                     <td class="p-3 font-bold">${row.patient_name || '-'}</td>
                     <td class="p-3">${row.session_date || '-'}</td>
                     <td class="p-3">${row.diagnosis || '-'}</td>
-                    <td class="p-3 text-center">
-                        <button onclick="showDailyDetails(this)" class="bg-white border-2 border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 text-blue-700 font-bold px-4 py-1 rounded-lg text-sm transition">
-                            مشاهده
-                        </button>
+                    <td class="p-3 text-center flex justify-center gap-2">
+                        <button onclick="showDailyDetails(this)" class="bg-white border-2 border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 text-blue-700 font-bold px-3 py-1 rounded-lg text-sm transition">مشاهده</button>
+                        <button onclick="deleteReport('${row.id}')" class="bg-white border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 text-red-700 font-bold px-3 py-1 rounded-lg text-sm transition">حذف</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // 1.5 New Evals Table Render
+        function renderEvalsTable(data) {
+            const tbody = document.getElementById('admin-evals-body');
+            const noMsg = document.getElementById('no-evals-msg');
+            tbody.innerHTML = '';
+            
+            // Filter only rows containing 'ارزیابی جدید'
+            const evalsData = data.filter(r => r.session_number && r.session_number.includes('ارزیابی جدید'));
+            
+            if (evalsData.length === 0) {
+                noMsg.classList.remove('hidden');
+                return;
+            } else {
+                noMsg.classList.add('hidden');
+            }
+            
+            evalsData.forEach((row) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b hover:bg-purple-100 transition";
+                
+                const dateObj = new Date(row.created_at);
+                const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
+                const dateStr = dateObj.toLocaleDateString('fa-IR');
+                
+                tr.dataset.eval = btoa(unescape(encodeURIComponent(row.evaluation || 'ثبت نشده')));
+                tr.dataset.home = btoa(unescape(encodeURIComponent(row.home_practice || 'ثبت نشده')));
+                
+                tr.innerHTML = `
+                    <td class="p-3 text-gray-600 text-sm whitespace-nowrap">${dateStr} - ${timeStr}</td>
+                    <td class="p-3 font-bold text-purple-900">${row.therapist_name || '-'}</td>
+                    <td class="p-3 font-bold">${row.patient_name || '-'}</td>
+                    <td class="p-3">${row.session_date || '-'}</td>
+                    <td class="p-3">${row.diagnosis || '-'}</td>
+                    <td class="p-3 text-center flex justify-center gap-2">
+                        <button onclick="showDailyDetails(this)" class="bg-white border-2 border-purple-200 hover:bg-purple-700 hover:text-white hover:border-purple-700 text-purple-800 font-bold px-3 py-1 rounded-lg text-sm transition">مشاهده ارزیابی</button>
+                        <button onclick="deleteReport('${row.id}')" class="bg-white border-2 border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 text-red-700 font-bold px-3 py-1 rounded-lg text-sm transition">حذف</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -572,7 +704,6 @@
         function renderPatientFolders(data) {
             const patientsMap = {};
             
-            // Group by normalized patient name
             data.forEach(row => {
                 let name = (row.patient_name || 'نامشخص').trim();
                 let normalized = name.replace(/\\s+/g, ' '); 
@@ -642,6 +773,11 @@
                 if(tName.includes('موسوی') || tName.includes('کاردرمان')) badgeColor = "bg-purple-100 text-purple-800 border-purple-200";
                 if(tName.includes('پریسا') || tName.includes('روانشناس')) badgeColor = "bg-pink-100 text-pink-800 border-pink-200";
                 
+                let sessionText = row.session_number || `جلسه ${index + 1}`;
+                if(sessionText.includes('ارزیابی جدید')) {
+                    sessionText = "ارزیابی اولیه";
+                }
+                
                 const item = document.createElement('div');
                 item.className = "relative pl-4 pr-6 py-4 bg-gray-50 border border-gray-200 rounded-xl shadow-sm";
                 item.innerHTML = `
@@ -649,7 +785,7 @@
                     
                     <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-3 pb-2 border-b border-gray-200 gap-2">
                         <div class="flex items-center gap-2">
-                            <span class="font-extrabold text-gray-800 bg-white px-3 py-1 rounded shadow-sm border border-gray-100">جلسه ${index + 1}</span>
+                            <span class="font-extrabold text-gray-800 bg-white px-3 py-1 rounded shadow-sm border border-gray-100">${sessionText}</span>
                             <span class="text-sm text-gray-500 flex items-center gap-1">🗓️ ${row.session_date || dateStr} (ثبت: ${timeStr})</span>
                         </div>
                         <span class="text-sm font-bold border px-3 py-1 rounded-full shadow-sm ${badgeColor}">
@@ -670,6 +806,10 @@
                             <span class="font-bold text-green-700 block border-b border-gray-50 pb-1 mb-1 text-sm">برنامه منزل:</span> 
                             <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${row.home_practice}</p>
                         </div>` : ''}
+                        
+                        <div class="text-left mt-2 border-t pt-2 border-gray-100">
+                             <button onclick="deleteReport('${row.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold transition">🗑️ حذف این جلسه</button>
+                        </div>
                     </div>
                 `;
                 timeline.appendChild(item);
