@@ -287,14 +287,13 @@
         // State
         let currentRole = '';
         let currentTherapist = '';
-        let globalReportsData = []; // Store data for EHR view
+        let globalReportsData = []; 
 
         // -- VOICE TO TEXT LOGIC --
         let activeRecognition = null;
         function startDictation(elementId, btnElement) {
             const inputEl = document.getElementById(elementId);
             
-            // If already recording, stop it
             if (activeRecognition) {
                 activeRecognition.stop();
                 activeRecognition = null;
@@ -303,32 +302,38 @@
                 return;
             }
 
-            if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+            try {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                const recognition = new SpeechRecognition();
                 
+                if (!SpeechRecognition) {
+                    alert('مرورگر فعلی شما از تایپ صوتی پیش‌فرض وب پشتیبانی نمی‌کند. لطفا به جای این دکمه، از دکمه میکروفون روی کیبورد گوشی خود استفاده کنید.');
+                    return;
+                }
+                
+                const recognition = new SpeechRecognition();
                 recognition.lang = 'fa-IR';
-                recognition.continuous = true;
-                recognition.interimResults = true;
+                // Safari/iOS fixes
+                recognition.continuous = false; 
+                recognition.interimResults = false;
 
                 recognition.onstart = function() {
                     btnElement.classList.add('recording');
-                    inputEl.placeholder = "🎤 در حال شنیدن صدای شما... صحبت کنید (برای توقف دوباره روی میکروفون بزنید)";
+                    inputEl.placeholder = "🎤 در حال گوش دادن... صحبت کنید";
                     activeRecognition = recognition;
                 };
 
                 recognition.onresult = function(event) {
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        if (event.results[i].isFinal) {
-                            const text = event.results[i][0].transcript;
-                            // Add a space if there's already text
-                            inputEl.value += (inputEl.value.length > 0 && !inputEl.value.endsWith(' ') && !inputEl.value.endsWith('\\n') ? ' ' : '') + text;
-                        }
-                    }
+                    const text = event.results[0][0].transcript;
+                    inputEl.value += (inputEl.value.length > 0 ? ' ' : '') + text;
                 };
 
                 recognition.onerror = function(event) {
                     console.error("Speech error: ", event.error);
+                    if(event.error === 'not-allowed') {
+                        alert("لطفا دسترسی به میکروفون را در تنظیمات مرورگر فعال کنید.");
+                    } else if (event.error === 'network') {
+                        alert("برای تایپ صوتی به اینترنت نیاز است.");
+                    }
                     btnElement.classList.remove('recording');
                     inputEl.placeholder = "";
                     activeRecognition = null;
@@ -341,8 +346,9 @@
                 };
 
                 recognition.start();
-            } else {
-                alert('مرورگر شما از تایپ صوتی پیش‌فرض پشتیبانی نمی‌کند. لطفا از مرورگر کروم استفاده کنید یا روی آیکون میکروفون در کیبورد گوشی خود کلیک کنید.');
+            } catch(err) {
+                console.error(err);
+                alert("امکان استفاده از تایپ صوتی در این مرورگر وجود ندارد. راهکار جایگزین: کیبورد گوشی را باز کنید و روی آیکون میکروفون خود کیبورد ضربه بزنید تا صحبت‌هایتان تایپ شود.");
             }
         }
 
@@ -569,7 +575,6 @@
             // Group by normalized patient name
             data.forEach(row => {
                 let name = (row.patient_name || 'نامشخص').trim();
-                // simple normalization to group similar names
                 let normalized = name.replace(/\\s+/g, ' '); 
                 if(!patientsMap[normalized]) patientsMap[normalized] = [];
                 patientsMap[normalized].push(row);
@@ -581,14 +586,12 @@
             Object.keys(patientsMap).sort().forEach(pName => {
                 const records = patientsMap[pName];
                 const count = records.length;
-                // find all therapists involved
                 const therapists = [...new Set(records.map(r => r.therapist_name).filter(Boolean))];
                 
                 const card = document.createElement('div');
                 card.className = "patient-card bg-white p-5 rounded-2xl shadow-sm border-2 border-gray-100 cursor-pointer hover:shadow-lg hover:border-blue-400 transition group flex flex-col h-full";
                 card.dataset.name = pName.toLowerCase();
                 
-                // Keep data on card for modal
                 card.onclick = () => openPatientHistory(pName, records);
                 
                 card.innerHTML = `
@@ -627,7 +630,6 @@
             const timeline = document.getElementById('history-timeline');
             timeline.innerHTML = '';
             
-            // Sort records: oldest first (chronological order)
             const sorted = records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
             
             sorted.forEach((row, index) => {
@@ -635,7 +637,6 @@
                 const dateStr = dateObj.toLocaleDateString('fa-IR');
                 const timeStr = dateObj.toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
                 
-                // Color coding based on therapist kind (simple logic)
                 let badgeColor = "bg-blue-100 text-blue-800 border-blue-200";
                 let tName = row.therapist_name || 'نامشخص';
                 if(tName.includes('موسوی') || tName.includes('کاردرمان')) badgeColor = "bg-purple-100 text-purple-800 border-purple-200";
@@ -644,7 +645,6 @@
                 const item = document.createElement('div');
                 item.className = "relative pl-4 pr-6 py-4 bg-gray-50 border border-gray-200 rounded-xl shadow-sm";
                 item.innerHTML = `
-                    <!-- Decorative timeline dot indicator (RTL so it's on the right) -->
                     <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-full bg-blue-500 rounded-r-xl"></div>
                     
                     <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-3 pb-2 border-b border-gray-200 gap-2">
