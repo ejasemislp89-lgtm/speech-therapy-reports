@@ -118,7 +118,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-blue-900 font-bold mb-2">نام و نام خانوادگی مراجع:</label>
+                    <label class="block text-blue-900 font-bold mb-2">نام و نام خانوادگی مراجع (کودک):</label>
                     <input type="text" id="f_patient" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" required>
                 </div>
                 <div>
@@ -153,6 +153,17 @@
                     <label class="block text-purple-900 font-bold mb-2">سابقه مشکلات دیگر (پزشکی/رشدی):</label>
                     <input type="text" id="f_medical" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: تشنج در کودکی، بیش فعالی">
                 </div>
+                
+                <!-- NEW FIELDS -->
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">مهارت‌های پیش‌کلامی (توجه، اشاره، تقلید):</label>
+                    <input type="text" id="f_prelinguistic" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: توجه ضعیف، تقلید کلامی و حرکتی ندارد">
+                </div>
+                <div>
+                    <label class="block text-purple-900 font-bold mb-2">ارتباطات غیرکلامی (ژست‌ها، بای‌بای، بوس):</label>
+                    <input type="text" id="f_nonverbal" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: بای بای می‌کند اما اشاره ندارد">
+                </div>
+                
                 <div>
                     <label class="block text-purple-900 font-bold mb-2">تعداد کلمات بیانی کودک:</label>
                     <input type="text" id="f_expressive" class="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:border-purple-500 bg-white" placeholder="مثلاً: حدود ۲۰ کلمه">
@@ -518,10 +529,12 @@
             if (isNewEval) {
                 sessionNum = 'ارزیابی جدید';
                 
-                // Pack the new fields into the evaluation text so database schema remains intact
+                // Pack the new fields into the evaluation text
                 const age = document.getElementById('f_age').value || 'ثبت نشده';
                 const history = document.getElementById('f_history').value || 'ثبت نشده';
                 const medical = document.getElementById('f_medical').value || 'ندارد';
+                const prelinguistic = document.getElementById('f_prelinguistic').value || 'ثبت نشده';
+                const nonverbal = document.getElementById('f_nonverbal').value || 'ثبت نشده';
                 const expressive = document.getElementById('f_expressive').value || 'ثبت نشده';
                 const receptive = document.getElementById('f_receptive').value || 'ثبت نشده';
                 const referral = document.getElementById('f_referral').value || 'تعیین نشده';
@@ -530,6 +543,8 @@
 سن کودک: ${age}
 تاریخچه و زمان شروع مشکل: ${history}
 سابقه مشکلات دیگر (پزشکی/رشدی): ${medical}
+مهارت‌های پیش‌کلامی (توجه مشترک، تقلید، اشاره): ${prelinguistic}
+ارتباطات غیرکلامی (ژست‌ها، بای‌بای، بوس فرستادن): ${nonverbal}
 تعداد کلمات بیانی: ${expressive}
 وضعیت درک کودک: ${receptive}
 درمانگر پیشنهادی برای ادامه: ${referral}
