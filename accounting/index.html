@@ -411,21 +411,21 @@ function renderDay(visits, outId, editable) {
 
   const list = visits.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   const rows = list.map((v) => '<tr>' +
+    '<td class="no-print whitespace-nowrap">' + (editable
+      ? '<button data-act="edit" data-id="' + v.id + '" class="bg-blue-50 text-blue-700 font-bold text-sm px-3 py-1 rounded-lg ml-1">ویرایش</button><button data-act="del" data-id="' + v.id + '" class="bg-red-50 text-red-600 font-bold text-sm px-3 py-1 rounded-lg">حذف</button>' : '') + '</td>' +
     '<td class="num whitespace-nowrap">' + esc(timeLabel(v.created_at)) + '</td>' +
     '<td class="font-bold">' + esc(thName(v.therapist_id)) + '</td>' +
     '<td>' + esc(v.patient_name) + (v.note ? '<div class="text-xs text-gray-400">' + esc(v.note) + '</div>' : '') + '</td>' +
     '<td>' + esc(v.service_name || '—') + '</td>' +
     '<td class="num font-bold">' + fa(v.amount) + '</td>' +
     '<td>' + (v.pay_method === 'unpaid' ? '<span class="text-red-600 font-bold">' : '<span>') + esc(METHODS[v.pay_method] || v.pay_method) + '</span></td>' +
-    '<td>' + esc(SOURCES[v.source] || v.source) + '</td>' +
-    '<td class="no-print whitespace-nowrap">' + (editable
-      ? '<button data-act="edit" data-id="' + v.id + '" class="text-blue-700 font-bold text-xs ml-2">ویرایش</button><button data-act="del" data-id="' + v.id + '" class="text-red-600 font-bold text-xs">حذف</button>' : '') + '</td></tr>').join('');
+    '<td>' + esc(SOURCES[v.source] || v.source) + '</td></tr>').join('');
 
   $(outId).innerHTML =
     '<div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">' + cards + '</div>' +
     '<div class="card p-4 mb-4"><h3 class="font-extrabold text-blue-900 mb-2">جمع هر درمانگر</h3><div class="overflow-x-auto"><table class="t"><thead><tr><th>درمانگر</th><th>تعداد مراجعه</th><th>دریافتی (تومان)</th><th>پرداخت‌نشده</th></tr></thead><tbody>' +
       (rowsT || '<tr><td colspan="4" class="text-center text-gray-400 py-4">مراجعه‌ای ثبت نشده است</td></tr>') + '</tbody></table></div></div>' +
-    '<div class="card p-4"><h3 class="font-extrabold text-blue-900 mb-2">فهرست مراجعه‌ها (' + fa(list.length) + ')</h3><div class="overflow-x-auto"><table class="t"><thead><tr><th>ساعت</th><th>درمانگر</th><th>مراجع</th><th>خدمت</th><th>مبلغ</th><th>پرداخت</th><th>نوع</th><th class="no-print"></th></tr></thead><tbody>' +
+    '<div class="card p-4"><h3 class="font-extrabold text-blue-900 mb-2">فهرست مراجعه‌ها (' + fa(list.length) + ')</h3><div class="overflow-x-auto"><table class="t"><thead><tr><th class="no-print"></th><th>ساعت</th><th>درمانگر</th><th>مراجع</th><th>خدمت</th><th>مبلغ</th><th>پرداخت</th><th>نوع</th></tr></thead><tbody>' +
       (rows || '<tr><td colspan="8" class="text-center text-gray-400 py-4">—</td></tr>') + '</tbody></table></div></div>';
 }
 async function visitsOfDay(iso) { return fetchAll('/rest/v1/acc_visits?select=*&visit_date=eq.' + iso + '&order=created_at.asc'); }
