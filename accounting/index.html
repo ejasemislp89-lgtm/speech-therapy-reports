@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حساب‌کتاب کلینیک</title>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Vazirmatn', sans-serif; background-color: #f3f4f6; }
+  .inp { width: 100%; border: 2px solid #e5e7eb; border-radius: .5rem; padding: .5rem .75rem; background: #f9fafb; }
+  .inp:focus { outline: none; border-color: #3b82f6; background: #fff; }
+  .lbl { display: block; font-weight: 700; color: #1e3a8a; margin-bottom: .25rem; font-size: .875rem; }
+  .card { background: #fff; border-radius: .75rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); border: 1px solid #e5e7eb; }
+  .tabbtn { padding: .5rem 1.25rem; border-radius: .5rem; font-weight: 700; white-space: nowrap; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+  .tabbtn.on { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  table.t { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  table.t th { background: #eff6ff; color: #1e3a8a; padding: .5rem .6rem; text-align: right; white-space: nowrap; }
+  table.t td { padding: .45rem .6rem; border-bottom: 1px solid #f1f5f9; }
+  table.t tfoot td { font-weight: 800; background: #f8fafc; }
+  .num { font-variant-numeric: tabular-nums; }
+  .hidden { display: none !important; }
+  @media print {
+    body { background: #fff; }
+    .no-print { display: none !important; }
+    .card { box-shadow: none; break-inside: avoid; }
+    body.print-one .stmt:not(.print-me) { display: none !important; }
+  }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ================= LOGIN ================= -->
+<div id="login-view" class="max-w-sm mx-auto mt-16 px-4">
+  <div class="card p-8">
+    <div class="text-center mb-6">
+      <div class="text-4xl mb-2">🧾</div>
+      <h1 class="text-xl font-extrabold text-blue-900">حساب‌کتاب روزانه کلینیک</h1>
+      <p class="text-gray-500 text-sm mt-1">ورود با ایمیل و رمز عبور</p>
+    </div>
+    <form id="login-form" class="space-y-4">
+      <div><label class="lbl" for="l-email">ایمیل</label><input id="l-email" type="email" dir="ltr" autocomplete="username" class="inp" required></div>
+      <div><label class="lbl" for="l-pass">رمز عبور</label><input id="l-pass" type="password" dir="ltr" autocomplete="current-password" class="inp" required></div>
+      <p id="login-error" class="text-red-600 text-sm text-center hidden"></p>
+      <button id="login-btn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2.5 rounded-lg">ورود</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app-view" class="hidden max-w-6xl mx-auto px-3 py-4">
+  <header class="no-print card p-3 flex flex-wrap items-center justify-between gap-2 mb-4">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">🧾</span>
+      <div>
+        <div class="font-extrabold text-blue-900">حساب‌کتاب کلینیک</div>
+        <div class="text-xs text-gray-500"><span id="who" dir="ltr"></span> · <span id="role-badge" class="font-bold"></span></div>
+      </div>
+    </div>
+    <button id="logout-btn" class="text-red-600 font-bold text-sm">خروج</button>
+  </header>
+
+  <nav id="tabs" class="no-print flex gap-2 overflow-x-auto pb-2 mb-4">
+    <button class="tabbtn on" data-tab="entry">ثبت امروز</button>
+    <button class="tabbtn admin-only" data-tab="day">گزارش روزانه</button>
+    <button class="tabbtn admin-only" data-tab="month">صورت‌حساب ماهانه</button>
+    <button class="tabbtn admin-only" data-tab="settings">تنظیمات</button>
+  </nav>
+
+  <!-- ---- ثبت امروز ---- -->
+  <section id="tab-entry">
+    <div class="card p-4 mb-4 no-print">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-extrabold text-blue-900">ثبت مراجعه‌ی جدید</h2>
+        <span class="text-sm text-gray-500">امروز: <b id="today-label"></b></span>
+      </div>
+      <form id="visit-form" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="col-span-2 md:col-span-1"><label class="lbl">درمانگر</label><select id="v-therapist" class="inp" required></select></div>
+        <div class="col-span-2 md:col-span-1"><label class="lbl">خدمت</label><select id="v-service" class="inp"></select></div>
+        <div class="col-span-2 md:col-span-2"><label class="lbl">نام مراجع</label><input id="v-patient" class="inp" autocomplete="off" required></div>
+        <div><label class="lbl">مبلغ (تومان)</label><input id="v-amount" class="inp num" dir="ltr" inputmode="numeric" autocomplete="off" required></div>
+        <div><label class="lbl">روش پرداخت</label>
+          <select id="v-method" class="inp">
+            <option value="cash">نقدی</option><option value="card">کارتخوان</option>
+            <option value="transfer">کارت‌به‌کارت</option><option value="unpaid">پرداخت‌نشده</option>
+          </select></div>
+        <div><label class="lbl">نوع مراجع</label>
+          <select id="v-source" class="inp"><option value="center">مراجع مرکز</option><option value="own">مراجع خودِ درمانگر</option></select></div>
+        <div><label class="lbl">توضیح (اختیاری)</label><input id="v-note" class="inp" autocomplete="off"></div>
+        <div class="col-span-2 md:col-span-4">
+          <button id="v-submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-extrabold py-3 rounded-xl text-lg">✔ ثبت مراجعه</button>
+        </div>
+      </form>
+    </div>
+    <div id="entry-out"></div>
+  </section>
+
+  <!-- ---- گزارش روزانه ---- -->
+  <section id="tab-day" class="hidden">
+    <div class="card p-4 mb-4 no-print">
+      <div class="flex flex-wrap items-end gap-3">
+        <div><label class="lbl">سال</label><select id="d-y" class="inp"></select></div>
+        <div><label class="lbl">ماه</label><select id="d-m" class="inp"></select></div>
+        <div><label class="lbl">روز</label><select id="d-d" class="inp"></select></div>
+        <button id="d-show" class="bg-blue-700 text-white font-bold px-5 py-2 rounded-lg">نمایش</button>
+        <button id="d-today" class="tabbtn">امروز</button>
+        <button id="d-yest" class="tabbtn">دیروز</button>
+        <button id="d-print" class="tabbtn">🖨 چاپ</button>
+      </div>
+    </div>
+    <div id="day-out"></div>
+  </section>
+
+  <!-- ---- صورت‌حساب ماهانه ---- -->
+  <section id="tab-month" class="hidden">
+    <div class="card p-4 mb-4 no-print">
+      <div class="flex flex-wrap items-end gap-3">
+        <div><label class="lbl">سال</label><select id="m-y" class="inp"></select></div>
+        <div><label class="lbl">ماه</label><select id="m-m" class="inp"></select></div>
+        <label class="flex items-center gap-2 text-sm font-bold text-gray-700 pb-2"><input id="m-unpaid" type="checkbox"> احتساب پرداخت‌نشده‌ها</label>
+        <button id="m-show" class="bg-blue-700 text-white font-bold px-5 py-2 rounded-lg">ساخت صورت‌حساب</button>
+        <button id="m-print" class="tabbtn">🖨 چاپ همه</button>
+        <button id="m-csv" class="tabbtn">⬇ خروجی اکسل</button>
+      </div>
+    </div>
+    <div id="month-out"></div>
+  </section>
+
+  <!-- ---- تنظیمات ---- -->
+  <section id="tab-settings" class="hidden">
+    <div class="card p-4 mb-4">
+      <h2 class="font-extrabold text-blue-900 mb-1">درمانگرها و درصد سهم</h2>
+      <p class="text-xs text-gray-500 mb-3">درصدها بر اساس دریافتی هر نوع مراجع محاسبه می‌شوند. درمانگر را حذف نکنید؛ فقط غیرفعالش کنید تا سابقه‌ی حساب‌ها بماند.</p>
+      <div class="overflow-x-auto"><table class="t" id="set-th"></table></div>
+      <form id="th-add" class="mt-3 flex flex-wrap gap-2 items-end">
+        <div><label class="lbl">درمانگر جدید</label><input id="th-name" class="inp" required></div>
+        <div><label class="lbl">سمت</label><input id="th-kind" class="inp" placeholder="گفتاردرمانگر"></div>
+        <button class="bg-blue-700 text-white font-bold px-5 py-2 rounded-lg">افزودن</button>
+      </form>
+    </div>
+    <div class="card p-4">
+      <h2 class="font-extrabold text-blue-900 mb-1">خدمت‌ها و تعرفه‌ی پیش‌فرض</h2>
+      <p class="text-xs text-gray-500 mb-3">با انتخاب خدمت در فرم ثبت، مبلغ خودکار پر می‌شود (منشی می‌تواند تغییرش بدهد).</p>
+      <div class="overflow-x-auto"><table class="t" id="set-sv"></table></div>
+      <form id="sv-add" class="mt-3 flex flex-wrap gap-2 items-end">
+        <div><label class="lbl">خدمت جدید</label><input id="sv-name" class="inp" required></div>
+        <div><label class="lbl">تعرفه (تومان)</label><input id="sv-price" class="inp" dir="ltr" inputmode="numeric" value="0"></div>
+        <button class="bg-blue-700 text-white font-bold px-5 py-2 rounded-lg">افزودن</button>
+      </form>
+    </div>
+  </section>
+</div>
+
+<!-- ================= EDIT MODAL ================= -->
+<div id="edit-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3">
+  <div class="card p-5 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <h3 class="font-extrabold text-blue-900 mb-3">ویرایش مراجعه</h3>
+    <form id="edit-form" class="grid grid-cols-2 gap-3">
+      <div class="col-span-2"><label class="lbl">درمانگر</label><select id="e-therapist" class="inp"></select></div>
+      <div class="col-span-2"><label class="lbl">نام مراجع</label><input id="e-patient" class="inp" required></div>
+      <div><label class="lbl">خدمت</label><select id="e-service" class="inp"></select></div>
+      <div><label class="lbl">مبلغ (تومان)</label><input id="e-amount" class="inp" dir="ltr" inputmode="numeric" required></div>
+      <div><label class="lbl">روش پرداخت</label>
+        <select id="e-method" class="inp"><option value="cash">نقدی</option><option value="card">کارتخوان</option><option value="transfer">کارت‌به‌کارت</option><option value="unpaid">پرداخت‌نشده</option></select></div>
+      <div><label class="lbl">نوع مراجع</label>
+        <select id="e-source" class="inp"><option value="center">مراجع مرکز</option><option value="own">مراجع خودِ درمانگر</option></select></div>
+      <div class="col-span-2"><label class="lbl">توضیح</label><input id="e-note" class="inp"></div>
+      <div class="col-span-2 flex gap-2 mt-2">
+        <button class="flex-1 bg-blue-700 text-white font-bold py-2 rounded-lg">ذخیره</button>
+        <button type="button" id="e-cancel" class="flex-1 bg-gray-200 text-gray-800 font-bold py-2 rounded-lg">انصراف</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 text-white px-5 py-2 rounded-lg shadow-lg z-50 font-bold"></div>
+
+<script>
+/* ===================================================================
+   تنظیمات اتصال (کلید «publishable» عمومی است؛ امنیت با ورود و قوانین RLS تأمین می‌شود)
+   =================================================================== */
+const SUPABASE_URL = 'https://gtjqzwdgmilcdgqlqhik.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uzoljC3RKdT8tBe7WyGH_A_E7wthbmV';
+
+/* ---------------- ابزارهای عمومی ---------------- */
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
+const normDigits = (s) => String(s == null ? '' : s)
+  .replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+  .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+const parseMoney = (s) => { const t = normDigits(s).replace(/[^\d]/g, ''); return t ? parseInt(t, 10) : NaN; };
+const METHODS = { cash: 'نقدی', card: 'کارتخوان', transfer: 'کارت‌به‌کارت', unpaid: 'پرداخت‌نشده' };
+const SOURCES = { center: 'مرکز', own: 'خودِ درمانگر' };
+const MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+
+let toastTimer = null;
+function toast(msg, ok = true) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 text-white px-5 py-2 rounded-lg shadow-lg z-50 font-bold ' + (ok ? 'bg-green-600' : 'bg-red-600');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
+}
+
+/* ---------------- تقویم شمسی (الگوریتم jalaali-js) ---------------- */
+const div = (a, b) => ~~(a / b);
+const mod = (a, b) => a - ~~(a / b) * b;
+const BREAKS = [-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+function jalCal(jy) {
+  const bl = BREAKS.length; const gy = jy + 621;
+  let leapJ = -14, jp = BREAKS[0], jm, jump = 0, n, i;
+  if (jy < jp || jy >= BREAKS[bl - 1]) throw new Error('سال نامعتبر');
+  for (i = 1; i < bl; i += 1) {
+    jm = BREAKS[i]; jump = jm - jp;
+    if (jy < jm) break;
+    leapJ = leapJ + div(jump, 33) * 8 + div(mod(jump, 33), 4); jp = jm;
+  }
+  n = jy - jp;
+  leapJ = leapJ + div(n, 33) * 8 + div(mod(n, 33) + 3, 4);
+  if (mod(jump, 33) === 4 && jump - n === 4) leapJ += 1;
+  const leapG = div(gy, 4) - div((div(gy, 100) + 1) * 3, 4) - 150;
+  const march = 20 + leapJ - leapG;
+  if (jump - n < 6) n = n - jump + div(jump + 4, 33) * 33;
+  let leap = mod(mod(n + 1, 33) - 1, 4);
+  if (leap === -1) leap = 4;
+  return { leap, gy, march };
+}
+function g2d(gy, gm, gd) {
+  let d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * mod(gm + 9, 12) + 2, 5) + gd - 34840408;
+  d = d - div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) + 752;
+  return d;
+}
+function d2g(jdn) {
+  let j = 4 * jdn + 139361631;
+  j = j + div(div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908;
+  const i = div(mod(j, 1461), 4) * 5 + 308;
+  const gd = div(mod(i, 153), 5) + 1;
+  const gm = mod(div(i, 153), 12) + 1;
+  const gy = div(j, 1461) - 100100 + div(8 - gm, 6);
+  return { gy, gm, gd };
+}
+function j2d(jy, jm, jd) {
+  const r = jalCal(jy);
+  return g2d(r.gy, 3, r.march) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1;
+}
+function d2j(jdn) {
+  const g = d2g(jdn); let jy = g.gy - 621;
+  const r = jalCal(jy); const jdn1f = g2d(g.gy, 3, r.march);
+  let k = jdn - jdn1f, jm, jd;
+  if (k >= 0) {
+    if (k <= 185) { jm = 1 + div(k, 31); jd = mod(k, 31) + 1; return { jy, jm, jd }; }
+    k -= 186;
+  } else { jy -= 1; k += 179; if (r.leap === 1) k += 1; }
+  jm = 7 + div(k, 30); jd = mod(k, 30) + 1;
+  return { jy, jm, jd };
+}
+const toJalali = (gy, gm, gd) => d2j(g2d(gy, gm, gd));
+const toGregorian = (jy, jm, jd) => d2g(j2d(jy, jm, jd));
+const isJLeap = (jy) => jalCal(jy).leap === 0;
+const jMonthLen = (jy, jm) => (jm <= 6 ? 31 : jm <= 11 ? 30 : (isJLeap(jy) ? 30 : 29));
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoFromG = (g) => g.gy + '-' + pad2(g.gm) + '-' + pad2(g.gd);
+function isoFromJ(jy, jm, jd) { return isoFromG(toGregorian(jy, jm, jd)); }
+function todayISO() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()); }
+function parseISO(iso) { const p = iso.split('-').map(Number); return { gy: p[0], gm: p[1], gd: p[2] }; }
+function jalaliLabel(iso) {
+  const g = parseISO(iso); const j = toJalali(g.gy, g.gm, g.gd);
+  return j.jd.toLocaleString('fa-IR') + ' ' + MONTHS[j.jm - 1] + ' ' + String(j.jy).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+}
+function addDaysISO(iso, delta) {
+  const g = parseISO(iso); return isoFromG(d2g(g2d(g.gy, g.gm, g.gd) + delta));
+}
+function timeLabel(ts) {
+  try { return new Date(ts).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tehran' }); } catch (e) { return ''; }
+}
+
+/* ---------------- ارتباط با Supabase ---------------- */
+let session = null;
+function saveSession() { try { localStorage.setItem('acc_session', JSON.stringify(session)); } catch (e) {} }
+function loadSession() { try { const s = localStorage.getItem('acc_session'); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function clearSession() { session = null; try { localStorage.removeItem('acc_session'); } catch (e) {} }
+
+async function authCall(grant, body) {
+  const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=' + grant, {
+    method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error_description || data.msg || 'خطا در ورود');
+  session = { access_token: data.access_token, refresh_token: data.refresh_token, email: (data.user && data.user.email) || (session && session.email) || '' };
+  saveSession();
+  return session;
+}
+async function refreshSession() {
+  if (!session || !session.refresh_token) return false;
+  try { await authCall('refresh_token', { refresh_token: session.refresh_token }); return true; } catch (e) { return false; }
+}
+async function api(path, opts = {}) {
+  const { method = 'GET', body, headers = {}, retry = true } = opts;
+  const res = await fetch(SUPABASE_URL + path, {
+    method,
+    headers: Object.assign({ apikey: SUPABASE_KEY, Authorization: 'Bearer ' + (session ? session.access_token : SUPABASE_KEY), 'Content-Type': 'application/json' }, headers),
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  if (res.status === 401 && retry && session) {
+    if (await refreshSession()) return api(path, Object.assign({}, opts, { retry: false }));
+    doLogout(); throw new Error('نشست شما تمام شده است. دوباره وارد شوید.');
+  }
+  if (!res.ok) { const t = await res.text(); throw new Error(t || ('خطا ' + res.status)); }
+  if (res.status === 204) return null;
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
+}
+// سرور در هر درخواست حداکثر ۱۰۰۰ ردیف می‌دهد؛ پس صفحه‌به‌صفحه می‌خوانیم تا هیچ مراجعه‌ای جا نماند.
+async function fetchAll(path) {
+  const out = []; const PAGE = 1000;
+  for (let off = 0; off < 1000000; off += PAGE) {
+    const rows = await api(path + (path.includes('?') ? '&' : '?') + 'limit=' + PAGE + '&offset=' + off);
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+  return out;
+}
+
+/* ---------------- وضعیت برنامه ---------------- */
+let role = null, therapists = [], services = [], visitsCache = {};
+const thName = (id) => { const t = therapists.find((x) => x.id === id); return t ? t.name : '—'; };
+
+async function loadRefs() {
+  therapists = await api('/rest/v1/acc_therapists?select=*&order=id.asc');
+  services = await api('/rest/v1/acc_services?select=*&order=id.asc');
+}
+function optionsHTML(list, selected, onlyActive) {
+  return list.filter((x) => !onlyActive || x.active || x.id === selected)
+    .map((x) => '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
+}
+
+/* ---------------- ورود و خروج ---------------- */
+function showApp(show) {
+  $('login-view').classList.toggle('hidden', show);
+  $('app-view').classList.toggle('hidden', !show);
+}
+async function startApp() {
+  role = await api('/rest/v1/rpc/acc_my_role', { method: 'POST', body: {} });
+  if (role !== 'admin' && role !== 'secretary') {
+    clearSession(); showApp(false);
+    $('login-error').textContent = 'این ایمیل دسترسی به سیستم حساب‌کتاب ندارد.'; $('login-error').classList.remove('hidden');
+    return;
+  }
+  await loadRefs();
+  $('who').textContent = session.email;
+  $('role-badge').textContent = role === 'admin' ? 'مدیر' : 'منشی';
+  document.querySelectorAll('.admin-only').forEach((el) => el.classList.toggle('hidden', role !== 'admin'));
+  showApp(true);
+  initEntryForm(); initDatePickers(); showTab('entry');
+}
+function doLogout() {
+  clearSession(); role = null; showApp(false);
+  $('l-pass').value = ''; $('login-error').classList.add('hidden');
+}
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('login-btn'); btn.disabled = true; btn.textContent = 'در حال ورود...';
+  $('login-error').classList.add('hidden');
+  try {
+    await authCall('password', { email: $('l-email').value.trim(), password: $('l-pass').value });
+    await startApp();
+  } catch (err) {
+    $('login-error').textContent = /Invalid login/i.test(err.message) ? 'ایمیل یا رمز عبور اشتباه است.' : 'ورود ناموفق بود: ' + err.message;
+    $('login-error').classList.remove('hidden');
+  } finally { btn.disabled = false; btn.textContent = 'ورود'; }
+});
+$('logout-btn').addEventListener('click', doLogout);
+
+/* ---------------- تب‌ها ---------------- */
+function showTab(name) {
+  ['entry', 'day', 'month', 'settings'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
+  document.querySelectorAll('#tabs .tabbtn').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+  if (name === 'entry') loadEntryDay();
+  if (name === 'day') loadDayReport();
+  if (name === 'settings') renderSettings();
+}
+$('tabs').addEventListener('click', (e) => { const b = e.target.closest('.tabbtn'); if (b) showTab(b.dataset.tab); });
+
+/* ---------------- نمایش خلاصه‌ی یک روز (مشترک بین ثبت و گزارش) ---------------- */
+function summarize(visits, includeUnpaid) {
+  const byT = new Map(); const byM = { cash: 0, card: 0, transfer: 0, unpaid: 0 };
+  let total = 0, count = 0;
+  visits.forEach((v) => {
+    const paid = v.pay_method !== 'unpaid';
+    if (!byT.has(v.therapist_id)) byT.set(v.therapist_id, { count: 0, sum: 0, unpaid: 0 });
+    const t = byT.get(v.therapist_id);
+    t.count += 1; byM[v.pay_method] += v.amount; count += 1;
+    if (paid) { t.sum += v.amount; total += v.amount; } else { t.unpaid += v.amount; }
+  });
+  return { byT, byM, total, count };
+}
+function renderDay(visits, outId, editable) {
+  const s = summarize(visits);
+  const cards = [
+    ['تعداد مراجعه', fa(s.count), 'text-blue-800'],
+    ['دریافتی کل', fa(s.total) + ' تومان', 'text-green-700'],
+    ['نقدی', fa(s.byM.cash), 'text-gray-800'],
+    ['کارتخوان', fa(s.byM.card), 'text-gray-800'],
+    ['کارت‌به‌کارت', fa(s.byM.transfer), 'text-gray-800'],
+    ['پرداخت‌نشده', fa(s.byM.unpaid), 'text-red-600']
+  ].map((c) => '<div class="card p-3 text-center"><div class="text-xs text-gray-500 mb-1">' + c[0] + '</div><div class="font-extrabold ' + c[2] + ' num">' + c[1] + '</div></div>').join('');
+
+  const rowsT = [...s.byT.entries()].sort((a, b) => b[1].sum - a[1].sum).map(([id, t]) =>
+    '<tr><td class="font-bold">' + esc(thName(id)) + '</td><td class="num">' + fa(t.count) + '</td><td class="num">' + fa(t.sum) + '</td><td class="num text-red-600">' + (t.unpaid ? fa(t.unpaid) : '—') + '</td></tr>').join('');
+
+  const list = visits.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  const rows = list.map((v) => '<tr>' +
+    '<td class="num whitespace-nowrap">' + esc(timeLabel(v.created_at)) + '</td>' +
+    '<td class="font-bold">' + esc(thName(v.therapist_id)) + '</td>' +
+    '<td>' + esc(v.patient_name) + (v.note ? '<div class="text-xs text-gray-400">' + esc(v.note) + '</div>' : '') + '</td>' +
+    '<td>' + esc(v.service_name || '—') + '</td>' +
+    '<td class="num font-bold">' + fa(v.amount) + '</td>' +
+    '<td>' + (v.pay_method === 'unpaid' ? '<span class="text-red-600 font-bold">' : '<span>') + esc(METHODS[v.pay_method] || v.pay_method) + '</span></td>' +
+    '<td>' + esc(SOURCES[v.source] || v.source) + '</td>' +
+    '<td class="no-print whitespace-nowrap">' + (editable
+      ? '<button data-act="edit" data-id="' + v.id + '" class="text-blue-700 font-bold text-xs ml-2">ویرایش</button><button data-act="del" data-id="' + v.id + '" class="text-red-600 font-bold text-xs">حذف</button>' : '') + '</td></tr>').join('');
+
+  $(outId).innerHTML =
+    '<div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">' + cards + '</div>' +
+    '<div class="card p-4 mb-4"><h3 class="font-extrabold text-blue-900 mb-2">جمع هر درمانگر</h3><div class="overflow-x-auto"><table class="t"><thead><tr><th>درمانگر</th><th>تعداد مراجعه</th><th>دریافتی (تومان)</th><th>پرداخت‌نشده</th></tr></thead><tbody>' +
+      (rowsT || '<tr><td colspan="4" class="text-center text-gray-400 py-4">مراجعه‌ای ثبت نشده است</td></tr>') + '</tbody></table></div></div>' +
+    '<div class="card p-4"><h3 class="font-extrabold text-blue-900 mb-2">فهرست مراجعه‌ها (' + fa(list.length) + ')</h3><div class="overflow-x-auto"><table class="t"><thead><tr><th>ساعت</th><th>درمانگر</th><th>مراجع</th><th>خدمت</th><th>مبلغ</th><th>پرداخت</th><th>نوع</th><th class="no-print"></th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="8" class="text-center text-gray-400 py-4">—</td></tr>') + '</tbody></table></div></div>';
+}
+async function visitsOfDay(iso) { return fetchAll('/rest/v1/acc_visits?select=*&visit_date=eq.' + iso + '&order=created_at.asc'); }
+
+/* ---------------- ثبت امروز ---------------- */
+let lastTherapistId = null;
+function initEntryForm() {
+  $('today-label').textContent = jalaliLabel(todayISO());
+  $('v-therapist').innerHTML = '<option value="" disabled selected>انتخاب درمانگر...</option>' + optionsHTML(therapists, null, true);
+  $('v-service').innerHTML = '<option value="">— بدون خدمت —</option>' + optionsHTML(services, null, true);
+  if (lastTherapistId) $('v-therapist').value = String(lastTherapistId);
+}
+function formatMoneyInput(el) {
+  const n = parseMoney(el.value);
+  el.value = isNaN(n) ? '' : n.toLocaleString('en-US');
+}
+$('v-amount').addEventListener('input', (e) => formatMoneyInput(e.target));
+$('e-amount').addEventListener('input', (e) => formatMoneyInput(e.target));
+$('v-service').addEventListener('change', () => {
+  const s = services.find((x) => String(x.id) === $('v-service').value);
+  if (s && s.default_price > 0) $('v-amount').value = s.default_price.toLocaleString('en-US');
+});
+$('visit-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const amount = parseMoney($('v-amount').value);
+  const tid = parseInt($('v-therapist').value, 10);
+  const patient = $('v-patient').value.trim();
+  if (!tid) return toast('درمانگر را انتخاب کنید', false);
+  if (!patient) return toast('نام مراجع را بنویسید', false);
+  if (isNaN(amount)) return toast('مبلغ را وارد کنید (برای مراجع رایگان صفر بنویسید)', false);
+  const sid = $('v-service').value ? parseInt($('v-service').value, 10) : null;
+  const svc = services.find((x) => x.id === sid);
+  const btn = $('v-submit'); btn.disabled = true;
+  try {
+    await api('/rest/v1/acc_visits', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: {
+      visit_date: todayISO(), therapist_id: tid, service_id: sid, service_name: svc ? svc.name : null,
+      patient_name: patient, amount, source: $('v-source').value, pay_method: $('v-method').value, note: $('v-note').value.trim() || null
+    }});
+    lastTherapistId = tid;
+    $('v-patient').value = ''; $('v-note').value = ''; $('v-amount').value = '';
+    if (svc && svc.default_price > 0) $('v-amount').value = svc.default_price.toLocaleString('en-US');
+    toast('✔ ثبت شد'); $('v-patient').focus();
+    await loadEntryDay();
+  } catch (err) { toast('ثبت نشد: ' + err.message, false); }
+  finally { btn.disabled = false; }
+});
+async function loadEntryDay() {
+  try { const v = await visitsOfDay(todayISO()); visitsCache.entry = v; renderDay(v, 'entry-out', true); }
+  catch (err) { $('entry-out').innerHTML = '<p class="text-red-600 text-center p-4">خطا در خواندن اطلاعات: ' + esc(err.message) + '</p>'; }
+}
+
+/* ---------------- ویرایش و حذف ---------------- */
+let editingId = null, editingSource = null;
+function findVisit(id) { return [].concat(visitsCache.entry || [], visitsCache.day || []).find((v) => v.id === id); }
+async function onListClick(e, reload) {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const id = parseInt(b.dataset.id, 10); const v = findVisit(id); if (!v) return;
+  if (b.dataset.act === 'del') {
+    if (!confirm('این مراجعه برای «' + v.patient_name + '» حذف شود؟')) return;
+    try { await api('/rest/v1/acc_visits?id=eq.' + id, { method: 'DELETE' }); toast('حذف شد'); reload(); }
+    catch (err) { toast('حذف نشد: ' + err.message, false); }
+  } else {
+    editingId = id; editingSource = reload;
+    $('e-therapist').innerHTML = optionsHTML(therapists, v.therapist_id, true);
+    $('e-service').innerHTML = '<option value="">— بدون خدمت —</option>' + optionsHTML(services, v.service_id, true);
+    $('e-patient').value = v.patient_name; $('e-amount').value = v.amount.toLocaleString('en-US');
+    $('e-method').value = v.pay_method; $('e-source').value = v.source; $('e-note').value = v.note || '';
+    $('edit-modal').classList.remove('hidden');
+  }
+}
+$('entry-out').addEventListener('click', (e) => onListClick(e, loadEntryDay));
+$('day-out').addEventListener('click', (e) => onListClick(e, loadDayReport));
+$('e-cancel').addEventListener('click', () => $('edit-modal').classList.add('hidden'));
+$('edit-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const amount = parseMoney($('e-amount').value);
+  if (isNaN(amount)) return toast('مبلغ نامعتبر است', false);
+  const sid = $('e-service').value ? parseInt($('e-service').value, 10) : null;
+  const svc = services.find((x) => x.id === sid);
+  try {
+    await api('/rest/v1/acc_visits?id=eq.' + editingId, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: {
+      therapist_id: parseInt($('e-therapist').value, 10), patient_name: $('e-patient').value.trim(), service_id: sid,
+      service_name: svc ? svc.name : null, amount, pay_method: $('e-method').value, source: $('e-source').value, note: $('e-note').value.trim() || null
+    }});
+    $('edit-modal').classList.add('hidden'); toast('ذخیره شد'); if (editingSource) editingSource();
+  } catch (err) { toast('ذخیره نشد: ' + err.message, false); }
+});
+
+/* ---------------- انتخاب تاریخ شمسی ---------------- */
+function fillYearSelect(sel, current) {
+  const base = toJalali(...Object.values(parseISO(todayISO()))).jy; let h = '';
+  for (let y = base + 1; y >= base - 5; y--) h += '<option value="' + y + '"' + (y === current ? ' selected' : '') + '>' + String(y).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]) + '</option>';
+  sel.innerHTML = h;
+}
+function fillMonthSelect(sel, current) {
+  sel.innerHTML = MONTHS.map((m, i) => '<option value="' + (i + 1) + '"' + (i + 1 === current ? ' selected' : '') + '>' + m + '</option>').join('');
+}
+function fillDaySelect(sel, jy, jm, current) {
+  const len = jMonthLen(jy, jm); let h = '';
+  for (let d = 1; d <= len; d++) h += '<option value="' + d + '"' + (d === current ? ' selected' : '') + '>' + d.toLocaleString('fa-IR') + '</option>';
+  sel.innerHTML = h;
+}
+function setDayPicker(iso) {
+  const g = parseISO(iso); const j = toJalali(g.gy, g.gm, g.gd);
+  fillYearSelect($('d-y'), j.jy); fillMonthSelect($('d-m'), j.jm); fillDaySelect($('d-d'), j.jy, j.jm, j.jd);
+}
+function dayPickerISO() { return isoFromJ(+$('d-y').value, +$('d-m').value, +$('d-d').value); }
+function initDatePickers() {
+  const t = parseISO(todayISO()); const j = toJalali(t.gy, t.gm, t.gd);
+  setDayPicker(todayISO());
+  fillYearSelect($('m-y'), j.jy); fillMonthSelect($('m-m'), j.jm);
+}
+['d-y', 'd-m'].forEach((id) => $(id).addEventListener('change', () => {
+  const y = +$('d-y').value, m = +$('d-m').value, d = Math.min(+$('d-d').value || 1, jMonthLen(y, m));
+  fillDaySelect($('d-d'), y, m, d);
+}));
+
+/* ---------------- گزارش روزانه (مدیر) ---------------- */
+async function loadDayReport() {
+  if (role !== 'admin') return;
+  try { const v = await visitsOfDay(dayPickerISO()); visitsCache.day = v; renderDay(v, 'day-out', true); }
+  catch (err) { $('day-out').innerHTML = '<p class="text-red-600 text-center p-4">خطا: ' + esc(err.message) + '</p>'; }
+}
+$('d-show').addEventListener('click', loadDayReport);
+$('d-today').addEventListener('click', () => { setDayPicker(todayISO()); loadDayReport(); });
+$('d-yest').addEventListener('click', () => { setDayPicker(addDaysISO(todayISO(), -1)); loadDayReport(); });
+$('d-print').addEventListener('click', () => window.print());
+
+/* ---------------- صورت‌حساب ماهانه (مدیر) ---------------- */
+let lastStatements = [];
+async function buildMonth() {
+  const jy = +$('m-y').value, jm = +$('m-m').value;
+  const start = isoFromJ(jy, jm, 1);
+  const end = jm === 12 ? isoFromJ(jy + 1, 1, 1) : isoFromJ(jy, jm + 1, 1);
+  const includeUnpaid = $('m-unpaid').checked;
+  $('month-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال محاسبه...</p>';
+  let visits;
+  try { visits = await fetchAll('/rest/v1/acc_visits?select=*&visit_date=gte.' + start + '&visit_date=lt.' + end + '&order=visit_date.asc'); }
+  catch (err) { $('month-out').innerHTML = '<p class="text-red-600 text-center p-4">خطا: ' + esc(err.message) + '</p>'; return; }
+
+  const unpaidSkipped = includeUnpaid ? 0 : visits.filter((v) => v.pay_method === 'unpaid').length;
+  const counted = visits.filter((v) => includeUnpaid || v.pay_method !== 'unpaid');
+  const ids = [...new Set(counted.map((v) => v.therapist_id))];
+  const list = therapists.filter((t) => ids.includes(t.id));
+  const monthTitle = MONTHS[jm - 1] + ' ' + String(jy).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
+  lastStatements = list.map((t) => {
+    const secs = ['center', 'own'].map((src) => {
+      const rows = new Map();
+      counted.filter((v) => v.therapist_id === t.id && v.source === src).forEach((v) => {
+        const r = rows.get(v.amount) || { count: 0, sum: 0 }; r.count += 1; r.sum += v.amount; rows.set(v.amount, r);
+      });
+      const arr = [...rows.entries()].sort((a, b) => a[0] - b[0]).map(([tariff, r]) => ({ tariff, count: r.count, sum: r.sum }));
+      const count = arr.reduce((a, r) => a + r.count, 0), sum = arr.reduce((a, r) => a + r.sum, 0);
+      const pct = Number(src === 'center' ? t.center_share : t.own_share);
+      return { src, arr, count, sum, pct, share: Math.round(sum * pct / 100) };
+    });
+    const revenue = secs[0].sum + secs[1].sum, share = secs[0].share + secs[1].share;
+    return { t, secs, revenue, share, count: secs[0].count + secs[1].count };
+  });
+
+  const totRev = lastStatements.reduce((a, s) => a + s.revenue, 0), totShare = lastStatements.reduce((a, s) => a + s.share, 0);
+  const sumRows = lastStatements.map((s) => '<tr><td class="font-bold">' + esc(s.t.name) + '</td><td class="num">' + fa(s.secs[0].count) + '</td><td class="num">' + fa(s.secs[1].count) + '</td><td class="num">' + fa(s.revenue) + '</td><td class="num font-bold text-green-700">' + fa(s.share) + '</td><td class="num">' + fa(s.revenue - s.share) + '</td></tr>').join('');
+
+  let html = '<div class="card p-4 mb-4"><h3 class="font-extrabold text-blue-900 mb-2">خلاصه‌ی ' + esc(monthTitle) + '</h3>' +
+    (unpaidSkipped ? '<p class="text-xs text-red-600 mb-2">' + fa(unpaidSkipped) + ' مراجعه‌ی «پرداخت‌نشده» در محاسبه نیامده است (برای احتساب، تیک بالا را بزنید).</p>' : '') +
+    '<div class="overflow-x-auto"><table class="t"><thead><tr><th>درمانگر</th><th>مراجع مرکز</th><th>مراجع خودش</th><th>دریافتی کل</th><th>سهم درمانگر</th><th>سهم مرکز</th></tr></thead><tbody>' +
+    (sumRows || '<tr><td colspan="6" class="text-center text-gray-400 py-4">در این ماه مراجعه‌ای ثبت نشده است</td></tr>') + '</tbody>' +
+    (sumRows ? '<tfoot><tr><td>جمع کل</td><td></td><td></td><td class="num">' + fa(totRev) + '</td><td class="num">' + fa(totShare) + '</td><td class="num">' + fa(totRev - totShare) + '</td></tr></tfoot>' : '') +
+    '</table></div></div>';
+
+  html += lastStatements.map((s) => {
+    const warn = s.secs.some((x) => x.sum > 0 && x.pct === 0) ? '<p class="text-xs text-red-600 mb-2">⚠ درصد سهم این درمانگر در «تنظیمات» صفر است.</p>' : '';
+    const secHTML = s.secs.map((x) => {
+      const rows = x.arr.map((r) => '<tr><td class="num">' + fa(r.count) + '</td><td class="num">' + fa(r.tariff) + '</td><td class="num">' + fa(r.sum) + '</td><td></td><td></td></tr>').join('');
+      return '<tr><td colspan="5" class="bg-blue-50 font-bold text-blue-900">مراجعین ' + (x.src === 'center' ? 'مرکز' : 'خودِ درمانگر') + '</td></tr>' +
+        (rows || '<tr><td colspan="5" class="text-gray-400">—</td></tr>') +
+        '<tr class="font-bold bg-gray-50"><td class="num">' + fa(x.count) + '</td><td>جمع</td><td class="num">' + fa(x.sum) + '</td><td class="num">' + x.pct.toLocaleString('fa-IR') + '٪</td><td class="num text-green-700">' + fa(x.share) + '</td></tr>';
+    }).join('');
+    return '<div class="card p-4 mb-4 stmt" data-tid="' + s.t.id + '"><div class="flex items-center justify-between mb-2"><h3 class="font-extrabold text-blue-900">صورت‌حساب ' + esc(s.t.name) + ' — ' + esc(monthTitle) + '</h3><button data-print="' + s.t.id + '" class="no-print tabbtn">🖨 چاپ</button></div>' + warn +
+      '<div class="overflow-x-auto"><table class="t"><thead><tr><th>تعداد</th><th>تعرفه</th><th>جمع</th><th>درصد سهم</th><th>سهم (تومان)</th></tr></thead><tbody>' + secHTML + '</tbody>' +
+      '<tfoot><tr><td colspan="4">مجموع سهم ' + esc(s.t.name) + '</td><td class="num text-green-700">' + fa(s.share) + '</td></tr></tfoot></table></div></div>';
+  }).join('');
+  $('month-out').innerHTML = html;
+}
+$('m-show').addEventListener('click', buildMonth);
+$('m-print').addEventListener('click', () => window.print());
+$('month-out').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-print]'); if (!b) return;
+  const card = document.querySelector('.stmt[data-tid="' + b.dataset.print + '"]'); if (!card) return;
+  card.classList.add('print-me'); document.body.classList.add('print-one'); window.print();
+  card.classList.remove('print-me'); document.body.classList.remove('print-one');
+});
+$('m-csv').addEventListener('click', () => {
+  if (!lastStatements.length) return toast('ابتدا صورت‌حساب را بسازید', false);
+  const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+  const lines = [['درمانگر', 'تعداد مراجع مرکز', 'جمع مرکز', 'درصد', 'سهم از مرکز', 'تعداد مراجع خودش', 'جمع خودش', 'درصد', 'سهم از خودش', 'دریافتی کل', 'سهم کل درمانگر'].map(q).join(',')];
+  lastStatements.forEach((s) => lines.push([s.t.name, s.secs[0].count, s.secs[0].sum, s.secs[0].pct, s.secs[0].share, s.secs[1].count, s.secs[1].sum, s.secs[1].pct, s.secs[1].share, s.revenue, s.share].map(q).join(',')));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'hesab-' + $('m-y').value + '-' + pad2($('m-m').value) + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+});
+
+/* ---------------- تنظیمات (مدیر) ---------------- */
+function renderSettings() {
+  $('set-th').innerHTML = '<thead><tr><th>نام</th><th>سمت</th><th>٪ سهم مراجع مرکز</th><th>٪ سهم مراجع خودش</th><th>فعال</th><th></th></tr></thead><tbody>' +
+    therapists.map((t) => '<tr data-id="' + t.id + '"><td class="font-bold">' + esc(t.name) + '</td><td>' + esc(t.kind || '') + '</td>' +
+      '<td><input class="inp num w-24" dir="ltr" inputmode="decimal" data-f="center_share" value="' + esc(t.center_share) + '"></td>' +
+      '<td><input class="inp num w-24" dir="ltr" inputmode="decimal" data-f="own_share" value="' + esc(t.own_share) + '"></td>' +
+      '<td><input type="checkbox" data-f="active"' + (t.active ? ' checked' : '') + '></td>' +
+      '<td><button data-save="th" class="text-blue-700 font-bold">ذخیره</button></td></tr>').join('') + '</tbody>';
+  $('set-sv').innerHTML = '<thead><tr><th>خدمت</th><th>تعرفه‌ی پیش‌فرض (تومان)</th><th>فعال</th><th></th></tr></thead><tbody>' +
+    services.map((s) => '<tr data-id="' + s.id + '"><td class="font-bold">' + esc(s.name) + '</td>' +
+      '<td><input class="inp num w-36" dir="ltr" inputmode="numeric" data-f="default_price" value="' + Number(s.default_price).toLocaleString('en-US') + '"></td>' +
+      '<td><input type="checkbox" data-f="active"' + (s.active ? ' checked' : '') + '></td>' +
+      '<td><button data-save="sv" class="text-blue-700 font-bold">ذخیره</button></td></tr>').join('') + '</tbody>';
+}
+$('tab-settings').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-save]'); if (!b) return;
+  const tr = b.closest('tr'); const id = tr.dataset.id; const kind = b.dataset.save;
+  const val = (f) => tr.querySelector('[data-f="' + f + '"]');
+  try {
+    if (kind === 'th') {
+      const c = parseFloat(normDigits(val('center_share').value)), o = parseFloat(normDigits(val('own_share').value));
+      if (isNaN(c) || isNaN(o) || c < 0 || c > 100 || o < 0 || o > 100) return toast('درصد باید بین ۰ تا ۱۰۰ باشد', false);
+      await api('/rest/v1/acc_therapists?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { center_share: c, own_share: o, active: val('active').checked } });
+    } else {
+      const p = parseMoney(val('default_price').value); if (isNaN(p)) return toast('تعرفه نامعتبر است', false);
+      await api('/rest/v1/acc_services?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { default_price: p, active: val('active').checked } });
+    }
+    await loadRefs(); initEntryForm(); toast('ذخیره شد');
+  } catch (err) { toast('ذخیره نشد: ' + err.message, false); }
+});
+$('th-add').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/rest/v1/acc_therapists', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: { name: $('th-name').value.trim(), kind: $('th-kind').value.trim() || null } });
+    $('th-name').value = ''; $('th-kind').value = ''; await loadRefs(); renderSettings(); initEntryForm(); toast('درمانگر اضافه شد');
+  } catch (err) { toast('اضافه نشد: ' + (/duplicate|unique/i.test(err.message) ? 'این نام قبلاً هست' : err.message), false); }
+});
+$('sv-add').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const p = parseMoney($('sv-price').value);
+  try {
+    await api('/rest/v1/acc_services', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: { name: $('sv-name').value.trim(), default_price: isNaN(p) ? 0 : p } });
+    $('sv-name').value = ''; $('sv-price').value = '0'; await loadRefs(); renderSettings(); initEntryForm(); toast('خدمت اضافه شد');
+  } catch (err) { toast('اضافه نشد: ' + (/duplicate|unique/i.test(err.message) ? 'این نام قبلاً هست' : err.message), false); }
+});
+
+/* ---------------- شروع ---------------- */
+(async function boot() {
+  session = loadSession();
+  if (!session) return;
+  try { if (!(await refreshSession())) { clearSession(); return; } await startApp(); }
+  catch (e) { clearSession(); showApp(false); }
+})();
+</script>
+</body>
+</html>
