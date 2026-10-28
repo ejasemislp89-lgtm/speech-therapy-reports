@@ -520,18 +520,18 @@
         function toggleNewEvalForm() {
             const isChecked = document.getElementById('f_is_new_eval').checked;
             const newEvalFields = document.getElementById('new-eval-fields');
-            const sessionDiv = document.getElementById('session-div');
+            const performanceDiv = document.getElementById('performance-div');
             const evalLabel = document.getElementById('eval-label');
 
             if (isChecked) {
                 newEvalFields.classList.remove('hidden');
                 newEvalFields.classList.add('grid');
-                sessionDiv.classList.add('hidden');
+                if (performanceDiv) performanceDiv.classList.add('hidden');
                 evalLabel.innerText = 'شرح تکمیلی ارزیابی:';
             } else {
                 newEvalFields.classList.add('hidden');
                 newEvalFields.classList.remove('grid');
-                sessionDiv.classList.remove('hidden');
+                if (performanceDiv) performanceDiv.classList.remove('hidden');
                 evalLabel.innerText = 'شرح ارزیابی / گزارش جلسه:';
             }
         }
@@ -542,9 +542,10 @@
             if(!patient) { alert('وارد کردن نام مراجع الزامی است.'); return; }
 
             const isNewEval = document.getElementById('f_is_new_eval').checked;
-            let sessionNum = document.getElementById('f_session').value;
+            // The session-number field no longer exists in the form; keep the column filled for old views
+            let sessionNum = '';
             let finalEvaluation = document.getElementById('f_eval').value;
-            
+
             if (isNewEval) {
                 sessionNum = 'ارزیابی جدید';
                 
@@ -574,23 +575,26 @@ ${finalEvaluation}`;
                 finalEvaluation = structuredEval;
             }
 
-            const payload = {
-                therapist_name: currentTherapist,
-                patient_name: patient.trim(),
-                session_date: document.getElementById('f_date').value,
-                session_number: sessionNum,
-                diagnosis: document.getElementById('f_diagnosis').value,
-                evaluation: finalEvaluation,
-                home_practice: document.getElementById('f_home').value,
-                next_session: document.getElementById('f_next').value
-            };
-
             const loader = document.getElementById('submit-loader');
             const msg = document.getElementById('submit-msg');
             loader.style.display = 'block';
             msg.classList.add('hidden');
 
             try {
+                const performanceEl = document.getElementById('f_performance');
+                const payload = {
+                    therapist_name: currentTherapist,
+                    patient_name: patient.trim(),
+                    session_date: document.getElementById('f_date').value,
+                    session_number: sessionNum,
+                    diagnosis: document.getElementById('f_diagnosis').value,
+                    evaluation: finalEvaluation,
+                    home_practice: document.getElementById('f_home').value,
+                    next_session: document.getElementById('f_next_goals').value,
+                    performance: isNewEval ? '' : (performanceEl ? performanceEl.value : ''),
+                    secret_note: document.getElementById('f_secret_note').value
+                };
+
                 const response = await fetch(`${SUPABASE_URL}/rest/v1/reports`, {
                     method: 'POST',
                     headers: {
@@ -609,10 +613,22 @@ ${finalEvaluation}`;
                     document.getElementById('f_is_new_eval').checked = false;
                     toggleNewEvalForm();
                 } else {
-                    throw new Error('Database insertion failed');
+                    let detail = '';
+                    try { detail = (await response.json()).message || ''; } catch (e) {}
+                    const err = new Error('Database insertion failed');
+                    err.serverStatus = response.status;
+                    err.serverDetail = detail;
+                    throw err;
                 }
             } catch (error) {
-                msg.innerText = '❌ خطا در ارتباط با پایگاه داده. لطفا اینترنت را چک کنید.';
+                console.error('submitReport failed', error);
+                if (error && error.serverStatus) {
+                    msg.innerText = '❌ سرور گزارش را نپذیرفت (کد ' + error.serverStatus + '). ' + (error.serverDetail || '');
+                } else if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message || '')) {
+                    msg.innerText = '❌ ارتباط با پایگاه داده برقرار نشد. اینترنت یا فیلترشکن را چک کنید.';
+                } else {
+                    msg.innerText = '❌ خطا در ثبت گزارش: ' + ((error && error.message) || 'نامشخص');
+                }
                 msg.className = 'text-center mt-4 font-bold text-red-600';
             } finally {
                 loader.style.display = 'none';
