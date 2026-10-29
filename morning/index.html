@@ -686,6 +686,27 @@ const ADMIN = {
     let h = '<div class="card p-3 mb-3 flex items-center justify-between gap-2"><button class="btn" data-ad="-1" aria-label="روز قبل">›</button><div class="text-center"><div class="font-extrabold">' + dateLabel(aDate) + '</div><div class="text-xs text-slate-500">' + (aDate === todayISO() ? 'امروز' : '<button class="text-teal-700 font-bold" data-ad="0">برگشت به امروز</button>') + '</div></div><button class="btn" data-ad="1" aria-label="روز بعد">‹</button></div>';
     const active = D.children.filter((k) => k.active).length;
     h += '<div class="card p-3 mb-3"><div class="flex items-center justify-between"><span class="font-bold">کودکان ثبت‌شده</span><span class="font-extrabold num">' + fa(active) + ' از ' + fa(CAPACITY) + '</span></div><div class="h-2 bg-slate-100 rounded-full mt-2 overflow-hidden"><div class="h-full ' + (active > CAPACITY ? 'bg-red-500' : 'bg-teal-600') + '" style="width:' + Math.min(100, Math.round(active / CAPACITY * 100)) + '%"></div></div></div>';
+    // ---- آمار روزانه ----
+    const sum = D.trainers.map((t) => {
+      const cls = classesOnDate(t.id, aDate), ids = new Set(cls.map((c) => c.id));
+      const rs = rows.filter((r) => ids.has(r.class_id));
+      const enrolled = cls.reduce((n, c) => n + kidsOf(c.id).length, 0);
+      const cnt = (st) => rs.filter((r) => r.status === st).length;
+      return { t, enrolled, p: cnt('p'), a: cnt('a'), e: cnt('e'), missing: Math.max(0, enrolled - rs.length), classes: cls.length };
+    });
+    const tot = sum.reduce((o, x) => ({ enrolled: o.enrolled + x.enrolled, p: o.p + x.p, a: o.a + x.a, e: o.e + x.e, missing: o.missing + x.missing }), { enrolled: 0, p: 0, a: 0, e: 0, missing: 0 });
+    const uniqP = new Set(rows.filter((r) => r.status === 'p').map((r) => r.child_id)).size;
+    const j = jOf(aDate);
+    window.__dayText = 'آمار روزانهٔ نوبت صبح مرکز ترنم\n' + dateLabel(aDate) + ' ' + faStr(j.jy) + '\n\n' +
+      sum.map((x) => x.t.name + ' (سطح ' + fa(x.t.level) + '): حاضر ' + fa(x.p) + '، غایب ' + fa(x.a) + '، مرخصی ' + fa(x.e) + ' از ' + fa(x.enrolled) + ' نفر' + (x.missing ? ' (' + fa(x.missing) + ' نفر ثبت نشده)' : '')).join('\n') +
+      '\n\nجمع کل: حاضر ' + fa(tot.p) + '، غایب ' + fa(tot.a) + '، مرخصی ' + fa(tot.e) + ' از ' + fa(tot.enrolled) + ' نفر';
+    h += '<div class="card p-4 mb-3"><div class="flex items-center justify-between gap-2 mb-3 flex-wrap"><h2 class="font-extrabold text-teal-900">آمار روزانه</h2><button class="btn text-sm" id="day-copy">کپی آمار برای ارسال</button></div>' +
+      (sum.some((x) => x.classes) ? '<div class="overflow-x-auto"><table class="t"><thead><tr><th>مربی</th><th>حاضر</th><th>غایب</th><th>مرخصی</th><th>کل بچه‌ها</th><th>ثبت‌نشده</th></tr></thead><tbody>' +
+        sum.map((x) => '<tr><td class="font-bold">' + esc(x.t.name) + '<div class="text-xs text-slate-400 font-normal">سطح ' + fa(x.t.level) + '</div></td><td class="num font-bold text-green-700">' + fa(x.p) + '</td><td class="num font-bold text-red-600">' + fa(x.a) + '</td><td class="num text-blue-700">' + fa(x.e) + '</td><td class="num">' + fa(x.enrolled) + '</td><td class="num">' + (x.missing ? '<span class="chip bg-amber-100 text-amber-800">' + fa(x.missing) + '</span>' : '—') + '</td></tr>').join('') +
+        '</tbody><tfoot><tr class="bg-teal-50"><td class="font-extrabold">جمع کل</td><td class="num font-extrabold text-green-700">' + fa(tot.p) + '</td><td class="num font-extrabold text-red-600">' + fa(tot.a) + '</td><td class="num font-extrabold text-blue-700">' + fa(tot.e) + '</td><td class="num font-extrabold">' + fa(tot.enrolled) + '</td><td class="num font-extrabold">' + (tot.missing ? fa(tot.missing) : '—') + '</td></tr></tfoot></table></div>' +
+        '<p class="text-xs text-slate-500 mt-2">' + fa(uniqP) + ' کودک متفاوت امروز حاضر بوده‌اند.' + (tot.missing ? ' «ثبت‌نشده» یعنی مربی هنوز حضور و غیاب آن کودک را نزده است.' : '') + '</p>'
+        : '<p class="text-sm text-slate-400">در این روز کلاسی برگزار نمی‌شود.</p>') + '</div>' +
+      '<h3 class="font-extrabold text-slate-700 px-1 mb-2">جزئیات کلاس‌ها</h3>';
     D.trainers.forEach((t) => {
       const cls = classesOnDate(t.id, aDate);
       h += '<div class="card p-3 mb-2"><div class="font-extrabold text-teal-900 mb-2">' + esc(t.name) + ' <span class="text-xs text-slate-500 font-normal">سطح ' + fa(t.level) + '</span></div>' +
@@ -697,6 +718,12 @@ const ADMIN = {
         }).join('') : '<div class="text-sm text-slate-400">کلاسی در این روز ندارد</div>') + '</div>';
     });
     $('view').innerHTML = h;
+    const cp = $('day-copy');
+    if (cp) cp.onclick = async () => {
+      const text = window.__dayText || '';
+      try { await navigator.clipboard.writeText(text); toast('آمار کپی شد؛ در تلگرام یا واتساپ بچسبانید'); }
+      catch (e) { openModal('<h3 class="font-extrabold mb-2">متن آمار</h3><p class="text-sm text-slate-500 mb-2">متن را انتخاب و کپی کنید.</p><textarea class="inp" rows="10" id="day-text" readonly></textarea><button class="btn w-full mt-3" onclick="closeModal()">بستن</button>'); $('day-text').value = text; $('day-text').select(); }
+    };
   },
   async follow() {
     await loadBase(); const rows = await loadAtt(addDays(todayISO(), -60), todayISO());
