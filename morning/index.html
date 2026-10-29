@@ -364,13 +364,20 @@ function go(tab) {
 let tDate = todayISO(), tClass = null, draft = {}, tAtt = [];
 function startTrainer() {
   tDate = todayISO(); tClass = null;
-  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
+  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['follow', '📞 پیگیری غیبت'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
   go('today');
 }
 async function refreshTrainerAtt() {
   const ids = classesOfTrainer(me.id).map((c) => c.id);
   tAtt = await loadAtt(addDays(todayISO(), -45), addDays(tDate > todayISO() ? tDate : todayISO(), 0), ids);
+  updateFollowBadge();
 }
+function updateFollowBadge() {
+  const b = document.querySelector('#tabs [data-tab="follow"]'); if (!b) return;
+  const n = pendingFollowups(tAtt.filter((r) => r.att_date <= todayISO()), me.id).length;
+  b.innerHTML = '📞 پیگیری غیبت' + (n ? ' <span class="chip bg-red-600 text-white" style="padding:0 .45rem">' + fa(n) + '</span>' : '');
+}
+function daysAgo(iso) { return Math.round((new Date(todayISO()) - new Date(iso)) / 86400000); }
 const TRAINER = {
   async today() {
     await loadBase(); await refreshTrainerAtt();
@@ -383,6 +390,7 @@ const TRAINER = {
     }
     renderToday();
   },
+  async follow() { await loadBase(); await refreshTrainerAtt(); renderFollow(); },
   async children() { await loadBase(); renderMyChildren(); },
   async msg() { renderMsg(); },
   async card() {
@@ -436,9 +444,9 @@ function renderToday() {
     (groupOfDow(dowOf(tDate)) ? ' · روز ' + GROUP[groupOfDow(dowOf(tDate))] : '') + '</div></div>' +
     '<button class="btn" data-act="day" data-d="1" aria-label="روز بعد">‹</button></div>';
   if (pend.length) {
-    h += '<div class="card p-3 mb-3 border-red-200 bg-red-50"><div class="font-extrabold text-red-700 mb-2">غیبت‌های پیگیری‌نشده (' + fa(pend.length) + ')</div><div class="space-y-2">' +
+    h += '<div class="card p-3 mb-3 border-red-200 bg-red-50"><div class="font-extrabold text-red-700 mb-1">⚠️ غیبت‌های پیگیری‌نشده (' + fa(pend.length) + ')</div><p class="text-xs text-red-800 mb-2">پیگیری غیبت‌ها خیلی مهم است و در کارنامه و پاداش شما حساب می‌شود. لطفاً تا ۴۸ ساعت با خانواده تماس بگیرید.</p><div class="space-y-2">' +
       pend.slice(0, 8).map((r) => { const k = childById(r.child_id); return '<div class="flex items-center justify-between gap-2 bg-white rounded-xl p-2 border border-red-100"><div class="min-w-0"><div class="font-bold truncate">' + esc(k ? k.name : '—') + '</div><div class="text-xs text-slate-500">' + shortDate(r.att_date) + (k && k.parent_phone ? ' · <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</div></div><button class="btn text-sm" data-act="follow" data-id="' + r.id + '">ثبت پیگیری</button></div>'; }).join('') +
-      '</div></div>';
+      '</div>' + (pend.length > 8 ? '<button class="btn w-full mt-2 text-sm" data-act="gofollow">دیدن همه (' + fa(pend.length) + ')</button>' : '') + '</div>';
   }
   if (!list.length) {
     h += '<div class="card p-8 text-center text-slate-500">' + (dowOf(tDate) === 6 ? 'جمعه کلاسی ندارید.' : 'برای این روز کلاسی تعریف نشده است.') + '</div>';
@@ -492,6 +500,7 @@ $('view').addEventListener('click', async (e) => {
     else if (act === 'save') saveAttendance(b);
     else if (act === 'roster') openRoster();
     else if (act === 'follow') openFollow(+b.dataset.id);
+    else if (act === 'gofollow') go('follow');
   } else if (current === 'children') {
     if (act === 'newsingle') openSingle();
     else if (act === 'editkid') openKid(+b.dataset.id);
@@ -528,6 +537,27 @@ async function saveAttendance(btn) {
   } catch (err) { console.error(err); toast(errText(err), false); btn.disabled = false; btn.textContent = 'ذخیرهٔ حضور و غیاب'; }
 }
 
+function renderFollow() {
+  const past = tAtt.filter((r) => r.att_date <= todayISO());
+  const pend = pendingFollowups(past, me.id);
+  const done = past.filter((r) => r.status === 'a' && r.followup && r.followup.trim()).sort((a, b) => (b.followup_at || '').localeCompare(a.followup_at || '')).slice(0, 15);
+  let h = '<div class="card p-4 mb-3 bg-red-50 border-2 border-red-300"><div class="font-extrabold text-red-700 text-lg mb-2">📞 پیگیری غیبت‌ها؛ مهم‌ترین بخش کار شما</div>' +
+    '<p class="text-sm text-red-900 leading-7">هر غیبت باید <b>حداکثر تا ۴۸ ساعت</b> با تماس با خانواده پیگیری و نتیجه‌اش اینجا ثبت شود. غیبت‌های پشت‌سرهم معمولاً اولین نشانهٔ کنار گذاشتن درمان است و تماس به‌موقع شما، هم کودک را در کلاس نگه می‌دارد و هم به خانواده نشان می‌دهد مرکز پیگیر فرزندشان است.</p>' +
+    '<p class="text-sm text-red-900 leading-7 mt-2">پیگیری‌ها مستقیم در <b>کارنامه و پاداش ماهانهٔ</b> شما حساب می‌شود و مدیریت هم غیبت‌های پیگیری‌نشده را می‌بیند.</p></div>';
+  h += '<div class="card p-4 mb-3"><div class="font-extrabold mb-2">' + (pend.length ? 'منتظر پیگیری (' + fa(pend.length) + ')' : 'منتظر پیگیری') + '</div>' +
+    (pend.length ? '<div class="space-y-2">' + pend.map((r) => {
+      const k = childById(r.child_id), c = classById(r.class_id), ago = daysAgo(r.att_date), st = c ? absenceStreak(past, c.id, r.child_id) : 0;
+      return '<div class="flex items-center justify-between gap-2 rounded-xl p-2 border ' + (ago >= 2 ? 'border-red-300 bg-red-50' : 'border-slate-200') + '"><div class="min-w-0"><div class="font-bold truncate">' + esc(k ? k.name : '—') + '</div>' +
+        '<div class="text-xs text-slate-500">' + shortDate(r.att_date) + (c ? ' · ' + slotLabel(c.slot) : '') + (k && k.parent_phone ? ' · <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</div>' +
+        '<div class="flex flex-wrap gap-1 mt-1">' + (ago >= 2 ? '<span class="chip bg-red-600 text-white">دیر شده</span>' : '<span class="chip bg-amber-100 text-amber-800">' + (ago ? 'دیروز' : 'امروز') + '</span>') + (st >= 2 ? '<span class="chip bg-red-100 text-red-700">' + fa(st) + ' جلسه پشت‌سرهم غایب</span>' : '') + '</div></div>' +
+        '<button class="btn btn-main text-sm" data-fid="' + r.id + '">ثبت پیگیری</button></div>';
+    }).join('') + '</div>' : '<p class="text-sm text-emerald-700">✓ همهٔ غیبت‌ها پیگیری شده‌اند. عالی!</p>') + '</div>';
+  h += '<div class="card p-4"><div class="font-extrabold mb-2">پیگیری‌های انجام‌شده</div>' +
+    (done.length ? done.map((r) => { const k = childById(r.child_id); return '<div class="py-2 border-t border-slate-100"><div class="font-bold text-sm">' + esc(k ? k.name : '—') + ' <span class="text-xs text-slate-400 font-normal">· غیبت ' + shortDate(r.att_date) + '</span></div><div class="text-xs text-slate-600">' + esc(r.followup) + '</div></div>'; }).join('') : '<p class="text-sm text-slate-400">هنوز موردی نیست.</p>') + '</div>';
+  $('view').innerHTML = h;
+  $('view').querySelectorAll('[data-fid]').forEach((b) => b.onclick = () => openFollow(+b.dataset.fid));
+}
+
 function openFollow(id) {
   const r = tAtt.find((x) => x.id === id); if (!r) return; const k = childById(r.child_id);
   openModal('<h3 class="font-extrabold text-lg mb-1">پیگیری غیبت ' + esc(k ? k.name : '') + '</h3><p class="text-sm text-slate-500 mb-3">' + dateLabel(r.att_date) + (k && k.parent_phone ? ' · تلفن والدین: <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</p>' +
@@ -538,7 +568,7 @@ function openFollow(id) {
   $('fu-cancel').onclick = closeModal;
   $('fu-save').onclick = async () => {
     const v = $('fu-text').value.trim(); if (!v) { toast('نتیجهٔ پیگیری را بنویسید', false); return; }
-    try { await api('/rest/v1/m_attendance?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { followup: v, followup_at: new Date().toISOString() } }); closeModal(); toast('پیگیری ثبت شد'); go('today'); }
+    try { await api('/rest/v1/m_attendance?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { followup: v, followup_at: new Date().toISOString() } }); closeModal(); toast('پیگیری ثبت شد'); go(current || 'today'); }
     catch (err) { toast(errText(err), false); }
   };
 }
