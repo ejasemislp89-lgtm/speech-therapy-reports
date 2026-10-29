@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>نوبت صبح ترنم</title>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Vazirmatn', sans-serif; background: #eef2f7; color: #14213d; }
+  .card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; }
+  .inp { width: 100%; border: 2px solid #e2e8f0; border-radius: .75rem; padding: .6rem .8rem; background: #f8fafc; font-size: 16px; }
+  .inp:focus { outline: none; border-color: #0f766e; background: #fff; }
+  .lbl { display: block; font-weight: 700; color: #334155; margin-bottom: .3rem; font-size: .875rem; }
+  .btn { min-height: 44px; border-radius: .75rem; font-weight: 700; padding: 0 1rem; border: 1px solid #cbd5e1; background: #fff; }
+  .btn-main { background: #0f766e; border-color: #0f766e; color: #fff; }
+  .btn-main:disabled { opacity: .6; }
+  .tab { min-height: 44px; padding: 0 1rem; border-radius: .75rem; font-weight: 700; white-space: nowrap; background: #fff; border: 1px solid #e2e8f0; color: #475569; }
+  .tab.on { background: #0f766e; border-color: #0f766e; color: #fff; }
+  .seg { display: grid; gap: .35rem; }
+  .seg button { min-height: 42px; border-radius: .6rem; font-weight: 700; font-size: .85rem; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; padding: 0 .25rem; }
+  .seg button.on-p { background: #15803d; border-color: #15803d; color: #fff; }
+  .seg button.on-a { background: #dc2626; border-color: #dc2626; color: #fff; }
+  .seg button.on-e { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .seg button.on-r { background: #0f766e; border-color: #0f766e; color: #fff; }
+  .chip { display: inline-flex; align-items: center; gap: .25rem; border-radius: 999px; padding: .1rem .6rem; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+  .num { font-variant-numeric: tabular-nums; }
+  table.t { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  table.t th { background: #f0fdfa; color: #134e4a; padding: .5rem .6rem; text-align: right; white-space: nowrap; }
+  table.t td { padding: .5rem .6rem; border-bottom: 1px solid #f1f5f9; }
+  .hidden { display: none !important; }
+  :focus-visible { outline: 3px solid #14b8a6; outline-offset: 2px; }
+</style>
+</head>
+<body class="min-h-screen pb-10">
+
+<!-- ================= ورود ================= -->
+<div id="login-view" class="max-w-sm mx-auto mt-10 px-4">
+  <div class="card p-6">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 rounded-full mx-auto mb-3" style="background: radial-gradient(circle at 35% 35%, #fde68a, #f59e0b 65%)"></div>
+      <h1 class="text-xl font-extrabold text-teal-900">نوبت صبح ترنم</h1>
+      <p class="text-slate-500 text-sm mt-1">مرکز کودکان کم‌شنوا</p>
+    </div>
+    <div class="grid grid-cols-2 gap-2 mb-5">
+      <button id="mode-trainer" class="tab on" type="button">ورود مربی</button>
+      <button id="mode-admin" class="tab" type="button">ورود مدیر</button>
+    </div>
+    <form id="trainer-form" class="space-y-4">
+      <div><label class="lbl" for="t-select">مربی</label><select id="t-select" class="inp" required><option value="" disabled selected>در حال بارگذاری...</option></select></div>
+      <div><label class="lbl" for="t-pass">رمز عبور</label><input id="t-pass" type="password" class="inp text-center" autocomplete="current-password" required></div>
+      <button class="btn btn-main w-full" type="submit">ورود</button>
+    </form>
+    <form id="admin-form" class="space-y-4 hidden">
+      <div><label class="lbl" for="a-email">ایمیل</label><input id="a-email" type="email" dir="ltr" autocomplete="username" class="inp" required></div>
+      <div><label class="lbl" for="a-pass">رمز عبور</label><input id="a-pass" type="password" dir="ltr" autocomplete="current-password" class="inp" required></div>
+      <button id="a-btn" class="btn btn-main w-full" type="submit">ورود</button>
+      <p class="text-xs text-slate-500 text-center">همان ایمیل و رمز ورود سیستم حساب‌کتاب</p>
+    </form>
+    <p id="login-error" class="text-red-600 text-sm text-center mt-3 hidden"></p>
+  </div>
+</div>
+
+<!-- ================= برنامه ================= -->
+<div id="app-view" class="hidden max-w-3xl mx-auto px-3 pt-3">
+  <header class="card p-3 flex items-center justify-between gap-2 mb-3">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-10 h-10 rounded-full shrink-0" style="background: radial-gradient(circle at 35% 35%, #fde68a, #f59e0b 65%)"></div>
+      <div class="min-w-0">
+        <div class="font-extrabold text-teal-900 truncate" id="who"></div>
+        <div class="text-xs text-slate-500" id="who-sub"></div>
+      </div>
+    </div>
+    <button id="logout-btn" class="text-red-600 font-bold text-sm px-2 min-h-[44px]">خروج</button>
+  </header>
+  <nav id="tabs" class="flex gap-2 overflow-x-auto pb-2 mb-3"></nav>
+  <main id="view"></main>
+</div>
+
+<!-- ================= پنجره ================= -->
+<div id="modal" class="hidden fixed inset-0 bg-black/50 z-40 flex items-end sm:items-center justify-center">
+  <div class="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto" id="modal-body"></div>
+</div>
+<div id="toast" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 text-white px-5 py-2.5 rounded-xl shadow-lg z-50 font-bold text-sm"></div>
+
+<script>
+/* ===================================================================
+   تنظیمات
+   =================================================================== */
+const SUPABASE_URL = 'https://gtjqzwdgmilcdgqlqhik.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uzoljC3RKdT8tBe7WyGH_A_E7wthbmV';
+const TRAINER_PASSWORD = 'sobh1405';     // رمز مشترک مربی‌ها
+const CAPACITY = 50;                     // ظرفیت مجوز بهزیستی
+
+const DAYS = ['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه'];
+const MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+const STATUS = { p: 'حاضر', a: 'غایب', e: 'مرخصی' };
+const RATING = { vg: 'بسیار خوب', g: 'خوب', m: 'متوسط', w: 'ضعیف' };
+const RATING_SCORE = { vg: 4, g: 3, m: 2, w: 1 };
+const GROUP = { even: 'زوج', odd: 'فرد' };
+const FOLLOW_CHIPS = ['بیمار بود', 'سفر بود', 'مشکل رفت‌وآمد', 'تماس جواب ندادند', 'والدین اطلاع داده بودند'];
+
+/* ---------------- ابزارها ---------------- */
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faStr = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const slotLabel = (s) => { const m = String(s).match(/^(\d{1,2})-(\d{1,2})$/); return m ? 'ساعت ' + fa(+m[1]) + ' تا ' + fa(+m[2]) : String(s); };
+const normName = (s) => String(s || '').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‍]/g, ' ').replace(/\s+/g, ' ').trim();
+let toastTimer = null;
+function toast(msg, ok = true) {
+  const t = $('toast'); t.textContent = msg;
+  t.className = 'fixed bottom-5 left-1/2 -translate-x-1/2 text-white px-5 py-2.5 rounded-xl shadow-lg z-50 font-bold text-sm ' + (ok ? 'bg-teal-700' : 'bg-red-600');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 3200);
+}
+function openModal(html) { $('modal-body').innerHTML = html; $('modal').classList.remove('hidden'); }
+function closeModal() { $('modal').classList.add('hidden'); $('modal-body').innerHTML = ''; }
+$('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+
+/* ---------------- تقویم شمسی (jalaali) ---------------- */
+const div = (a, b) => ~~(a / b), mod = (a, b) => a - ~~(a / b) * b;
+const BREAKS = [-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+function jalCal(jy) {
+  const gy = jy + 621; let leapJ = -14, jp = BREAKS[0], jm, jump = 0, n, i;
+  for (i = 1; i < BREAKS.length; i += 1) { jm = BREAKS[i]; jump = jm - jp; if (jy < jm) break; leapJ += div(jump, 33) * 8 + div(mod(jump, 33), 4); jp = jm; }
+  n = jy - jp; leapJ += div(n, 33) * 8 + div(mod(n, 33) + 3, 4);
+  if (mod(jump, 33) === 4 && jump - n === 4) leapJ += 1;
+  const leapG = div(gy, 4) - div((div(gy, 100) + 1) * 3, 4) - 150; const march = 20 + leapJ - leapG;
+  if (jump - n < 6) n = n - jump + div(jump + 4, 33) * 33;
+  let leap = mod(mod(n + 1, 33) - 1, 4); if (leap === -1) leap = 4;
+  return { leap, gy, march };
+}
+function g2d(gy, gm, gd) { let d = div((gy + div(gm - 8, 6) + 100100) * 1461, 4) + div(153 * mod(gm + 9, 12) + 2, 5) + gd - 34840408; return d - div(div(gy + 100100 + div(gm - 8, 6), 100) * 3, 4) + 752; }
+function d2g(jdn) { let j = 4 * jdn + 139361631; j = j + div(div(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908; const i = div(mod(j, 1461), 4) * 5 + 308; const gd = div(mod(i, 153), 5) + 1; const gm = mod(div(i, 153), 12) + 1; return { gy: div(j, 1461) - 100100 + div(8 - gm, 6), gm, gd }; }
+function j2d(jy, jm, jd) { const r = jalCal(jy); return g2d(r.gy, 3, r.march) + (jm - 1) * 31 - div(jm, 7) * (jm - 7) + jd - 1; }
+function d2j(jdn) { const g = d2g(jdn); let jy = g.gy - 621; const r = jalCal(jy); let k = jdn - g2d(g.gy, 3, r.march), jm, jd;
+  if (k >= 0) { if (k <= 185) { return { jy, jm: 1 + div(k, 31), jd: mod(k, 31) + 1 }; } k -= 186; } else { jy -= 1; k += 179; if (r.leap === 1) k += 1; }
+  return { jy, jm: 7 + div(k, 30), jd: mod(k, 30) + 1 }; }
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoFromG = (g) => g.gy + '-' + pad2(g.gm) + '-' + pad2(g.gd);
+const parseISO = (iso) => { const p = iso.split('-').map(Number); return { gy: p[0], gm: p[1], gd: p[2] }; };
+const isoToJdn = (iso) => { const g = parseISO(iso); return g2d(g.gy, g.gm, g.gd); };
+const jdnToIso = (d) => isoFromG(d2g(d));
+const addDays = (iso, n) => jdnToIso(isoToJdn(iso) + n);
+const jOf = (iso) => d2j(isoToJdn(iso));
+const tehranISO = (date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(date);
+const todayISO = () => tehranISO(new Date());
+const dowOf = (iso) => { const g = parseISO(iso); return (new Date(Date.UTC(g.gy, g.gm - 1, g.gd)).getUTCDay() + 1) % 7; }; // 0=شنبه
+const groupOfDow = (d) => (d === 0 || d === 2 || d === 4) ? 'even' : (d === 1 || d === 3 || d === 5) ? 'odd' : null;
+function dateLabel(iso) { const j = jOf(iso); return DAYS[dowOf(iso)] + ' ' + fa(j.jd) + ' ' + MONTHS[j.jm - 1]; }
+function shortDate(iso) { const j = jOf(iso); return fa(j.jd) + ' ' + MONTHS[j.jm - 1]; }
+function monthRange(jy, jm) {
+  const len = jm <= 6 ? 31 : jm <= 11 ? 30 : (jalCal(jy).leap === 0 ? 30 : 29);
+  const start = jdnToIso(j2d(jy, jm, 1));
+  return { start, end: addDays(start, len - 1), len };
+}
+
+/* ---------------- Supabase ---------------- */
+let session = null; // فقط برای مدیر
+function loadSession() { try { const s = localStorage.getItem('m_session'); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function saveSession() { try { localStorage.setItem('m_session', JSON.stringify(session)); } catch (e) {} }
+function clearSession() { session = null; try { localStorage.removeItem('m_session'); } catch (e) {} }
+async function authCall(grant, body) {
+  const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=' + grant, { method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error_description || data.msg || 'خطا در ورود');
+  session = { access_token: data.access_token, refresh_token: data.refresh_token, email: (data.user && data.user.email) || (session && session.email) || '' };
+  saveSession(); return session;
+}
+async function api(path, opts = {}) {
+  const { method = 'GET', body, headers = {}, retry = true } = opts;
+  const res = await fetch(SUPABASE_URL + path, {
+    method,
+    headers: Object.assign({ apikey: SUPABASE_KEY, Authorization: 'Bearer ' + (session ? session.access_token : SUPABASE_KEY), 'Content-Type': 'application/json' }, headers),
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  if (res.status === 401 && retry && session && session.refresh_token) {
+    try { await authCall('refresh_token', { refresh_token: session.refresh_token }); return api(path, Object.assign({}, opts, { retry: false })); }
+    catch (e) { logout(); throw new Error('نشست تمام شده است. دوباره وارد شوید.'); }
+  }
+  if (!res.ok) {
+    const t = await res.text();
+    if (/PGRST205|does not exist|Could not find the table/i.test(t)) throw new Error('NOT_SETUP');
+    throw new Error(t || ('خطا ' + res.status));
+  }
+  if (res.status === 204 || res.status === 201) { const txt = await res.text(); return txt ? JSON.parse(txt) : null; }
+  const txt = await res.text(); return txt ? JSON.parse(txt) : null;
+}
+function errText(e) {
+  if (e && e.message === 'NOT_SETUP') return 'پایگاه داده هنوز راه‌اندازی نشده است. فایل setup.sql باید یک‌بار در Supabase اجرا شود.';
+  if (e instanceof TypeError) return 'ارتباط برقرار نشد. اینترنت یا فیلترشکن را بررسی کنید.';
+  return 'خطا: ' + ((e && e.message) || 'نامشخص');
+}
+
+/* ---------------- داده‌ها ---------------- */
+const D = { trainers: [], classes: [], children: [], enroll: [], att: [] };
+async function loadBase() {
+  const [tr, cl, ch, en] = await Promise.all([
+    api('/rest/v1/m_trainers?select=*&order=level.asc'),
+    api('/rest/v1/m_classes?select=*&active=eq.true&order=id.asc'),
+    api('/rest/v1/m_children?select=*&order=name.asc'),
+    api('/rest/v1/m_enrollments?select=*')
+  ]);
+  D.trainers = tr; D.classes = cl; D.children = ch; D.enroll = en;
+}
+async function loadAtt(fromIso, toIso, classIds) {
+  let q = '/rest/v1/m_attendance?select=*&att_date=gte.' + fromIso + '&att_date=lte.' + toIso + '&order=att_date.asc';
+  if (classIds) { if (!classIds.length) return []; q += '&class_id=in.(' + classIds.join(',') + ')'; }
+  const out = [];
+  for (let off = 0; off < 200000; off += 1000) {
+    const rows = await api(q + '&limit=1000&offset=' + off); out.push(...rows); if (rows.length < 1000) break;
+  }
+  return out;
+}
+const trainerById = (id) => D.trainers.find((t) => t.id === id);
+const childById = (id) => D.children.find((c) => c.id === id);
+const classById = (id) => D.classes.find((c) => c.id === id);
+const kidsOf = (classId) => D.enroll.filter((e) => e.class_id === classId).map((e) => childById(e.child_id)).filter((c) => c && c.active).sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+const classesOfTrainer = (tid) => D.classes.filter((c) => c.trainer_id === tid);
+function classesOnDate(tid, iso) {
+  const d = dowOf(iso), g = groupOfDow(d);
+  return classesOfTrainer(tid).filter((c) => c.kind === 'group' ? c.day_group === g : (c.weekdays || []).includes(d))
+    .sort((a, b) => a.slot.localeCompare(b.slot) || (a.kind === 'group' ? -1 : 1));
+}
+function classTitle(c) {
+  if (c.kind === 'single') { const k = kidsOf(c.id)[0]; return 'کلاس تکی' + (k ? ' · ' + k.name : ''); }
+  return 'کلاس گروهی ' + GROUP[c.day_group];
+}
+function classDays(c) {
+  if (c.kind === 'group') return c.day_group === 'even' ? 'شنبه، دوشنبه، چهارشنبه' : 'یکشنبه، سه‌شنبه، پنجشنبه';
+  return (c.weekdays || []).slice().sort().map((d) => DAYS[d]).join('، ');
+}
+const recordedDay = (r) => tehranISO(new Date(r.recorded_at));
+
+/* ---------------- آمار ---------------- */
+function trainerStats(tid, rows, fromIso, toIso) {
+  const mine = rows.filter((r) => { const c = classById(r.class_id); return (c && c.trainer_id === tid) || r.trainer_id === tid; });
+  const sessions = new Map();
+  mine.forEach((r) => { const k = r.class_id + '|' + r.att_date; if (!sessions.has(k)) sessions.set(k, []); sessions.get(k).push(r); });
+  let onTime = 0; sessions.forEach((rs) => { if (rs.some((r) => recordedDay(r) === r.att_date)) onTime += 1; });
+  // جلسه‌هایی که باید ثبت می‌شد (کلاس‌هایی که بچه دارند، تا امروز)
+  // از اولین روزی که این مربی ثبت کرده حساب می‌شود، تا روزهای پیش از شروع استفاده از سیستم جریمه نشوند
+  let expected = 0; const last = toIso < todayISO() ? toIso : todayISO();
+  const first = mine.reduce((m, r) => (!m || r.att_date < m ? r.att_date : m), null);
+  for (let d = first && first > fromIso ? first : (first ? fromIso : addDays(last, 1)); d <= last; d = addDays(d, 1)) classesOnDate(tid, d).forEach((c) => { if (kidsOf(c.id).length) expected += 1; });
+  const abs = mine.filter((r) => r.status === 'a'); const fol = abs.filter((r) => r.followup && r.followup.trim());
+  const p = mine.filter((r) => r.status === 'p').length, a = abs.length, e = mine.filter((r) => r.status === 'e').length;
+  const rated = mine.filter((r) => r.rating);
+  const ratingAvg = rated.length ? rated.reduce((s, r) => s + RATING_SCORE[r.rating], 0) / rated.length : null;
+  const sessCount = sessions.size;
+  const pct = (x, y) => y ? Math.round(x / y * 100) : null;
+  const coverage = pct(Math.min(sessCount, expected), expected), onTimePct = pct(onTime, sessCount), followPct = a ? pct(fol.length, a) : null;
+  const parts = [coverage, onTimePct, followPct].filter((x) => x !== null);
+  const score = parts.length ? Math.round(parts.reduce((s, x) => s + x, 0) / parts.length) : null;
+  return { sessCount, expected, onTime, coverage, onTimePct, abs: a, followed: fol.length, followPct, p, e, attPct: pct(p, p + a + e), ratingAvg, rated: rated.length, score };
+}
+function scoreChip(v) {
+  if (v === null || v === undefined) return '<span class="chip bg-slate-100 text-slate-500">—</span>';
+  const cls = v >= 85 ? 'bg-green-100 text-green-800' : v >= 60 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-700';
+  return '<span class="chip ' + cls + '">' + fa(v) + '٪</span>';
+}
+function ratingLabel(avg) { if (avg === null) return '—'; return avg >= 3.5 ? 'بسیار خوب' : avg >= 2.5 ? 'خوب' : avg >= 1.5 ? 'متوسط' : 'ضعیف'; }
+// غیبت‌های پشت‌سرهم هر کودک در یک کلاس (از آخرین جلسه به عقب)
+function absenceStreak(rows, classId, childId, beforeIso) {
+  const list = rows.filter((r) => r.class_id === classId && r.child_id === childId && (!beforeIso || r.att_date < beforeIso)).sort((a, b) => b.att_date.localeCompare(a.att_date));
+  let n = 0; for (const r of list) { if (r.status === 'a') n += 1; else break; } return n;
+}
+function pendingFollowups(rows, tid) {
+  return rows.filter((r) => r.status === 'a' && !(r.followup && r.followup.trim()) && (!tid || (classById(r.class_id) || {}).trainer_id === tid))
+    .sort((a, b) => b.att_date.localeCompare(a.att_date));
+}
+
+/* ===================================================================
+   ورود
+   =================================================================== */
+let mode = 'trainer', me = null, isAdmin = false;
+function setMode(m) {
+  mode = m; $('mode-trainer').classList.toggle('on', m === 'trainer'); $('mode-admin').classList.toggle('on', m === 'admin');
+  $('trainer-form').classList.toggle('hidden', m !== 'trainer'); $('admin-form').classList.toggle('hidden', m !== 'admin');
+  $('login-error').classList.add('hidden');
+}
+$('mode-trainer').onclick = () => setMode('trainer');
+$('mode-admin').onclick = () => setMode('admin');
+function loginError(msg) { $('login-error').textContent = msg; $('login-error').classList.remove('hidden'); }
+
+async function fillTrainerSelect() {
+  try {
+    const tr = await api('/rest/v1/m_trainers?select=*&active=eq.true&order=level.asc'); D.trainers = tr;
+    $('t-select').innerHTML = '<option value="" disabled selected>انتخاب مربی...</option>' + tr.map((t) => '<option value="' + t.id + '">' + esc(t.name) + ' (سطح ' + fa(t.level) + ')</option>').join('');
+  } catch (e) { $('t-select').innerHTML = '<option value="" disabled selected>—</option>'; loginError(errText(e)); }
+}
+$('trainer-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const tid = +$('t-select').value;
+  if (!tid) { loginError('نام مربی را انتخاب کنید.'); return; }
+  if ($('t-pass').value.trim() !== TRAINER_PASSWORD) { loginError('رمز عبور اشتباه است.'); return; }
+  clearSession(); isAdmin = false;
+  try { await loadBase(); } catch (err) { loginError(errText(err)); return; }
+  me = trainerById(tid); try { sessionStorage.setItem('m_trainer', String(tid)); } catch (x) {}
+  startTrainer();
+});
+$('admin-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('a-btn'); btn.disabled = true; btn.textContent = 'در حال ورود...';
+  try {
+    await authCall('password', { email: $('a-email').value.trim(), password: $('a-pass').value });
+    await startAdmin();
+  } catch (err) {
+    clearSession();
+    loginError(/Invalid login/i.test(err.message) ? 'ایمیل یا رمز عبور اشتباه است.' : errText(err));
+  } finally { btn.disabled = false; btn.textContent = 'ورود'; }
+});
+$('logout-btn').onclick = () => logout();
+function logout() {
+  clearSession(); me = null; isAdmin = false; try { sessionStorage.removeItem('m_trainer'); } catch (x) {}
+  $('app-view').classList.add('hidden'); $('login-view').classList.remove('hidden');
+  $('t-pass').value = ''; $('a-pass').value = ''; closeModal();
+}
+function showApp(who, sub, tabs) {
+  $('login-view').classList.add('hidden'); $('app-view').classList.remove('hidden');
+  $('who').textContent = who; $('who-sub').textContent = sub;
+  $('tabs').innerHTML = tabs.map((t) => '<button class="tab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('');
+}
+$('tabs').addEventListener('click', (e) => { const b = e.target.closest('.tab'); if (b) go(b.dataset.tab); });
+let current = null;
+function go(tab) {
+  current = tab;
+  document.querySelectorAll('#tabs .tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+  $('view').innerHTML = '<div class="text-center text-slate-400 py-10">در حال بارگذاری...</div>';
+  (isAdmin ? ADMIN : TRAINER)[tab]().catch((e) => { console.error(e); $('view').innerHTML = '<div class="card p-6 text-center text-red-600">' + esc(errText(e)) + '</div>'; });
+  window.scrollTo(0, 0);
+}
+
+/* ===================================================================
+   صفحه مربی
+   =================================================================== */
+let tDate = todayISO(), tClass = null, draft = {}, tAtt = [];
+function startTrainer() {
+  tDate = todayISO(); tClass = null;
+  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['children', 'بچه‌های من'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
+  go('today');
+}
+async function refreshTrainerAtt() {
+  const ids = classesOfTrainer(me.id).map((c) => c.id);
+  tAtt = await loadAtt(addDays(todayISO(), -45), addDays(tDate > todayISO() ? tDate : todayISO(), 0), ids);
+}
+const TRAINER = {
+  async today() {
+    await loadBase(); await refreshTrainerAtt();
+    const list = classesOnDate(me.id, tDate);
+    if (tClass && !list.some((c) => c.id === tClass)) tClass = null;
+    if (!tClass && list.length) {
+      const h = +new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Tehran' }).format(new Date());
+      const now = list.find((c) => { const m = c.slot.match(/^(\d+)-(\d+)$/); return m && h >= +m[1] && h < +m[2]; });
+      tClass = (tDate === todayISO() && now ? now : list[0]).id;
+    }
+    renderToday();
+  },
+  async children() { await loadBase(); renderMyChildren(); },
+  async msg() { renderMsg(); },
+  async card() {
+    await loadBase();
+    const tj = jOf(todayISO()); const r = monthRange(tj.jy, tj.jm);
+    const rows = await loadAtt(r.start, r.end, classesOfTrainer(me.id).map((c) => c.id));
+    $('view').innerHTML = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">کارنامه ' + MONTHS[tj.jm - 1] + ' ' + faStr(tj.jy) + '</h2><p class="text-sm text-slate-500">ثبت به‌موقع حضور و پیگیری غیبت‌ها، امتیاز ماهانهٔ شما را می‌سازد.</p></div>' + statsCard(trainerStats(me.id, rows, r.start, r.end));
+  }
+};
+
+function renderToday() {
+  const list = classesOnDate(me.id, tDate);
+  const pend = pendingFollowups(tAtt, me.id).filter((r) => r.att_date < tDate || (r.att_date === tDate && r.class_id !== tClass));
+  let h = '<div class="card p-3 mb-3 flex items-center justify-between gap-2">' +
+    '<button class="btn" data-act="day" data-d="-1" aria-label="روز قبل">›</button>' +
+    '<div class="text-center"><div class="font-extrabold">' + dateLabel(tDate) + '</div><div class="text-xs text-slate-500">' +
+    (tDate === todayISO() ? 'امروز' : '<button class="text-teal-700 font-bold" data-act="today">برگشت به امروز</button>') +
+    (groupOfDow(dowOf(tDate)) ? ' · روز ' + GROUP[groupOfDow(dowOf(tDate))] : '') + '</div></div>' +
+    '<button class="btn" data-act="day" data-d="1" aria-label="روز بعد">‹</button></div>';
+  if (pend.length) {
+    h += '<div class="card p-3 mb-3 border-red-200 bg-red-50"><div class="font-extrabold text-red-700 mb-2">غیبت‌های پیگیری‌نشده (' + fa(pend.length) + ')</div><div class="space-y-2">' +
+      pend.slice(0, 8).map((r) => { const k = childById(r.child_id); return '<div class="flex items-center justify-between gap-2 bg-white rounded-xl p-2 border border-red-100"><div class="min-w-0"><div class="font-bold truncate">' + esc(k ? k.name : '—') + '</div><div class="text-xs text-slate-500">' + shortDate(r.att_date) + (k && k.parent_phone ? ' · <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</div></div><button class="btn text-sm" data-act="follow" data-id="' + r.id + '">ثبت پیگیری</button></div>'; }).join('') +
+      '</div></div>';
+  }
+  if (!list.length) {
+    h += '<div class="card p-8 text-center text-slate-500">' + (dowOf(tDate) === 6 ? 'جمعه کلاسی ندارید.' : 'برای این روز کلاسی تعریف نشده است.') + '</div>';
+    $('view').innerHTML = h; return;
+  }
+  h += '<div class="flex gap-2 overflow-x-auto pb-2 mb-2">' + list.map((c) => {
+    const done = tAtt.some((r) => r.class_id === c.id && r.att_date === tDate);
+    return '<button class="tab' + (c.id === tClass ? ' on' : '') + '" data-act="cls" data-id="' + c.id + '">' + slotLabel(c.slot) + (c.kind === 'single' ? ' · تکی' : '') + (done ? ' ✓' : '') + '</button>';
+  }).join('') + '</div>';
+  const c = classById(tClass); const kids = kidsOf(c.id);
+  const saved = {}; tAtt.filter((r) => r.class_id === c.id && r.att_date === tDate).forEach((r) => { saved[r.child_id] = r; });
+  if (!draft.__key || draft.__key !== c.id + '|' + tDate) {
+    draft = { __key: c.id + '|' + tDate };
+    kids.forEach((k) => { const s = saved[k.id]; draft[k.id] = s ? { status: s.status, rating: s.rating, followup: s.followup || '' } : { status: null, rating: null, followup: '' }; });
+  }
+  const filled = kids.filter((k) => draft[k.id] && draft[k.id].status).length;
+  h += '<div class="card p-3 mb-3"><div class="flex items-start justify-between gap-2 flex-wrap"><div><div class="font-extrabold text-teal-900">' + esc(classTitle(c)) + ' · ' + slotLabel(c.slot) + '</div><div class="text-xs text-slate-500">' + esc(classDays(c)) + ' · ' + fa(kids.length) + ' کودک</div></div>' +
+    '<div class="flex gap-2"><button class="btn text-sm" data-act="roster">مدیریت بچه‌ها</button>' + (kids.length ? '<button class="btn text-sm" data-act="allp">همه حاضر</button>' : '') + '</div></div></div>';
+  if (!kids.length) {
+    h += '<div class="card p-8 text-center text-slate-500"><div class="font-bold text-slate-700 mb-1">هنوز کودکی در این کلاس نیست</div>با «مدیریت بچه‌ها» کودکان کلاس را اضافه کنید.</div>';
+  } else {
+    h += '<div class="space-y-2">' + kids.map((k) => {
+      const d = draft[k.id]; const streak = absenceStreak(tAtt, c.id, k.id, tDate);
+      const seg = (v) => '<button type="button" data-act="st" data-k="' + k.id + '" data-v="' + v + '" class="' + (d.status === v ? 'on-' + v : '') + '">' + STATUS[v] + '</button>';
+      const rseg = (v) => '<button type="button" data-act="rt" data-k="' + k.id + '" data-v="' + v + '" class="' + (d.rating === v ? 'on-r' : '') + '">' + RATING[v] + '</button>';
+      return '<div class="card p-3"><div class="flex items-center justify-between gap-2 mb-2"><div class="font-bold text-lg min-w-0 truncate">' + esc(k.name) + '</div>' +
+        (streak >= 2 ? '<span class="chip bg-red-100 text-red-700">' + fa(streak) + ' غیبت پشت سر هم</span>' : streak === 1 ? '<span class="chip bg-amber-100 text-amber-800">جلسهٔ قبل غایب</span>' : '') + '</div>' +
+        '<div class="seg grid-cols-3">' + seg('p') + seg('a') + seg('e') + '</div>' +
+        (d.status === 'p' ? '<div class="text-xs text-slate-500 mt-3 mb-1 font-bold">عملکرد امروز</div><div class="seg grid-cols-4">' + rseg('vg') + rseg('g') + rseg('m') + rseg('w') + '</div>' : '') +
+        (d.status === 'a' ? '<div class="text-xs text-red-700 mt-3 mb-1 font-bold">پیگیری غیبت' + (k.parent_phone ? ' · تلفن والدین: <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</div>' +
+          '<div class="flex flex-wrap gap-1 mb-2">' + FOLLOW_CHIPS.map((f) => '<button type="button" class="chip ' + (d.followup === f ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 border border-red-100') + ' py-1.5" data-act="fchip" data-k="' + k.id + '" data-v="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div>' +
+          '<input class="inp" data-act="ftext" data-k="' + k.id + '" placeholder="یا نتیجهٔ تماس را بنویسید (اختیاری)" value="' + esc(FOLLOW_CHIPS.includes(d.followup) ? '' : d.followup) + '">' : '') +
+        '</div>';
+    }).join('') + '</div>' +
+    '<div class="sticky bottom-3 mt-3"><button class="btn btn-main w-full shadow-lg" data-act="save">ذخیرهٔ حضور و غیاب (' + fa(filled) + ' از ' + fa(kids.length) + ')</button></div>';
+  }
+  $('view').innerHTML = h;
+}
+
+$('view').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-act]'); if (!b || isAdmin) return;
+  const act = b.dataset.act, k = +b.dataset.k;
+  if (current === 'today') {
+    if (act === 'day') { tDate = addDays(tDate, +b.dataset.d); tClass = null; draft = {}; go('today'); }
+    else if (act === 'today') { tDate = todayISO(); tClass = null; draft = {}; go('today'); }
+    else if (act === 'cls') { tClass = +b.dataset.id; draft = {}; renderToday(); }
+    else if (act === 'st') { const d = draft[k]; d.status = d.status === b.dataset.v ? null : b.dataset.v; if (d.status !== 'p') d.rating = null; if (d.status !== 'a') d.followup = ''; renderToday(); }
+    else if (act === 'rt') { const d = draft[k]; d.rating = d.rating === b.dataset.v ? null : b.dataset.v; renderToday(); }
+    else if (act === 'fchip') { const d = draft[k]; d.followup = d.followup === b.dataset.v ? '' : b.dataset.v; renderToday(); }
+    else if (act === 'allp') { kidsOf(tClass).forEach((x) => { if (!draft[x.id].status) draft[x.id].status = 'p'; }); renderToday(); }
+    else if (act === 'save') saveAttendance(b);
+    else if (act === 'roster') openRoster();
+    else if (act === 'follow') openFollow(+b.dataset.id);
+  } else if (current === 'children') {
+    if (act === 'newsingle') openSingle();
+    else if (act === 'editkid') openKid(+b.dataset.id);
+    else if (act === 'delsingle') delSingle(+b.dataset.id, b);
+  } else if (current === 'msg') {
+    if (act === 'send') sendMsg(b);
+  }
+});
+$('view').addEventListener('input', (e) => {
+  const el = e.target; if (el.dataset.act === 'ftext') { draft[+el.dataset.k].followup = el.value; }
+});
+
+async function saveAttendance(btn) {
+  const c = classById(tClass), kids = kidsOf(c.id);
+  const saved = {}; tAtt.filter((r) => r.class_id === c.id && r.att_date === tDate).forEach((r) => { saved[r.child_id] = r; });
+  const now = new Date().toISOString();
+  const up = kids.filter((k) => draft[k.id].status).map((k) => {
+    const d = draft[k.id], s = saved[k.id], f = d.status === 'a' ? (d.followup || '').trim() : '';
+    return { class_id: c.id, child_id: k.id, trainer_id: me.id, att_date: tDate, status: d.status, rating: d.status === 'p' ? d.rating : null,
+      followup: f || null, followup_at: f ? ((s && s.followup && s.followup_at) || now) : null, updated_at: now };
+  });
+  const del = kids.filter((k) => !draft[k.id].status && saved[k.id]).map((k) => saved[k.id].id);
+  if (!up.length && !del.length) { toast('برای هیچ کودکی وضعیتی انتخاب نشده است', false); return; }
+  btn.disabled = true; btn.textContent = 'در حال ذخیره...';
+  try {
+    if (up.length) await api('/rest/v1/m_attendance?on_conflict=class_id,child_id,att_date', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: up });
+    if (del.length) await api('/rest/v1/m_attendance?id=in.(' + del.join(',') + ')', { method: 'DELETE' });
+    toast('حضور و غیاب ذخیره شد'); draft = {}; go('today');
+  } catch (err) { console.error(err); toast(errText(err), false); btn.disabled = false; btn.textContent = 'ذخیرهٔ حضور و غیاب'; }
+}
+
+function openFollow(id) {
+  const r = tAtt.find((x) => x.id === id); if (!r) return; const k = childById(r.child_id);
+  openModal('<h3 class="font-extrabold text-lg mb-1">پیگیری غیبت ' + esc(k ? k.name : '') + '</h3><p class="text-sm text-slate-500 mb-3">' + dateLabel(r.att_date) + (k && k.parent_phone ? ' · تلفن والدین: <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</p>' +
+    '<div class="flex flex-wrap gap-1 mb-3">' + FOLLOW_CHIPS.map((f) => '<button type="button" class="chip bg-red-50 text-red-700 border border-red-100 py-1.5" data-fc="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div>' +
+    '<input id="fu-text" class="inp mb-3" placeholder="نتیجهٔ تماس">' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="fu-save">ثبت</button><button class="btn" id="fu-cancel">انصراف</button></div>');
+  $('modal-body').querySelectorAll('[data-fc]').forEach((x) => x.onclick = () => { $('fu-text').value = x.dataset.fc; });
+  $('fu-cancel').onclick = closeModal;
+  $('fu-save').onclick = async () => {
+    const v = $('fu-text').value.trim(); if (!v) { toast('نتیجهٔ پیگیری را بنویسید', false); return; }
+    try { await api('/rest/v1/m_attendance?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { followup: v, followup_at: new Date().toISOString() } }); closeModal(); toast('پیگیری ثبت شد'); go('today'); }
+    catch (err) { toast(errText(err), false); }
+  };
+}
+
+/* ---- مدیریت بچه‌های کلاس ---- */
+async function addChildByName(name, phone) {
+  const n = normName(name); if (!n) throw new Error('نام کودک را بنویسید');
+  const ex = D.children.find((c) => normName(c.name) === n);
+  if (ex) { if (!ex.active) await api('/rest/v1/m_children?id=eq.' + ex.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { active: true } }); return ex.id; }
+  const rows = await api('/rest/v1/m_children', { method: 'POST', headers: { Prefer: 'return=representation' }, body: { name: n, parent_phone: (phone || '').trim() || null } });
+  return rows[0].id;
+}
+function openRoster() {
+  const c = classById(tClass); const inIds = new Set(kidsOf(c.id).map((k) => k.id));
+  const others = D.children.filter((k) => k.active && !inIds.has(k.id));
+  openModal('<h3 class="font-extrabold text-lg mb-1">بچه‌های ' + esc(classTitle(c)) + '</h3><p class="text-sm text-slate-500 mb-3">' + slotLabel(c.slot) + ' · ' + esc(classDays(c)) + '</p>' +
+    '<div class="space-y-2 mb-4" id="rs-list">' + (inIds.size ? kidsOf(c.id).map((k) => '<div class="flex items-center justify-between gap-2 border border-slate-100 rounded-xl p-2"><span class="font-bold">' + esc(k.name) + '</span><button class="text-red-600 text-sm font-bold min-h-[40px] px-2" data-rm="' + k.id + '">خروج از کلاس</button></div>').join('') : '<p class="text-slate-400 text-sm">هنوز کودکی ثبت نشده.</p>') + '</div>' +
+    '<label class="lbl" for="rs-name">افزودن کودک</label><input id="rs-name" class="inp mb-2" list="rs-names" placeholder="نام و نام خانوادگی کامل" autocomplete="off"><datalist id="rs-names">' + others.map((k) => '<option value="' + esc(k.name) + '"></option>').join('') + '</datalist>' +
+    '<input id="rs-phone" class="inp mb-3" type="tel" dir="ltr" placeholder="تلفن والدین (اختیاری)">' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="rs-add">افزودن به کلاس</button><button class="btn" id="rs-close">بستن</button></div>' +
+    '<p class="text-xs text-slate-500 mt-3">ظرفیت بهزیستی: ' + fa(D.children.filter((k) => k.active).length) + ' از ' + fa(CAPACITY) + ' کودک ثبت شده</p>');
+  $('rs-close').onclick = () => { closeModal(); draft = {}; go('today'); };
+  $('rs-list').querySelectorAll('[data-rm]').forEach((x) => x.onclick = async () => {
+    try { await api('/rest/v1/m_enrollments?class_id=eq.' + c.id + '&child_id=eq.' + x.dataset.rm, { method: 'DELETE' }); await loadBase(); openRoster(); } catch (err) { toast(errText(err), false); }
+  });
+  $('rs-add').onclick = async () => {
+    try {
+      const id = await addChildByName($('rs-name').value, $('rs-phone').value);
+      await api('/rest/v1/m_enrollments?on_conflict=class_id,child_id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: { class_id: c.id, child_id: id } });
+      await loadBase(); toast('به کلاس اضافه شد'); openRoster();
+    } catch (err) { toast(err.message && !/^\{/.test(err.message) && err.message !== 'NOT_SETUP' ? err.message : errText(err), false); }
+  };
+}
+
+/* ---- بچه‌های من و کلاس تکی ---- */
+function renderMyChildren() {
+  const cls = classesOfTrainer(me.id);
+  let h = '<div class="card p-3 mb-3 flex items-center justify-between gap-2 flex-wrap"><div><div class="font-extrabold text-teal-900">کلاس‌ها و بچه‌های من</div><div class="text-xs text-slate-500">برای کودکی که در گروه همکاری نمی‌کند، کلاس تکی بسازید.</div></div><button class="btn btn-main text-sm" data-act="newsingle">کلاس تکی جدید</button></div>';
+  h += cls.sort((a, b) => a.kind.localeCompare(b.kind) || String(a.day_group).localeCompare(String(b.day_group)) || a.slot.localeCompare(b.slot)).map((c) => {
+    const kids = kidsOf(c.id);
+    return '<div class="card p-3 mb-2"><div class="flex items-center justify-between gap-2 mb-2"><div><div class="font-bold">' + esc(classTitle(c)) + ' · ' + slotLabel(c.slot) + '</div><div class="text-xs text-slate-500">' + esc(classDays(c)) + '</div></div>' +
+      (c.kind === 'single' ? '<button class="text-red-600 text-sm font-bold min-h-[40px] px-2" data-act="delsingle" data-id="' + c.id + '">حذف کلاس تکی</button>' : '<span class="chip bg-teal-50 text-teal-800">' + fa(kids.length) + ' کودک</span>') + '</div>' +
+      (kids.length ? '<div class="flex flex-wrap gap-1">' + kids.map((k) => '<button class="chip bg-slate-100 text-slate-700 py-1.5" data-act="editkid" data-id="' + k.id + '">' + esc(k.name) + (k.parent_phone ? ' ☎' : '') + '</button>').join('') + '</div>' : '<div class="text-sm text-slate-400">بدون کودک</div>') + '</div>';
+  }).join('');
+  $('view').innerHTML = h;
+}
+function openKid(id) {
+  const k = childById(id); if (!k) return;
+  openModal('<h3 class="font-extrabold text-lg mb-3">' + esc(k.name) + '</h3><label class="lbl" for="kd-name">نام کودک</label><input id="kd-name" class="inp mb-3" value="' + esc(k.name) + '"><label class="lbl" for="kd-phone">تلفن والدین</label><input id="kd-phone" class="inp mb-4" type="tel" dir="ltr" value="' + esc(k.parent_phone || '') + '">' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="kd-save">ذخیره</button><button class="btn" id="kd-close">انصراف</button></div>');
+  $('kd-close').onclick = closeModal;
+  $('kd-save').onclick = async () => {
+    const n = normName($('kd-name').value); if (!n) { toast('نام را بنویسید', false); return; }
+    try { await api('/rest/v1/m_children?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { name: n, parent_phone: $('kd-phone').value.trim() || null } }); closeModal(); toast('ذخیره شد'); go(current); }
+    catch (err) { toast(errText(err), false); }
+  };
+}
+function openSingle() {
+  const mine = [...new Set(classesOfTrainer(me.id).flatMap((c) => kidsOf(c.id)))];
+  openModal('<h3 class="font-extrabold text-lg mb-3">کلاس تکی جدید</h3>' +
+    '<label class="lbl" for="sg-name">کودک</label><input id="sg-name" class="inp mb-3" list="sg-names" autocomplete="off" placeholder="نام کودک"><datalist id="sg-names">' + mine.concat(D.children.filter((k) => k.active && !mine.includes(k))).map((k) => '<option value="' + esc(k.name) + '"></option>').join('') + '</datalist>' +
+    '<div class="lbl">روزها</div><div class="flex flex-wrap gap-2 mb-3" id="sg-days">' + DAYS.slice(0, 6).map((d, i) => '<button type="button" class="tab" data-d="' + i + '">' + d + '</button>').join('') + '</div>' +
+    '<label class="lbl" for="sg-slot">ساعت</label><select id="sg-slot" class="inp mb-3"><option value="08-10">۸ تا ۱۰</option><option value="10-12">۱۰ تا ۱۲</option><option value="08-09">۸ تا ۹</option><option value="09-10">۹ تا ۱۰</option><option value="10-11">۱۰ تا ۱۱</option><option value="11-12">۱۱ تا ۱۲</option></select>' +
+    '<label class="flex items-center gap-2 mb-4 text-sm"><input type="checkbox" id="sg-move" class="w-5 h-5"> کودک از کلاس گروهی من خارج شود</label>' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="sg-save">ساخت کلاس</button><button class="btn" id="sg-close">انصراف</button></div>');
+  const days = new Set();
+  $('sg-days').querySelectorAll('[data-d]').forEach((x) => x.onclick = () => { const d = +x.dataset.d; days.has(d) ? days.delete(d) : days.add(d); x.classList.toggle('on', days.has(d)); });
+  $('sg-close').onclick = closeModal;
+  $('sg-save').onclick = async () => {
+    if (!days.size) { toast('دست‌کم یک روز انتخاب کنید', false); return; }
+    try {
+      const kid = await addChildByName($('sg-name').value);
+      const rows = await api('/rest/v1/m_classes', { method: 'POST', headers: { Prefer: 'return=representation' }, body: { trainer_id: me.id, kind: 'single', weekdays: [...days].sort(), slot: $('sg-slot').value } });
+      await api('/rest/v1/m_enrollments', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: { class_id: rows[0].id, child_id: kid } });
+      if ($('sg-move').checked) {
+        const gids = classesOfTrainer(me.id).filter((c) => c.kind === 'group').map((c) => c.id);
+        if (gids.length) await api('/rest/v1/m_enrollments?child_id=eq.' + kid + '&class_id=in.(' + gids.join(',') + ')', { method: 'DELETE' });
+      }
+      closeModal(); toast('کلاس تکی ساخته شد'); go('children');
+    } catch (err) { toast(err.message && !/^\{/.test(err.message) && err.message !== 'NOT_SETUP' ? err.message : errText(err), false); }
+  };
+}
+async function delSingle(id, btn) {
+  if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'برای حذف دوباره بزنید'; return; }
+  try { await api('/rest/v1/m_classes?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { active: false } }); toast('کلاس تکی حذف شد'); go('children'); }
+  catch (err) { toast(errText(err), false); }
+}
+
+/* ---- پیام محرمانه ---- */
+function renderMsg() {
+  const kids = [...new Set(classesOfTrainer(me.id).flatMap((c) => kidsOf(c.id)))];
+  $('view').innerHTML = '<div class="card p-4"><h2 class="font-extrabold text-teal-900 mb-1">پیام محرمانه به مدیریت</h2>' +
+    '<p class="text-sm text-slate-500 mb-4">این پیام فقط برای مدیریت فرستاده می‌شود. هیچ‌کس دیگری، حتی خودتان بعد از ارسال، آن را نمی‌بیند.</p>' +
+    '<label class="lbl" for="mg-kid">دربارهٔ کودک (اختیاری)</label><select id="mg-kid" class="inp mb-3"><option value="">— موضوع کلی —</option>' + kids.map((k) => '<option value="' + k.id + '">' + esc(k.name) + '</option>').join('') + '</select>' +
+    '<label class="lbl" for="mg-body">متن پیام</label><textarea id="mg-body" class="inp mb-4" rows="6" maxlength="4000" placeholder="پیام خود را بنویسید"></textarea>' +
+    '<button class="btn btn-main w-full" data-act="send">ارسال برای مدیریت</button></div>';
+}
+async function sendMsg(btn) {
+  const body = $('mg-body').value.trim(); if (!body) { toast('متن پیام خالی است', false); return; }
+  btn.disabled = true; btn.textContent = 'در حال ارسال...';
+  try {
+    await api('/rest/v1/m_messages', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: { trainer_id: me.id, child_id: +$('mg-kid').value || null, body } });
+    toast('پیام برای مدیریت فرستاده شد'); renderMsg();
+  } catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'ارسال برای مدیریت'; }
+}
+
+function statsCard(s) {
+  const row = (label, val, sub) => '<div class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"><div><div class="font-bold">' + label + '</div>' + (sub ? '<div class="text-xs text-slate-500">' + sub + '</div>' : '') + '</div><div>' + val + '</div></div>';
+  return '<div class="card p-4"><div class="flex items-center justify-between mb-3"><div class="font-extrabold">امتیاز ماه</div><div class="text-2xl">' + scoreChip(s.score) + '</div></div>' +
+    row('جلسه‌های ثبت‌شده', scoreChip(s.coverage), fa(Math.min(s.sessCount, s.expected)) + ' از ' + fa(s.expected) + ' جلسه') +
+    row('ثبت در همان روز', scoreChip(s.onTimePct), fa(s.onTime) + ' از ' + fa(s.sessCount) + ' جلسه') +
+    row('پیگیری غیبت‌ها', scoreChip(s.followPct), s.abs ? fa(s.followed) + ' از ' + fa(s.abs) + ' غیبت' : 'غیبتی نبوده') +
+    row('حضور بچه‌ها', scoreChip(s.attPct), fa(s.p) + ' حاضر · ' + fa(s.abs) + ' غایب · ' + fa(s.e) + ' مرخصی') +
+    row('میانگین عملکرد بچه‌ها', '<span class="font-bold">' + ratingLabel(s.ratingAvg) + '</span>', fa(s.rated) + ' ارزیابی') + '</div>';
+}
+
+/* ===================================================================
+   پنل مدیریت
+   =================================================================== */
+let aDate = todayISO(), aMonth = null;
+async function startAdmin() {
+  const ok = await api('/rest/v1/rpc/m_is_admin', { method: 'POST', body: {} });
+  if (ok !== true) { clearSession(); throw new Error('این ایمیل دسترسی مدیریت سیستم صبح را ندارد.'); }
+  isAdmin = true; await loadBase();
+  const tj = jOf(todayISO()); aMonth = { jy: tj.jy, jm: tj.jm }; aDate = todayISO();
+  showApp('پنل مدیریت نوبت صبح', session.email, [['day', 'امروز'], ['follow', 'پیگیری‌ها'], ['msgs', 'پیام‌ها'], ['score', 'کارنامهٔ مربی‌ها'], ['month', 'آمار ماهانه'], ['kids', 'کودکان']]);
+  go('day'); refreshUnread();
+}
+async function refreshUnread() {
+  try { const r = await api('/rest/v1/m_messages?select=id&is_read=eq.false'); const b = document.querySelector('#tabs [data-tab="msgs"]'); if (b) b.textContent = 'پیام‌ها' + (r.length ? ' (' + fa(r.length) + ')' : ''); } catch (e) {}
+}
+function monthNav() {
+  return '<div class="card p-3 mb-3 flex items-center justify-between gap-2"><button class="btn" data-am="-1" aria-label="ماه قبل">›</button><div class="font-extrabold">' + MONTHS[aMonth.jm - 1] + ' ' + faStr(aMonth.jy) + '</div><button class="btn" data-am="1" aria-label="ماه بعد">‹</button></div>';
+}
+const ADMIN = {
+  async day() {
+    await loadBase(); const rows = await loadAtt(aDate, aDate);
+    let h = '<div class="card p-3 mb-3 flex items-center justify-between gap-2"><button class="btn" data-ad="-1" aria-label="روز قبل">›</button><div class="text-center"><div class="font-extrabold">' + dateLabel(aDate) + '</div><div class="text-xs text-slate-500">' + (aDate === todayISO() ? 'امروز' : '<button class="text-teal-700 font-bold" data-ad="0">برگشت به امروز</button>') + '</div></div><button class="btn" data-ad="1" aria-label="روز بعد">‹</button></div>';
+    const active = D.children.filter((k) => k.active).length;
+    h += '<div class="card p-3 mb-3"><div class="flex items-center justify-between"><span class="font-bold">کودکان ثبت‌شده</span><span class="font-extrabold num">' + fa(active) + ' از ' + fa(CAPACITY) + '</span></div><div class="h-2 bg-slate-100 rounded-full mt-2 overflow-hidden"><div class="h-full ' + (active > CAPACITY ? 'bg-red-500' : 'bg-teal-600') + '" style="width:' + Math.min(100, Math.round(active / CAPACITY * 100)) + '%"></div></div></div>';
+    D.trainers.forEach((t) => {
+      const cls = classesOnDate(t.id, aDate);
+      h += '<div class="card p-3 mb-2"><div class="font-extrabold text-teal-900 mb-2">' + esc(t.name) + ' <span class="text-xs text-slate-500 font-normal">سطح ' + fa(t.level) + '</span></div>' +
+        (cls.length ? cls.map((c) => {
+          const kids = kidsOf(c.id), rs = rows.filter((r) => r.class_id === c.id);
+          const cnt = (s) => rs.filter((r) => r.status === s).length;
+          const state = !kids.length ? '<span class="chip bg-slate-100 text-slate-500">بدون کودک</span>' : rs.length ? '<span class="chip bg-green-100 text-green-800">ثبت شد</span>' : (aDate < todayISO() ? '<span class="chip bg-red-100 text-red-700">ثبت نشد</span>' : '<span class="chip bg-amber-100 text-amber-800">هنوز ثبت نشده</span>');
+          return '<div class="flex items-center justify-between gap-2 py-2 border-t border-slate-100"><div class="min-w-0"><div class="font-bold text-sm">' + slotLabel(c.slot) + ' · ' + esc(classTitle(c)) + '</div><div class="text-xs text-slate-500">' + (rs.length ? fa(cnt('p')) + ' حاضر · ' + fa(cnt('a')) + ' غایب · ' + fa(cnt('e')) + ' مرخصی' : fa(kids.length) + ' کودک') + '</div></div>' + state + '</div>';
+        }).join('') : '<div class="text-sm text-slate-400">کلاسی در این روز ندارد</div>') + '</div>';
+    });
+    $('view').innerHTML = h;
+  },
+  async follow() {
+    await loadBase(); const rows = await loadAtt(addDays(todayISO(), -60), todayISO());
+    const pend = pendingFollowups(rows);
+    const streaks = [];
+    D.enroll.forEach((en) => { const k = childById(en.child_id); if (!k || !k.active) return; const n = absenceStreak(rows, en.class_id, en.child_id); if (n >= 2) streaks.push({ k, c: classById(en.class_id), n }); });
+    let h = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-red-700 mb-2">غیبت پشت سر هم (' + fa(streaks.length) + ')</h2>' +
+      (streaks.length ? streaks.sort((a, b) => b.n - a.n).map((s) => '<div class="flex items-center justify-between gap-2 py-2 border-t border-slate-100"><div><div class="font-bold">' + esc(s.k.name) + '</div><div class="text-xs text-slate-500">' + esc(s.c ? (trainerById(s.c.trainer_id) || {}).name || '' : '') + ' · ' + (s.c ? slotLabel(s.c.slot) : '') + (s.k.parent_phone ? ' · <bdi dir="ltr">' + esc(s.k.parent_phone) + '</bdi>' : '') + '</div></div><span class="chip bg-red-100 text-red-700">' + fa(s.n) + ' جلسه</span></div>').join('') : '<p class="text-sm text-slate-400">موردی نیست.</p>') + '</div>';
+    h += '<div class="card p-4"><h2 class="font-extrabold text-teal-900 mb-2">غیبت‌های پیگیری‌نشده (' + fa(pend.length) + ')</h2>' +
+      (pend.length ? pend.map((r) => { const k = childById(r.child_id), c = classById(r.class_id); return '<div class="flex items-center justify-between gap-2 py-2 border-t border-slate-100"><div><div class="font-bold">' + esc(k ? k.name : '—') + '</div><div class="text-xs text-slate-500">' + shortDate(r.att_date) + ' · ' + esc(c ? (trainerById(c.trainer_id) || {}).name || '' : '') + '</div></div><span class="chip bg-amber-100 text-amber-800">پیگیری نشده</span></div>'; }).join('') : '<p class="text-sm text-slate-400">همهٔ غیبت‌ها پیگیری شده‌اند.</p>') + '</div>';
+    $('view').innerHTML = h;
+  },
+  async msgs() {
+    await loadBase(); const rows = await api('/rest/v1/m_messages?select=*&order=created_at.desc&limit=300');
+    $('view').innerHTML = '<div class="card p-3 mb-3 text-sm text-slate-600">پیام‌های محرمانهٔ مربی‌ها. فقط با ورود مدیر دیده می‌شوند.</div>' +
+      (rows.length ? rows.map((m) => { const t = trainerById(m.trainer_id), k = m.child_id ? childById(m.child_id) : null; return '<div class="card p-4 mb-2 ' + (m.is_read ? '' : 'border-teal-400 border-2') + '"><div class="flex items-center justify-between gap-2 mb-2 flex-wrap"><div class="font-extrabold">' + esc(t ? t.name : '—') + (k ? ' <span class="chip bg-slate-100 text-slate-700">دربارهٔ ' + esc(k.name) + '</span>' : '') + '</div><div class="text-xs text-slate-500">' + dateLabel(tehranISO(new Date(m.created_at))) + ' · ' + new Date(m.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tehran' }) + '</div></div>' +
+        '<p class="whitespace-pre-wrap leading-relaxed">' + esc(m.body) + '</p><div class="flex gap-2 mt-3">' + (m.is_read ? '' : '<button class="btn text-sm" data-mr="' + m.id + '">خوانده شد</button>') + '<button class="btn text-sm text-red-600" data-md="' + m.id + '">حذف</button></div></div>'; }).join('') : '<div class="card p-8 text-center text-slate-400">پیامی نرسیده است.</div>');
+  },
+  async score() {
+    await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const rows = await loadAtt(r.start, r.end);
+    $('view').innerHTML = monthNav() + D.trainers.map((t) => '<div class="mb-3"><div class="font-extrabold text-teal-900 mb-1 px-1">' + esc(t.name) + ' · سطح ' + fa(t.level) + '</div>' + statsCard(trainerStats(t.id, rows, r.start, r.end)) + '</div>').join('') +
+      '<p class="text-xs text-slate-500 px-1">امتیاز ماه میانگین سه شاخص است: جلسه‌های ثبت‌شده، ثبت در همان روز، و پیگیری غیبت‌ها.</p>';
+  },
+  async month() {
+    await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const rows = await loadAtt(r.start, r.end);
+    const kids = D.children.filter((k) => k.active || rows.some((x) => x.child_id === k.id));
+    const stat = kids.map((k) => { const rs = rows.filter((x) => x.child_id === k.id); const c = (s) => rs.filter((x) => x.status === s).length; const p = c('p'), a = c('a'), e = c('e'); const rated = rs.filter((x) => x.rating);
+      const cls = D.enroll.filter((en) => en.child_id === k.id).map((en) => classById(en.class_id)).filter(Boolean);
+      return { k, p, a, e, pct: p + a + e ? Math.round(p / (p + a + e) * 100) : null, avg: rated.length ? rated.reduce((s, x) => s + RATING_SCORE[x.rating], 0) / rated.length : null, cls: cls.map((c) => (trainerById(c.trainer_id) || {}).name + ' ' + (c.kind === 'single' ? 'تکی' : GROUP[c.day_group]) + ' ' + c.slot).join('، ') }; });
+    const tp = stat.reduce((s, x) => s + x.p, 0), ta = stat.reduce((s, x) => s + x.a, 0), te = stat.reduce((s, x) => s + x.e, 0);
+    window.__monthCsv = { name: 'morning-' + aMonth.jy + '-' + pad2(aMonth.jm) + '.csv', stat };
+    $('view').innerHTML = monthNav() +
+      '<div class="card p-4 mb-3"><div class="text-2xl font-extrabold text-teal-800">' + (tp + ta + te ? fa(Math.round(tp / (tp + ta + te) * 100)) + '٪' : '—') + ' <span class="text-sm font-normal text-slate-500">حضور کل</span></div><div class="text-sm text-slate-600 mt-1">' + fa(tp) + ' حاضر · ' + fa(ta) + ' غایب · ' + fa(te) + ' مرخصی · ' + fa(D.children.filter((k) => k.active).length) + ' کودک فعال از ' + fa(CAPACITY) + '</div>' +
+      '<button class="btn mt-3" id="csv-btn">دریافت فایل Excel (CSV)</button></div>' +
+      '<div class="card overflow-x-auto"><table class="t"><thead><tr><th>کودک</th><th>حاضر</th><th>غایب</th><th>مرخصی</th><th>درصد</th><th>عملکرد</th></tr></thead><tbody>' +
+      stat.sort((a, b) => a.k.name.localeCompare(b.k.name, 'fa')).map((s) => '<tr><td class="font-bold">' + esc(s.k.name) + '<div class="text-xs text-slate-400 font-normal">' + esc(s.cls) + '</div></td><td class="num">' + fa(s.p) + '</td><td class="num">' + fa(s.a) + '</td><td class="num">' + fa(s.e) + '</td><td>' + scoreChip(s.pct) + '</td><td>' + ratingLabel(s.avg) + '</td></tr>').join('') +
+      '</tbody></table></div>';
+    $('csv-btn').onclick = downloadCsv;
+  },
+  async kids() {
+    await loadBase();
+    const list = D.children.slice().sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name, 'fa'));
+    $('view').innerHTML = '<div class="card p-3 mb-3 text-sm text-slate-600">' + fa(D.children.filter((k) => k.active).length) + ' کودک فعال از ' + fa(CAPACITY) + ' ظرفیت. مربی‌ها بچه‌ها را از صفحهٔ خودشان به کلاس اضافه می‌کنند.</div>' +
+      list.map((k) => { const cls = D.enroll.filter((en) => en.child_id === k.id).map((en) => classById(en.class_id)).filter(Boolean);
+        return '<div class="card p-3 mb-2 ' + (k.active ? '' : 'opacity-60') + '"><div class="flex items-center justify-between gap-2"><div class="min-w-0"><div class="font-bold">' + esc(k.name) + (k.active ? '' : ' <span class="chip bg-slate-100 text-slate-500">غیرفعال</span>') + '</div><div class="text-xs text-slate-500">' + (cls.length ? cls.map((c) => esc((trainerById(c.trainer_id) || {}).name) + ' · ' + (c.kind === 'single' ? 'تکی' : GROUP[c.day_group]) + ' · ' + slotLabel(c.slot)).join(' / ') : 'در هیچ کلاسی نیست') + (k.parent_phone ? ' · <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</div></div>' +
+          '<button class="btn text-sm" data-ka="' + k.id + '">' + (k.active ? 'غیرفعال کن' : 'فعال کن') + '</button></div></div>'; }).join('') ||
+      '<div class="card p-8 text-center text-slate-400">هنوز کودکی ثبت نشده است.</div>';
+  }
+};
+function downloadCsv() {
+  const m = window.__monthCsv; if (!m) return;
+  const q = (v) => { v = String(v == null ? '' : v); return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const lines = [['نام کودک', 'کلاس', 'حاضر', 'غایب', 'مرخصی', 'درصد حضور', 'میانگین عملکرد']].concat(m.stat.map((s) => [s.k.name, s.cls, s.p, s.a, s.e, s.pct === null ? '' : s.pct, ratingLabel(s.avg)]));
+  const blob = new Blob(['﻿' + lines.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = m.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+$('view').addEventListener('click', async (e) => {
+  if (!isAdmin) return;
+  const b = e.target.closest('button'); if (!b) return;
+  try {
+    if (b.dataset.ad !== undefined) { aDate = +b.dataset.ad === 0 ? todayISO() : addDays(aDate, +b.dataset.ad); go('day'); }
+    else if (b.dataset.am !== undefined) { let { jy, jm } = aMonth; jm += +b.dataset.am; if (jm > 12) { jm = 1; jy += 1; } if (jm < 1) { jm = 12; jy -= 1; } aMonth = { jy, jm }; go(current); }
+    else if (b.dataset.mr) { await api('/rest/v1/m_messages?id=eq.' + b.dataset.mr, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { is_read: true } }); go('msgs'); refreshUnread(); }
+    else if (b.dataset.md) { if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'برای حذف دوباره بزنید'; return; } await api('/rest/v1/m_messages?id=eq.' + b.dataset.md, { method: 'DELETE' }); toast('پیام حذف شد'); go('msgs'); refreshUnread(); }
+    else if (b.dataset.ka) { const k = childById(+b.dataset.ka); await api('/rest/v1/m_children?id=eq.' + k.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { active: !k.active } }); go('kids'); }
+  } catch (err) { toast(errText(err), false); }
+});
+
+/* ---------------- شروع ---------------- */
+(async function init() {
+  fillTrainerSelect();
+  session = loadSession();
+  if (session) { try { await startAdmin(); return; } catch (e) { clearSession(); } }
+  let tid = null; try { tid = +sessionStorage.getItem('m_trainer'); } catch (x) {}
+  if (tid) { try { await loadBase(); me = trainerById(tid); if (me) startTrainer(); } catch (e) {} }
+})();
+</script>
+</body>
+</html>
