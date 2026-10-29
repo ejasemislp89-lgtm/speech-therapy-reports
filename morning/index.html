@@ -124,7 +124,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
 const faStr = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
-const slotLabel = (s) => { const m = String(s).match(/^(\d{1,2})-(\d{1,2})$/); return m ? 'ساعت ' + fa(+m[1]) + ' تا ' + fa(+m[2]) : String(s); };
+const slotLabel = (s) => { const m = String(s).match(/^(\d{1,2}(?::\d{2})?)-(\d{1,2}(?::\d{2})?)$/); const t = (x) => x.split(':').map((p, i) => i ? p : String(+p)).join(':').replace(/:00$/, '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]); return m ? 'ساعت ' + t(m[1]) + ' تا ' + t(m[2]) : String(s); };
 const normName = (s) => String(s || '').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[‌‍]/g, ' ').replace(/\s+/g, ' ').trim();
 let toastTimer = null;
 function toast(msg, ok = true) {
@@ -389,7 +389,7 @@ const TRAINER = {
     await loadBase();
     const tj = jOf(todayISO()); const r = monthRange(tj.jy, tj.jm);
     const [rows, crafts] = await Promise.all([loadAtt(r.start, r.end, classesOfTrainer(me.id).map((c) => c.id)), loadCrafts(r.start, r.end, me.id)]);
-    $('view').innerHTML = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">کارنامه ' + MONTHS[tj.jm - 1] + ' ' + faStr(tj.jy) + '</h2><p class="text-sm text-slate-500">ثبت به‌موقع حضور، پیگیری غیبت‌ها و کاردستی‌هایی که برای کلاس می‌سازید در کارنامهٔ شما می‌آید.</p></div>' + statsCard(trainerStats(me.id, rows, r.start, r.end), craftCounts(crafts, me.id));
+    $('view').innerHTML = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">کارنامه ' + MONTHS[tj.jm - 1] + ' ' + faStr(tj.jy) + '</h2><p class="text-sm text-slate-500">ثبت به‌موقع حضور، پیگیری غیبت‌ها و کاردستی‌هایی که برای کلاس می‌سازید در کارنامهٔ شما می‌آید.</p></div>' + BONUS_NOTE + statsCard(trainerStats(me.id, rows, r.start, r.end), craftCounts(crafts, me.id));
   },
   async crafts() {
     await loadBase();
@@ -425,10 +425,11 @@ function renderCrafts(list, r) {
   });
 }
 
+const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و پاداش ماهانه</b><br>ثبت به‌موقع حضور و غیاب، امتیازدهی به بچه‌ها، پیگیری غیبت‌ها و ثبت کاردستی‌ها و وسایل آموزشی که برای کلاس می‌سازید، امتیاز کارنامهٔ شما را بالا می‌برد. آخر هر ماه بر اساس همین کارنامه، <b>پاداش مازاد بر حقوق</b> پرداخت می‌شود.</div>';
 function renderToday() {
   const list = classesOnDate(me.id, tDate);
   const pend = pendingFollowups(tAtt, me.id).filter((r) => r.att_date < tDate || (r.att_date === tDate && r.class_id !== tClass));
-  let h = '<div class="card p-3 mb-3 flex items-center justify-between gap-2">' +
+  let h = BONUS_NOTE + '<div class="card p-3 mb-3 flex items-center justify-between gap-2">' +
     '<button class="btn" data-act="day" data-d="-1" aria-label="روز قبل">›</button>' +
     '<div class="text-center"><div class="font-extrabold">' + dateLabel(tDate) + '</div><div class="text-xs text-slate-500">' +
     (tDate === todayISO() ? 'امروز' : '<button class="text-teal-700 font-bold" data-act="today">برگشت به امروز</button>') +
