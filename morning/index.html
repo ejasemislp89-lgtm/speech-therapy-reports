@@ -282,7 +282,7 @@ function trainerStats(tid, rows, fromIso, toIso) {
   return { sessCount, expected, onTime, coverage, onTimePct, abs: a, followed: fol.length, followPct, p, e, attPct: pct(p, p + a + e), ratingAvg, rated: rated.length, score };
 }
 /* ---------------- امتیاز و پاداش ماهانه ---------------- */
-const BONUS_CAP = 1500000; // سقف پاداش هر مربی در ماه (تومان)
+const BONUS_CAP = 1000000; // سقف پاداش هر مربی در ماه (تومان)
 const PTS = { folFast: 2, folLate: 1, craft: 5, craftMax: 8 };
 function bonusCalc(tid, rows, crafts, fromIso, toIso) {
   const st = trainerStats(tid, rows, fromIso, toIso);
@@ -463,7 +463,7 @@ function renderCrafts(list, r) {
   });
 }
 
-const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و پاداش ماهانه</b><br>ثبت حضور و غیاب همهٔ کلاس‌ها <b>الزامی</b> است. پیگیری غیبت‌ها و ثبت کاردستی‌ها و وسایل آموزشی که برای کلاس می‌سازید، امتیاز کارنامهٔ شما را بالا می‌برد. آخر هر ماه بر اساس همین کارنامه، <b>پاداش مازاد بر حقوق تا سقف ۱٬۵۰۰٬۰۰۰ تومان</b> پرداخت می‌شود.</div>';
+const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و پاداش ماهانه</b><br>ثبت حضور و غیاب همهٔ کلاس‌ها <b>الزامی</b> است. پیگیری غیبت‌ها و ثبت کاردستی‌ها و وسایل آموزشی که برای کلاس می‌سازید، امتیاز کارنامهٔ شما را بالا می‌برد. آخر هر ماه بر اساس همین کارنامه، <b>پاداش مازاد بر حقوق تا سقف ۱٬۰۰۰٬۰۰۰ تومان</b> پرداخت می‌شود.</div>';
 function renderToday() {
   const list = classesOnDate(me.id, tDate);
   const pend = pendingFollowups(tAtt, me.id).filter((r) => r.att_date < tDate || (r.att_date === tDate && r.class_id !== tClass));
