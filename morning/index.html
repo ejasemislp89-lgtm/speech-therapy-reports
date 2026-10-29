@@ -232,6 +232,14 @@ function classDays(c) {
 }
 const recordedDay = (r) => tehranISO(new Date(r.recorded_at));
 
+async function loadCrafts(fromIso, toIso, tid) {
+  return api('/rest/v1/m_crafts?select=*&made_on=gte.' + fromIso + '&made_on=lte.' + toIso + (tid ? '&trainer_id=eq.' + tid : '') + '&order=made_on.desc,id.desc');
+}
+function craftCounts(crafts, tid) {
+  const mine = crafts.filter((c) => c.trainer_id === tid);
+  return { total: mine.length, approved: mine.filter((c) => c.approved).length };
+}
+
 /* ---------------- آمار ---------------- */
 function trainerStats(tid, rows, fromIso, toIso) {
   const mine = rows.filter((r) => { const c = classById(r.class_id); return (c && c.trainer_id === tid) || r.trainer_id === tid; });
@@ -337,7 +345,7 @@ function go(tab) {
 let tDate = todayISO(), tClass = null, draft = {}, tAtt = [];
 function startTrainer() {
   tDate = todayISO(); tClass = null;
-  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['children', 'بچه‌های من'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
+  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
   go('today');
 }
 async function refreshTrainerAtt() {
@@ -361,10 +369,42 @@ const TRAINER = {
   async card() {
     await loadBase();
     const tj = jOf(todayISO()); const r = monthRange(tj.jy, tj.jm);
-    const rows = await loadAtt(r.start, r.end, classesOfTrainer(me.id).map((c) => c.id));
-    $('view').innerHTML = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">کارنامه ' + MONTHS[tj.jm - 1] + ' ' + faStr(tj.jy) + '</h2><p class="text-sm text-slate-500">ثبت به‌موقع حضور و پیگیری غیبت‌ها، امتیاز ماهانهٔ شما را می‌سازد.</p></div>' + statsCard(trainerStats(me.id, rows, r.start, r.end));
+    const [rows, crafts] = await Promise.all([loadAtt(r.start, r.end, classesOfTrainer(me.id).map((c) => c.id)), loadCrafts(r.start, r.end, me.id)]);
+    $('view').innerHTML = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">کارنامه ' + MONTHS[tj.jm - 1] + ' ' + faStr(tj.jy) + '</h2><p class="text-sm text-slate-500">ثبت به‌موقع حضور، پیگیری غیبت‌ها و کاردستی‌هایی که برای کلاس می‌سازید در کارنامهٔ شما می‌آید.</p></div>' + statsCard(trainerStats(me.id, rows, r.start, r.end), craftCounts(crafts, me.id));
+  },
+  async crafts() {
+    await loadBase();
+    const tj = jOf(todayISO()); const r = monthRange(tj.jy, tj.jm);
+    const list = await loadCrafts(addDays(r.start, -62), r.end, me.id);
+    renderCrafts(list, r);
   }
 };
+
+function renderCrafts(list, r) {
+  const cls = classesOfTrainer(me.id);
+  const dayOpts = Array.from({ length: 14 }, (_, i) => addDays(todayISO(), -i)).map((d, i) => '<option value="' + d + '">' + (i === 0 ? 'امروز · ' : i === 1 ? 'دیروز · ' : '') + dateLabel(d) + '</option>').join('');
+  const thisMonth = list.filter((c) => c.made_on >= r.start && c.made_on <= r.end);
+  let h = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">ثبت کاردستی یا وسیلهٔ آموزشی</h2><p class="text-sm text-slate-500 mb-4">هر کاردستی یا وسیله‌ای که برای کلاس می‌سازید اینجا ثبت کنید. بعد از تأیید مدیر در کارنامهٔ شما حساب می‌شود.</p>' +
+    '<form id="cf-form"><label class="lbl" for="cf-title">چه چیزی ساختید؟</label><input id="cf-title" class="inp mb-3" maxlength="200" placeholder="مثلاً: کارت‌های تصویری میوه‌ها" required>' +
+    '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3"><div><label class="lbl" for="cf-date">تاریخ</label><select id="cf-date" class="inp">' + dayOpts + '</select></div>' +
+    '<div><label class="lbl" for="cf-class">برای کلاس (اختیاری)</label><select id="cf-class" class="inp"><option value="">— همهٔ کلاس‌ها —</option>' + cls.map((c) => '<option value="' + c.id + '">' + esc(classTitle(c)) + ' · ' + slotLabel(c.slot) + '</option>').join('') + '</select></div></div>' +
+    '<label class="lbl" for="cf-note">توضیح کوتاه (اختیاری)</label><input id="cf-note" class="inp mb-4" maxlength="300" placeholder="مثلاً: برای آموزش رنگ‌ها، ۲۰ کارت">' +
+    '<button type="submit" class="btn btn-main w-full" id="cf-save">ثبت کاردستی</button></form></div>';
+  h += '<div class="card p-4"><div class="flex items-center justify-between mb-2"><h3 class="font-extrabold">کاردستی‌های ' + MONTHS[jOf(r.start).jm - 1] + '</h3><span class="chip bg-teal-50 text-teal-800">' + fa(thisMonth.length) + ' مورد</span></div>' +
+    (list.length ? list.map((c) => { const k = c.class_id ? classById(c.class_id) : null; return '<div class="flex items-start justify-between gap-2 py-2 border-t border-slate-100"><div class="min-w-0"><div class="font-bold">' + esc(c.title) + '</div><div class="text-xs text-slate-500">' + dateLabel(c.made_on) + (k ? ' · ' + esc(classTitle(k)) + ' ' + slotLabel(k.slot) : '') + (c.note ? ' · ' + esc(c.note) : '') + '</div></div>' +
+      '<div class="flex flex-col items-end gap-1 shrink-0">' + (c.approved ? '<span class="chip bg-green-100 text-green-800">تأیید شد</span>' : '<span class="chip bg-amber-100 text-amber-800">در انتظار تأیید</span><button class="text-red-600 text-xs font-bold min-h-[32px]" data-act="cfdel" data-id="' + c.id + '">حذف</button>') + '</div></div>'; }).join('')
+      : '<p class="text-sm text-slate-400">هنوز کاردستی‌ای ثبت نکرده‌اید.</p>') + '</div>';
+  $('view').innerHTML = h;
+  $('cf-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const title = $('cf-title').value.trim(); if (!title) { toast('بنویسید چه چیزی ساختید', false); return; }
+    const btn = $('cf-save'); btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    try {
+      await api('/rest/v1/m_crafts', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: { trainer_id: me.id, class_id: +$('cf-class').value || null, title, note: $('cf-note').value.trim() || null, made_on: $('cf-date').value } });
+      toast('کاردستی ثبت شد'); go('crafts');
+    } catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'ثبت کاردستی'; }
+  });
+}
 
 function renderToday() {
   const list = classesOnDate(me.id, tDate);
@@ -438,6 +478,11 @@ $('view').addEventListener('click', async (e) => {
     else if (act === 'delsingle') delSingle(+b.dataset.id, b);
   } else if (current === 'msg') {
     if (act === 'send') sendMsg(b);
+  } else if (current === 'crafts') {
+    if (act === 'cfdel') {
+      if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'دوباره بزنید'; return; }
+      try { await api('/rest/v1/m_crafts?id=eq.' + b.dataset.id, { method: 'DELETE' }); toast('حذف شد'); go('crafts'); } catch (err) { toast(errText(err), false); }
+    }
   }
 });
 $('view').addEventListener('input', (e) => {
@@ -606,14 +651,15 @@ async function sendMsg(btn) {
   } catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'ارسال برای مدیریت'; }
 }
 
-function statsCard(s) {
+function statsCard(s, cc) {
   const row = (label, val, sub) => '<div class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"><div><div class="font-bold">' + label + '</div>' + (sub ? '<div class="text-xs text-slate-500">' + sub + '</div>' : '') + '</div><div>' + val + '</div></div>';
   return '<div class="card p-4"><div class="flex items-center justify-between mb-3"><div class="font-extrabold">امتیاز ماه</div><div class="text-2xl">' + scoreChip(s.score) + '</div></div>' +
     row('جلسه‌های ثبت‌شده', scoreChip(s.coverage), fa(Math.min(s.sessCount, s.expected)) + ' از ' + fa(s.expected) + ' جلسه') +
     row('ثبت در همان روز', scoreChip(s.onTimePct), fa(s.onTime) + ' از ' + fa(s.sessCount) + ' جلسه') +
     row('پیگیری غیبت‌ها', scoreChip(s.followPct), s.abs ? fa(s.followed) + ' از ' + fa(s.abs) + ' غیبت' : 'غیبتی نبوده') +
     row('حضور بچه‌ها', scoreChip(s.attPct), fa(s.p) + ' حاضر · ' + fa(s.abs) + ' غایب · ' + fa(s.e) + ' مرخصی') +
-    row('میانگین عملکرد بچه‌ها', '<span class="font-bold">' + ratingLabel(s.ratingAvg) + '</span>', fa(s.rated) + ' ارزیابی') + '</div>';
+    row('میانگین عملکرد بچه‌ها', '<span class="font-bold">' + ratingLabel(s.ratingAvg) + '</span>', fa(s.rated) + ' ارزیابی') +
+    (cc ? row('کاردستی‌ها و وسایل آموزشی', '<span class="text-xl font-extrabold text-teal-800 num">' + fa(cc.approved) + '</span>', 'تأییدشده' + (cc.total > cc.approved ? ' · ' + fa(cc.total - cc.approved) + ' در انتظار تأیید' : '')) : '') + '</div>';
 }
 
 /* ===================================================================
@@ -625,7 +671,7 @@ async function startAdmin() {
   if (ok !== true) { clearSession(); throw new Error('این ایمیل دسترسی مدیریت سیستم صبح را ندارد.'); }
   isAdmin = true; await loadBase();
   const tj = jOf(todayISO()); aMonth = { jy: tj.jy, jm: tj.jm }; aDate = todayISO();
-  showApp('پنل مدیریت نوبت صبح', session.email, [['day', 'امروز'], ['follow', 'پیگیری‌ها'], ['msgs', 'پیام‌ها'], ['score', 'کارنامهٔ مربی‌ها'], ['month', 'آمار ماهانه'], ['kids', 'کودکان']]);
+  showApp('پنل مدیریت نوبت صبح', session.email, [['day', 'امروز'], ['follow', 'پیگیری‌ها'], ['msgs', 'پیام‌ها'], ['score', 'کارنامهٔ مربی‌ها'], ['crafts', 'کاردستی‌ها'], ['month', 'آمار ماهانه'], ['kids', 'کودکان']]);
   go('day'); refreshUnread();
 }
 async function refreshUnread() {
@@ -670,9 +716,22 @@ const ADMIN = {
         '<p class="whitespace-pre-wrap leading-relaxed">' + esc(m.body) + '</p><div class="flex gap-2 mt-3">' + (m.is_read ? '' : '<button class="btn text-sm" data-mr="' + m.id + '">خوانده شد</button>') + '<button class="btn text-sm text-red-600" data-md="' + m.id + '">حذف</button></div></div>'; }).join('') : '<div class="card p-8 text-center text-slate-400">پیامی نرسیده است.</div>');
   },
   async score() {
-    await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const rows = await loadAtt(r.start, r.end);
-    $('view').innerHTML = monthNav() + D.trainers.map((t) => '<div class="mb-3"><div class="font-extrabold text-teal-900 mb-1 px-1">' + esc(t.name) + ' · سطح ' + fa(t.level) + '</div>' + statsCard(trainerStats(t.id, rows, r.start, r.end)) + '</div>').join('') +
-      '<p class="text-xs text-slate-500 px-1">امتیاز ماه میانگین سه شاخص است: جلسه‌های ثبت‌شده، ثبت در همان روز، و پیگیری غیبت‌ها.</p>';
+    await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm);
+    const [rows, crafts] = await Promise.all([loadAtt(r.start, r.end), loadCrafts(r.start, r.end)]);
+    const stats = D.trainers.map((t) => ({ t, s: trainerStats(t.id, rows, r.start, r.end), cc: craftCounts(crafts, t.id) }));
+    const summary = '<div class="card overflow-x-auto mb-3"><table class="t"><thead><tr><th>مربی</th><th>امتیاز</th><th>کاردستی</th><th>حضور بچه‌ها</th></tr></thead><tbody>' +
+      stats.map((x) => '<tr><td class="font-bold">' + esc(x.t.name) + '</td><td>' + scoreChip(x.s.score) + '</td><td class="num font-bold">' + fa(x.cc.approved) + (x.cc.total > x.cc.approved ? ' <span class="text-xs text-amber-700 font-normal">(+' + fa(x.cc.total - x.cc.approved) + ')</span>' : '') + '</td><td>' + scoreChip(x.s.attPct) + '</td></tr>').join('') + '</tbody></table></div>';
+    $('view').innerHTML = monthNav() + summary + stats.map((x) => '<div class="mb-3"><div class="font-extrabold text-teal-900 mb-1 px-1">' + esc(x.t.name) + ' · سطح ' + fa(x.t.level) + '</div>' + statsCard(x.s, x.cc) + '</div>').join('') +
+      '<p class="text-xs text-slate-500 px-1">امتیاز ماه میانگین سه شاخص است: جلسه‌های ثبت‌شده، ثبت در همان روز، و پیگیری غیبت‌ها. تعداد کاردستی‌های تأییدشده جداگانه کنار آن آمده است.</p>';
+  },
+  async crafts() {
+    await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const crafts = await loadCrafts(r.start, r.end);
+    const pending = crafts.filter((c) => !c.approved).length;
+    $('view').innerHTML = monthNav() + '<div class="card p-3 mb-3 text-sm text-slate-600">کاردستی‌هایی که مربی‌ها ثبت کرده‌اند. با «تأیید» در کارنامهٔ مربی حساب می‌شود.' + (pending ? ' <span class="chip bg-amber-100 text-amber-800">' + fa(pending) + ' در انتظار تأیید</span>' : '') + '</div>' +
+      D.trainers.map((t) => { const mine = crafts.filter((c) => c.trainer_id === t.id);
+        return '<div class="card p-4 mb-3"><div class="flex items-center justify-between mb-2"><div class="font-extrabold text-teal-900">' + esc(t.name) + '</div><span class="chip bg-teal-50 text-teal-800">' + fa(mine.filter((c) => c.approved).length) + ' تأییدشده از ' + fa(mine.length) + '</span></div>' +
+          (mine.length ? mine.map((c) => { const k = c.class_id ? classById(c.class_id) : null; return '<div class="flex items-start justify-between gap-2 py-2 border-t border-slate-100"><div class="min-w-0"><div class="font-bold">' + esc(c.title) + '</div><div class="text-xs text-slate-500">' + dateLabel(c.made_on) + (k ? ' · ' + esc(classTitle(k)) + ' ' + slotLabel(k.slot) : '') + (c.note ? ' · ' + esc(c.note) : '') + '</div></div>' +
+            '<div class="flex gap-1 shrink-0">' + (c.approved ? '<button class="btn text-sm text-green-700" data-cu="' + c.id + '">✓ تأییدشده</button>' : '<button class="btn btn-main text-sm" data-ca="' + c.id + '">تأیید</button>') + '<button class="btn text-sm text-red-600" data-cd="' + c.id + '">حذف</button></div></div>'; }).join('') : '<p class="text-sm text-slate-400">در این ماه کاردستی ثبت نکرده است.</p>') + '</div>'; }).join('');
   },
   async month() {
     await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const rows = await loadAtt(r.start, r.end);
@@ -715,6 +774,8 @@ $('view').addEventListener('click', async (e) => {
     else if (b.dataset.am !== undefined) { let { jy, jm } = aMonth; jm += +b.dataset.am; if (jm > 12) { jm = 1; jy += 1; } if (jm < 1) { jm = 12; jy -= 1; } aMonth = { jy, jm }; go(current); }
     else if (b.dataset.mr) { await api('/rest/v1/m_messages?id=eq.' + b.dataset.mr, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { is_read: true } }); go('msgs'); refreshUnread(); }
     else if (b.dataset.md) { if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'برای حذف دوباره بزنید'; return; } await api('/rest/v1/m_messages?id=eq.' + b.dataset.md, { method: 'DELETE' }); toast('پیام حذف شد'); go('msgs'); refreshUnread(); }
+    else if (b.dataset.ca || b.dataset.cu) { await api('/rest/v1/m_crafts?id=eq.' + (b.dataset.ca || b.dataset.cu), { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { approved: !!b.dataset.ca } }); go('crafts'); }
+    else if (b.dataset.cd) { if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'دوباره بزنید'; return; } await api('/rest/v1/m_crafts?id=eq.' + b.dataset.cd, { method: 'DELETE' }); toast('حذف شد'); go('crafts'); }
     else if (b.dataset.kdel) { if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'دوباره بزنید'; b.classList.add('bg-red-600', 'text-white'); return; } await api('/rest/v1/m_children?id=eq.' + b.dataset.kdel, { method: 'DELETE' }); toast('کودک حذف شد'); go('kids'); }
     else if (b.dataset.ka) { const k = childById(+b.dataset.ka); await api('/rest/v1/m_children?id=eq.' + k.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { active: !k.active } }); go('kids'); }
   } catch (err) { toast(errText(err), false); }

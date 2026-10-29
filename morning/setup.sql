@@ -144,3 +144,27 @@ where not exists (
 -- بررسی: باید ۱۲ کلاس و دست‌کم ۱ مدیر نشان دهد
 select (select count(*) from public.m_classes) as classes,
        (select count(*) from public.m_admins)  as admins;
+
+-- 5) کاردستی‌ها و وسایل آموزشی مربی‌ها -----------------------------------
+-- مربی ثبت و (تا قبل از تأیید) حذف می‌کند؛ فقط مدیر تأیید می‌کند.
+create table if not exists public.m_crafts (
+  id         bigint generated always as identity primary key,
+  trainer_id bigint not null references public.m_trainers(id),
+  class_id   bigint references public.m_classes(id) on delete set null,
+  title      text not null check (length(title) between 1 and 200),
+  note       text,
+  made_on    date not null,
+  approved   boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists m_crafts_date_idx on public.m_crafts (made_on);
+alter table public.m_crafts enable row level security;
+drop policy if exists m_crafts_read   on public.m_crafts;
+drop policy if exists m_crafts_add    on public.m_crafts;
+drop policy if exists m_crafts_remove on public.m_crafts;
+drop policy if exists m_crafts_admin  on public.m_crafts;
+create policy m_crafts_read   on public.m_crafts for select to anon, authenticated using (true);
+create policy m_crafts_add    on public.m_crafts for insert to anon, authenticated with check (approved = false);
+create policy m_crafts_remove on public.m_crafts for delete to anon using (approved = false);
+create policy m_crafts_admin  on public.m_crafts for all to authenticated
+  using (public.m_is_admin()) with check (public.m_is_admin());
