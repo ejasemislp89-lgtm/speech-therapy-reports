@@ -81,7 +81,7 @@
         <div><label class="lbl">مبلغ (تومان)</label><input id="v-amount" class="inp num" dir="ltr" inputmode="numeric" autocomplete="off" required></div>
         <div><label class="lbl">روش پرداخت</label>
           <select id="v-method" class="inp">
-            <option value="cash">نقدی</option><option value="card">کارتخوان</option>
+            <option value="cash">نقدی</option><option value="card_mellat">کارتخوان ملت</option><option value="card_refah">کارتخوان رفاه</option>
             <option value="transfer">کارت‌به‌کارت</option><option value="unpaid">پرداخت‌نشده</option>
           </select></div>
         <div><label class="lbl">نوع مراجع</label>
@@ -161,7 +161,7 @@
       <div><label class="lbl">خدمت</label><select id="e-service" class="inp"></select></div>
       <div><label class="lbl">مبلغ (تومان)</label><input id="e-amount" class="inp" dir="ltr" inputmode="numeric" required></div>
       <div><label class="lbl">روش پرداخت</label>
-        <select id="e-method" class="inp"><option value="cash">نقدی</option><option value="card">کارتخوان</option><option value="transfer">کارت‌به‌کارت</option><option value="unpaid">پرداخت‌نشده</option></select></div>
+        <select id="e-method" class="inp"><option value="cash">نقدی</option><option value="card_mellat">کارتخوان ملت</option><option value="card_refah">کارتخوان رفاه</option><option value="card" id="e-method-old" hidden>کارتخوان (بانک نامشخص)</option><option value="transfer">کارت‌به‌کارت</option><option value="unpaid">پرداخت‌نشده</option></select></div>
       <div><label class="lbl">نوع مراجع</label>
         <select id="e-source" class="inp"><option value="center">مراجع مرکز</option><option value="own">مراجع خودِ درمانگر</option></select></div>
       <div class="col-span-2"><label class="lbl">توضیح</label><input id="e-note" class="inp"></div>
@@ -190,7 +190,7 @@ const normDigits = (s) => String(s == null ? '' : s)
   .replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
   .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 const parseMoney = (s) => { const t = normDigits(s).replace(/[^\d]/g, ''); return t ? parseInt(t, 10) : NaN; };
-const METHODS = { cash: 'نقدی', card: 'کارتخوان', transfer: 'کارت‌به‌کارت', unpaid: 'پرداخت‌نشده' };
+const METHODS = { cash: 'نقدی', card_mellat: 'کارتخوان ملت', card_refah: 'کارتخوان رفاه', card: 'کارتخوان (بانک نامشخص)', transfer: 'کارت‌به‌کارت', unpaid: 'پرداخت‌نشده' };
 const SOURCES = { center: 'مرکز', own: 'خودِ درمانگر' };
 const MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 
@@ -384,13 +384,13 @@ $('tabs').addEventListener('click', (e) => { const b = e.target.closest('.tabbtn
 
 /* ---------------- نمایش خلاصه‌ی یک روز (مشترک بین ثبت و گزارش) ---------------- */
 function summarize(visits, includeUnpaid) {
-  const byT = new Map(); const byM = { cash: 0, card: 0, transfer: 0, unpaid: 0 };
+  const byT = new Map(); const byM = { cash: 0, card_mellat: 0, card_refah: 0, card: 0, transfer: 0, unpaid: 0 };
   let total = 0, count = 0;
   visits.forEach((v) => {
     const paid = v.pay_method !== 'unpaid';
     if (!byT.has(v.therapist_id)) byT.set(v.therapist_id, { count: 0, sum: 0, unpaid: 0 });
     const t = byT.get(v.therapist_id);
-    t.count += 1; byM[v.pay_method] += v.amount; count += 1;
+    t.count += 1; byM[v.pay_method] = (byM[v.pay_method] || 0) + v.amount; count += 1;
     if (paid) { t.sum += v.amount; total += v.amount; } else { t.unpaid += v.amount; }
   });
   return { byT, byM, total, count };
@@ -401,10 +401,11 @@ function renderDay(visits, outId, editable) {
     ['تعداد مراجعه', fa(s.count), 'text-blue-800'],
     ['دریافتی کل', fa(s.total) + ' تومان', 'text-green-700'],
     ['نقدی', fa(s.byM.cash), 'text-gray-800'],
-    ['کارتخوان', fa(s.byM.card), 'text-gray-800'],
+    ['کارتخوان ملت', fa(s.byM.card_mellat), 'text-gray-800'],
+    ['کارتخوان رفاه', fa(s.byM.card_refah), 'text-gray-800'],
     ['کارت‌به‌کارت', fa(s.byM.transfer), 'text-gray-800'],
     ['پرداخت‌نشده', fa(s.byM.unpaid), 'text-red-600']
-  ].map((c) => '<div class="card p-3 text-center"><div class="text-xs text-gray-500 mb-1">' + c[0] + '</div><div class="font-extrabold ' + c[2] + ' num">' + c[1] + '</div></div>').join('');
+  ].concat(s.byM.card ? [['کارتخوان (بانک نامشخص)', fa(s.byM.card), 'text-amber-700']] : []).map((c) => '<div class="card p-3 text-center"><div class="text-xs text-gray-500 mb-1">' + c[0] + '</div><div class="font-extrabold ' + c[2] + ' num">' + c[1] + '</div></div>').join('');
 
   const rowsT = [...s.byT.entries()].sort((a, b) => b[1].sum - a[1].sum).map(([id, t]) =>
     '<tr><td class="font-bold">' + esc(thName(id)) + '</td><td class="num">' + fa(t.count) + '</td><td class="num">' + fa(t.sum) + '</td><td class="num text-red-600">' + (t.unpaid ? fa(t.unpaid) : '—') + '</td></tr>').join('');
@@ -422,7 +423,7 @@ function renderDay(visits, outId, editable) {
     '<td>' + esc(SOURCES[v.source] || v.source) + '</td></tr>').join('');
 
   $(outId).innerHTML =
-    '<div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">' + cards + '</div>' +
+    '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">' + cards + '</div>' +
     '<div class="card p-4 mb-4"><h3 class="font-extrabold text-blue-900 mb-2">جمع هر درمانگر</h3><div class="overflow-x-auto"><table class="t"><thead><tr><th>درمانگر</th><th>تعداد مراجعه</th><th>دریافتی (تومان)</th><th>پرداخت‌نشده</th></tr></thead><tbody>' +
       (rowsT || '<tr><td colspan="4" class="text-center text-gray-400 py-4">مراجعه‌ای ثبت نشده است</td></tr>') + '</tbody></table></div></div>' +
     '<div class="card p-4"><h3 class="font-extrabold text-blue-900 mb-2">فهرست مراجعه‌ها (' + fa(list.length) + ')</h3><div class="overflow-x-auto"><table class="t"><thead><tr><th class="no-print"></th><th>ساعت</th><th>درمانگر</th><th>مراجع</th><th>خدمت</th><th>مبلغ</th><th>پرداخت</th><th>نوع</th></tr></thead><tbody>' +
@@ -492,7 +493,7 @@ async function onListClick(e, reload) {
     $('e-therapist').innerHTML = optionsHTML(therapists, v.therapist_id, true);
     $('e-service').innerHTML = '<option value="">— بدون خدمت —</option>' + optionsHTML(services, v.service_id, true);
     $('e-patient').value = v.patient_name; $('e-amount').value = v.amount.toLocaleString('en-US');
-    $('e-method').value = v.pay_method; $('e-source').value = v.source; $('e-note').value = v.note || '';
+    $('e-method-old').hidden = v.pay_method !== 'card'; $('e-method').value = v.pay_method; $('e-source').value = v.source; $('e-note').value = v.note || '';
     $('edit-modal').classList.remove('hidden');
   }
 }

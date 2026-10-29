@@ -36,7 +36,7 @@ create table if not exists public.acc_visits (
   patient_name text not null,
   amount       bigint not null check (amount >= 0),
   source       text not null check (source in ('center', 'own')),
-  pay_method   text not null check (pay_method in ('cash', 'card', 'transfer', 'unpaid')),
+  pay_method   text not null check (pay_method in ('cash', 'card', 'card_refah', 'card_mellat', 'transfer', 'unpaid')),
   note         text,
   created_by   text default (auth.jwt() ->> 'email')
 );
