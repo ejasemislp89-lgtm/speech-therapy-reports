@@ -490,7 +490,7 @@ function openRoster() {
   const c = classById(tClass); const inIds = new Set(kidsOf(c.id).map((k) => k.id));
   const others = D.children.filter((k) => k.active && !inIds.has(k.id));
   openModal('<h3 class="font-extrabold text-lg mb-1">بچه‌های ' + esc(classTitle(c)) + '</h3><p class="text-sm text-slate-500 mb-3">' + slotLabel(c.slot) + ' · ' + esc(classDays(c)) + '</p>' +
-    '<div class="space-y-2 mb-4" id="rs-list">' + (inIds.size ? kidsOf(c.id).map((k) => '<div class="flex items-center justify-between gap-2 border border-slate-100 rounded-xl p-2"><span class="font-bold">' + esc(k.name) + '</span><button class="text-red-600 text-sm font-bold min-h-[40px] px-2" data-rm="' + k.id + '">خروج از کلاس</button></div>').join('') : '<p class="text-slate-400 text-sm">هنوز کودکی ثبت نشده.</p>') + '</div>' +
+    '<div class="space-y-2 mb-4" id="rs-list">' + (inIds.size ? kidsOf(c.id).map((k) => '<div class="flex items-center justify-between gap-2 border border-slate-100 rounded-xl p-2"><span class="font-bold min-w-0 truncate">' + esc(k.name) + '</span><span class="flex gap-1 shrink-0"><button class="text-slate-600 text-sm font-bold min-h-[40px] px-2" data-ed="' + k.id + '">ویرایش / حذف</button><button class="text-red-600 text-sm font-bold min-h-[40px] px-2" data-rm="' + k.id + '">خروج از کلاس</button></span></div>').join('') : '<p class="text-slate-400 text-sm">هنوز کودکی ثبت نشده.</p>') + '</div>' +
     '<form id="rs-form"><label class="lbl" for="rs-name">افزودن کودک</label><input id="rs-name" class="inp mb-2" list="rs-names" placeholder="نام و نام خانوادگی کامل" autocomplete="off"><datalist id="rs-names">' + others.map((k) => '<option value="' + esc(k.name) + '"></option>').join('') + '</datalist>' +
     '<input id="rs-phone" class="inp mb-3" type="tel" dir="ltr" placeholder="تلفن والدین (اختیاری)">' +
     '<button type="button" class="text-teal-700 font-bold text-sm mb-3 min-h-[40px]" id="rs-bulk-toggle">+ افزودن چند کودک با هم</button>' +
@@ -499,6 +499,7 @@ function openRoster() {
     '<div class="grid grid-cols-2 gap-2"><button type="submit" class="btn btn-main" id="rs-add">افزودن به کلاس</button><button type="button" class="btn" id="rs-close">بستن</button></div></form>' +
     '<p class="text-xs text-slate-500 mt-3">ظرفیت بهزیستی: ' + fa(D.children.filter((k) => k.active).length) + ' از ' + fa(CAPACITY) + ' کودک ثبت شده</p>');
   $('rs-close').onclick = () => { closeModal(); draft = {}; go('today'); };
+  $('rs-list').querySelectorAll('[data-ed]').forEach((x) => x.onclick = () => openKid(+x.dataset.ed));
   $('rs-list').querySelectorAll('[data-rm]').forEach((x) => x.onclick = async () => {
     try { await api('/rest/v1/m_enrollments?class_id=eq.' + c.id + '&child_id=eq.' + x.dataset.rm, { method: 'DELETE' }); await loadBase(); openRoster(); } catch (err) { toast(errText(err), false); }
   });
@@ -539,8 +540,11 @@ function renderMyChildren() {
 function openKid(id) {
   const k = childById(id); if (!k) return;
   openModal('<h3 class="font-extrabold text-lg mb-3">' + esc(k.name) + '</h3><label class="lbl" for="kd-name">نام کودک</label><input id="kd-name" class="inp mb-3" value="' + esc(k.name) + '"><label class="lbl" for="kd-phone">تلفن والدین</label><input id="kd-phone" class="inp mb-4" type="tel" dir="ltr" value="' + esc(k.parent_phone || '') + '">' +
-    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="kd-save">ذخیره</button><button class="btn" id="kd-close">انصراف</button></div>');
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="kd-save">ذخیره</button><button class="btn" id="kd-close">انصراف</button></div>' +
+    '<button class="btn w-full mt-4 text-red-600 border-red-200" id="kd-del">حذف کامل کودک</button>' +
+    '<p class="text-xs text-slate-500 mt-2">با حذف کامل، کودک از همهٔ کلاس‌ها و سابقهٔ حضورش هم پاک می‌شود. برای خارج کردن فقط از یک کلاس، از «مدیریت بچه‌ها» استفاده کنید.</p>');
   $('kd-close').onclick = closeModal;
+  $('kd-del').onclick = () => deleteChild(id, $('kd-del'));
   $('kd-save').onclick = async () => {
     const n = normName($('kd-name').value); if (!n) { toast('نام را بنویسید', false); return; }
     try { await api('/rest/v1/m_children?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { name: n, parent_phone: $('kd-phone').value.trim() || null } }); closeModal(); toast('ذخیره شد'); go(current); }
@@ -571,6 +575,12 @@ function openSingle() {
       closeModal(); toast('کلاس تکی ساخته شد'); go('children');
     } catch (err) { toast(err.message && !/^\{/.test(err.message) && err.message !== 'NOT_SETUP' ? err.message : errText(err), false); }
   };
+}
+async function deleteChild(id, btn) {
+  if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'مطمئنید؟ برای حذف دوباره بزنید'; btn.classList.add('bg-red-600', 'text-white'); return; }
+  btn.disabled = true; btn.textContent = 'در حال حذف...';
+  try { await api('/rest/v1/m_children?id=eq.' + id, { method: 'DELETE' }); closeModal(); draft = {}; toast('کودک حذف شد'); go(current); }
+  catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'حذف کامل کودک'; btn.dataset.armed = ''; }
 }
 async function delSingle(id, btn) {
   if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'برای حذف دوباره بزنید'; return; }
@@ -686,7 +696,7 @@ const ADMIN = {
     $('view').innerHTML = '<div class="card p-3 mb-3 text-sm text-slate-600">' + fa(D.children.filter((k) => k.active).length) + ' کودک فعال از ' + fa(CAPACITY) + ' ظرفیت. مربی‌ها بچه‌ها را از صفحهٔ خودشان به کلاس اضافه می‌کنند.</div>' +
       list.map((k) => { const cls = D.enroll.filter((en) => en.child_id === k.id).map((en) => classById(en.class_id)).filter(Boolean);
         return '<div class="card p-3 mb-2 ' + (k.active ? '' : 'opacity-60') + '"><div class="flex items-center justify-between gap-2"><div class="min-w-0"><div class="font-bold">' + esc(k.name) + (k.active ? '' : ' <span class="chip bg-slate-100 text-slate-500">غیرفعال</span>') + '</div><div class="text-xs text-slate-500">' + (cls.length ? cls.map((c) => esc((trainerById(c.trainer_id) || {}).name) + ' · ' + (c.kind === 'single' ? 'تکی' : GROUP[c.day_group]) + ' · ' + slotLabel(c.slot)).join(' / ') : 'در هیچ کلاسی نیست') + (k.parent_phone ? ' · <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</div></div>' +
-          '<button class="btn text-sm" data-ka="' + k.id + '">' + (k.active ? 'غیرفعال کن' : 'فعال کن') + '</button></div></div>'; }).join('') ||
+          '<div class="flex gap-1 shrink-0"><button class="btn text-sm" data-ka="' + k.id + '">' + (k.active ? 'غیرفعال کن' : 'فعال کن') + '</button><button class="btn text-sm text-red-600" data-kdel="' + k.id + '">حذف</button></div></div></div>'; }).join('') ||
       '<div class="card p-8 text-center text-slate-400">هنوز کودکی ثبت نشده است.</div>';
   }
 };
@@ -705,6 +715,7 @@ $('view').addEventListener('click', async (e) => {
     else if (b.dataset.am !== undefined) { let { jy, jm } = aMonth; jm += +b.dataset.am; if (jm > 12) { jm = 1; jy += 1; } if (jm < 1) { jm = 12; jy -= 1; } aMonth = { jy, jm }; go(current); }
     else if (b.dataset.mr) { await api('/rest/v1/m_messages?id=eq.' + b.dataset.mr, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { is_read: true } }); go('msgs'); refreshUnread(); }
     else if (b.dataset.md) { if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'برای حذف دوباره بزنید'; return; } await api('/rest/v1/m_messages?id=eq.' + b.dataset.md, { method: 'DELETE' }); toast('پیام حذف شد'); go('msgs'); refreshUnread(); }
+    else if (b.dataset.kdel) { if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'دوباره بزنید'; b.classList.add('bg-red-600', 'text-white'); return; } await api('/rest/v1/m_children?id=eq.' + b.dataset.kdel, { method: 'DELETE' }); toast('کودک حذف شد'); go('kids'); }
     else if (b.dataset.ka) { const k = childById(+b.dataset.ka); await api('/rest/v1/m_children?id=eq.' + k.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { active: !k.active } }); go('kids'); }
   } catch (err) { toast(errText(err), false); }
 });
