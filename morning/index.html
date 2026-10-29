@@ -283,25 +283,22 @@ function trainerStats(tid, rows, fromIso, toIso) {
 }
 /* ---------------- امتیاز و پاداش ماهانه ---------------- */
 const BONUS_CAP = 1500000; // سقف پاداش هر مربی در ماه (تومان)
-const PTS = { onTime: 2, late: 1, rated: 1, folFast: 2, folLate: 1, craft: 5, craftMax: 8, full: 10 };
+const PTS = { onTime: 2, late: 1, folFast: 2, folLate: 1, craft: 5, craftMax: 8, full: 10 };
 function bonusCalc(tid, rows, crafts, fromIso, toIso) {
   const st = trainerStats(tid, rows, fromIso, toIso);
   const mine = rows.filter((r) => { const c = classById(r.class_id); return (c && c.trainer_id === tid) || r.trainer_id === tid; });
   const sessions = new Map();
   mine.forEach((r) => { const k = r.class_id + '|' + r.att_date; if (!sessions.has(k)) sessions.set(k, []); sessions.get(k).push(r); });
-  let rec = 0, rate = 0;
-  sessions.forEach((rs) => {
-    rec += rs.some((r) => recordedDay(r) === r.att_date) ? PTS.onTime : PTS.late;
-    const pres = rs.filter((r) => r.status === 'p'); if (pres.length && pres.every((r) => r.rating)) rate += PTS.rated;
-  });
+  let rec = 0;
+  sessions.forEach((rs) => { rec += rs.some((r) => recordedDay(r) === r.att_date) ? PTS.onTime : PTS.late; });
   const abs = mine.filter((r) => r.status === 'a'); let fol = 0, folFast = 0;
   abs.forEach((r) => { if (!(r.followup && r.followup.trim())) return; const fast = r.followup_at && tehranISO(new Date(r.followup_at)) <= addDays(r.att_date, 2); fol += fast ? PTS.folFast : PTS.folLate; if (fast) folFast += 1; });
   const cc = craftCounts(crafts, tid); const craftN = Math.min(cc.approved, PTS.craftMax); const craft = craftN * PTS.craft;
   const full = st.expected > 0 && sessions.size >= st.expected ? PTS.full : 0;
-  const earned = rec + rate + fol + craft + full;
-  const max = st.expected * (PTS.onTime + PTS.rated) + abs.length * PTS.folFast + PTS.craftMax * PTS.craft + PTS.full;
+  const earned = rec + fol + craft + full;
+  const max = st.expected * PTS.onTime + abs.length * PTS.folFast + PTS.craftMax * PTS.craft + PTS.full;
   const money = max ? Math.min(BONUS_CAP, Math.round(BONUS_CAP * earned / max / 10000) * 10000) : 0;
-  return { rec, rate, fol, folFast, craft, craftN, full, earned, max, money, pct: max ? Math.round(earned / max * 100) : 0, st, absN: abs.length };
+  return { rec, fol, folFast, craft, craftN, full, earned, max, money, pct: max ? Math.round(earned / max * 100) : 0, st, absN: abs.length };
 }
 const toman = (n) => fa(n) + ' تومان';
 function bonusCard(b, running) {
@@ -310,7 +307,6 @@ function bonusCard(b, running) {
     '<div class="text-xs text-slate-500 mb-2">' + fa(b.earned) + ' امتیاز از ' + fa(b.max) + ' (' + fa(b.pct) + '٪) · سقف پاداش ' + toman(BONUS_CAP) + '</div>' +
     '<div class="h-2 rounded-full bg-slate-100 mb-3 overflow-hidden"><div class="h-2 bg-emerald-500" style="width:' + Math.min(100, b.pct) + '%"></div></div>' +
     row('ثبت حضور و غیاب', b.rec, 'هر کلاس: همان روز ' + fa(PTS.onTime) + ' امتیاز، دیرتر ' + fa(PTS.late)) +
-    row('امتیازدهی به بچه‌ها', b.rate, 'هر کلاس که به همهٔ حاضرین امتیاز داده شود: ' + fa(PTS.rated)) +
     row('پیگیری غیبت‌ها', b.fol, 'هر غیبت: تا ۴۸ ساعت ' + fa(PTS.folFast) + '، دیرتر ' + fa(PTS.folLate) + ' · ' + fa(b.absN) + ' غیبت') +
     row('کاردستی تأییدشده', b.craft, 'هر کدام ' + fa(PTS.craft) + ' امتیاز (حداکثر ' + fa(PTS.craftMax) + ' عدد) · ' + fa(b.craftN) + ' عدد') +
     row('جایزهٔ ثبت کامل ماه', b.full, 'هیچ کلاسی ثبت‌نشده نماند: ' + fa(PTS.full)) + '</div>';
@@ -468,7 +464,7 @@ function renderCrafts(list, r) {
   });
 }
 
-const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و پاداش ماهانه</b><br>ثبت به‌موقع حضور و غیاب، امتیازدهی به بچه‌ها، پیگیری غیبت‌ها و ثبت کاردستی‌ها و وسایل آموزشی که برای کلاس می‌سازید، امتیاز کارنامهٔ شما را بالا می‌برد. آخر هر ماه بر اساس همین کارنامه، <b>پاداش مازاد بر حقوق تا سقف ۱٬۵۰۰٬۰۰۰ تومان</b> پرداخت می‌شود.</div>';
+const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و پاداش ماهانه</b><br>ثبت به‌موقع حضور و غیاب، پیگیری غیبت‌ها و ثبت کاردستی‌ها و وسایل آموزشی که برای کلاس می‌سازید، امتیاز کارنامهٔ شما را بالا می‌برد. آخر هر ماه بر اساس همین کارنامه، <b>پاداش مازاد بر حقوق تا سقف ۱٬۵۰۰٬۰۰۰ تومان</b> پرداخت می‌شود.</div>';
 function renderToday() {
   const list = classesOnDate(me.id, tDate);
   const pend = pendingFollowups(tAtt, me.id).filter((r) => r.att_date < tDate || (r.att_date === tDate && r.class_id !== tClass));
