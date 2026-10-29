@@ -309,7 +309,7 @@ function bonusCard(b, running) {
     row('ثبت حضور و غیاب', b.rec, 'هر کلاس: همان روز ' + fa(PTS.onTime) + ' امتیاز، دیرتر ' + fa(PTS.late)) +
     row('پیگیری غیبت‌ها', b.fol, 'هر غیبت: تا ۴۸ ساعت ' + fa(PTS.folFast) + '، دیرتر ' + fa(PTS.folLate) + ' · ' + fa(b.absN) + ' غیبت') +
     row('کاردستی تأییدشده', b.craft, 'هر کدام ' + fa(PTS.craft) + ' امتیاز (حداکثر ' + fa(PTS.craftMax) + ' عدد) · ' + fa(b.craftN) + ' عدد') +
-    row('جایزهٔ ثبت کامل ماه', b.full, 'هیچ کلاسی ثبت‌نشده نماند: ' + fa(PTS.full)) + '</div>';
+    row('جایزهٔ ثبت کامل ماه', b.full, 'اگر حضور و غیاب همهٔ کلاس‌های ماه، بدون جاافتادگی، ثبت شود: ' + fa(PTS.full)) + '</div>';
 }
 function scoreChip(v) {
   if (v === null || v === undefined) return '<span class="chip bg-slate-100 text-slate-500">—</span>';
