@@ -491,21 +491,37 @@ function openRoster() {
   const others = D.children.filter((k) => k.active && !inIds.has(k.id));
   openModal('<h3 class="font-extrabold text-lg mb-1">بچه‌های ' + esc(classTitle(c)) + '</h3><p class="text-sm text-slate-500 mb-3">' + slotLabel(c.slot) + ' · ' + esc(classDays(c)) + '</p>' +
     '<div class="space-y-2 mb-4" id="rs-list">' + (inIds.size ? kidsOf(c.id).map((k) => '<div class="flex items-center justify-between gap-2 border border-slate-100 rounded-xl p-2"><span class="font-bold">' + esc(k.name) + '</span><button class="text-red-600 text-sm font-bold min-h-[40px] px-2" data-rm="' + k.id + '">خروج از کلاس</button></div>').join('') : '<p class="text-slate-400 text-sm">هنوز کودکی ثبت نشده.</p>') + '</div>' +
-    '<label class="lbl" for="rs-name">افزودن کودک</label><input id="rs-name" class="inp mb-2" list="rs-names" placeholder="نام و نام خانوادگی کامل" autocomplete="off"><datalist id="rs-names">' + others.map((k) => '<option value="' + esc(k.name) + '"></option>').join('') + '</datalist>' +
+    '<form id="rs-form"><label class="lbl" for="rs-name">افزودن کودک</label><input id="rs-name" class="inp mb-2" list="rs-names" placeholder="نام و نام خانوادگی کامل" autocomplete="off"><datalist id="rs-names">' + others.map((k) => '<option value="' + esc(k.name) + '"></option>').join('') + '</datalist>' +
     '<input id="rs-phone" class="inp mb-3" type="tel" dir="ltr" placeholder="تلفن والدین (اختیاری)">' +
-    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="rs-add">افزودن به کلاس</button><button class="btn" id="rs-close">بستن</button></div>' +
+    '<button type="button" class="text-teal-700 font-bold text-sm mb-3 min-h-[40px]" id="rs-bulk-toggle">+ افزودن چند کودک با هم</button>' +
+    '<div id="rs-bulk-wrap" class="hidden mb-3"><label class="lbl" for="rs-bulk">هر نام در یک خط</label><textarea id="rs-bulk" class="inp" rows="6" placeholder="سارا احمدی&#10;علی رضایی&#10;..."></textarea></div>' +
+    '<p id="rs-status" class="text-sm font-bold mb-2 hidden"></p>' +
+    '<div class="grid grid-cols-2 gap-2"><button type="submit" class="btn btn-main" id="rs-add">افزودن به کلاس</button><button type="button" class="btn" id="rs-close">بستن</button></div></form>' +
     '<p class="text-xs text-slate-500 mt-3">ظرفیت بهزیستی: ' + fa(D.children.filter((k) => k.active).length) + ' از ' + fa(CAPACITY) + ' کودک ثبت شده</p>');
   $('rs-close').onclick = () => { closeModal(); draft = {}; go('today'); };
   $('rs-list').querySelectorAll('[data-rm]').forEach((x) => x.onclick = async () => {
     try { await api('/rest/v1/m_enrollments?class_id=eq.' + c.id + '&child_id=eq.' + x.dataset.rm, { method: 'DELETE' }); await loadBase(); openRoster(); } catch (err) { toast(errText(err), false); }
   });
-  $('rs-add').onclick = async () => {
+  $('rs-bulk-toggle').onclick = () => { $('rs-bulk-wrap').classList.toggle('hidden'); };
+  const status = (msg, ok) => { const el = $('rs-status'); el.textContent = msg; el.className = 'text-sm font-bold mb-2 ' + (ok ? 'text-teal-700' : 'text-red-600'); };
+  $('rs-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const names = [$('rs-name').value].concat(($('rs-bulk') ? $('rs-bulk').value : '').split(/\r?\n/)).map(normName).filter(Boolean);
+    if (!names.length) { status('نام کودک را بنویسید.', false); return; }
+    const btn = $('rs-add'); btn.disabled = true; btn.textContent = 'در حال ثبت...'; status('در حال ثبت ' + fa(names.length) + ' کودک...', true);
     try {
-      const id = await addChildByName($('rs-name').value, $('rs-phone').value);
-      await api('/rest/v1/m_enrollments?on_conflict=class_id,child_id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: { class_id: c.id, child_id: id } });
-      await loadBase(); toast('به کلاس اضافه شد'); openRoster();
-    } catch (err) { toast(err.message && !/^\{/.test(err.message) && err.message !== 'NOT_SETUP' ? err.message : errText(err), false); }
-  };
+      for (let i = 0; i < names.length; i += 1) {
+        const id = await addChildByName(names[i], i === 0 ? $('rs-phone').value : '');
+        await api('/rest/v1/m_enrollments?on_conflict=class_id,child_id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: { class_id: c.id, child_id: id } });
+        if (!D.children.some((k) => k.id === id)) D.children.push({ id, name: names[i], active: true });
+      }
+      await loadBase(); toast(fa(names.length) + ' کودک به کلاس اضافه شد'); openRoster();
+    } catch (err) {
+      console.error(err);
+      status(err && err.message && !/^[\[{]/.test(err.message) && err.message !== 'NOT_SETUP' ? err.message : errText(err), false);
+      btn.disabled = false; btn.textContent = 'افزودن به کلاس';
+    }
+  });
 }
 
 /* ---- بچه‌های من و کلاس تکی ---- */
@@ -692,6 +708,10 @@ $('view').addEventListener('click', async (e) => {
     else if (b.dataset.ka) { const k = childById(+b.dataset.ka); await api('/rest/v1/m_children?id=eq.' + k.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { active: !k.active } }); go('kids'); }
   } catch (err) { toast(errText(err), false); }
 });
+
+/* ---------------- خطاهای پیش‌بینی‌نشده روی صفحه دیده شوند ---------------- */
+window.addEventListener('error', (e) => { toast('خطای صفحه: ' + (e.message || 'نامشخص'), false); });
+window.addEventListener('unhandledrejection', (e) => { const r = e.reason; toast(r && r.message === 'NOT_SETUP' ? errText(r) : 'خطا: ' + ((r && r.message) || r || 'نامشخص'), false); });
 
 /* ---------------- شروع ---------------- */
 (async function init() {
