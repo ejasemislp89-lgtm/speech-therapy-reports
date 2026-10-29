@@ -4,10 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>نوبت صبح ترنم</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="نوبت صبح">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-  body { font-family: 'Vazirmatn', sans-serif; background: #eef2f7; color: #14213d; }
+  body { font-family: 'Vazirmatn', sans-serif; background: #eef2f7; color: #14213d; padding-top: env(safe-area-inset-top, 0px); }
   .card { background: #fff; border-radius: 1rem; border: 1px solid #e2e8f0; }
   .inp { width: 100%; border: 2px solid #e2e8f0; border-radius: .75rem; padding: .6rem .8rem; background: #f8fafc; font-size: 16px; }
   .inp:focus { outline: none; border-color: #0f766e; background: #fff; }
@@ -58,6 +66,17 @@
       <p class="text-xs text-slate-500 text-center">همان ایمیل و رمز ورود سیستم حساب‌کتاب</p>
     </form>
     <p id="login-error" class="text-red-600 text-sm text-center mt-3 hidden"></p>
+  </div>
+  <div id="install-card" class="card p-4 mt-4 hidden">
+    <div class="flex items-center gap-3">
+      <img src="icons/icon-192.png" alt="" class="w-12 h-12 rounded-xl shrink-0">
+      <div class="min-w-0"><div class="font-extrabold text-teal-900">نصب روی گوشی</div><div class="text-xs text-slate-500">آیکون برنامه روی صفحهٔ اصلی گوشی می‌آید و مثل اپ باز می‌شود.</div></div>
+    </div>
+    <button id="install-btn" class="btn btn-main w-full mt-3 hidden" type="button">نصب برنامه</button>
+    <div id="install-ios" class="hidden text-sm text-slate-700 mt-3 leading-7">
+      در <b>Safari</b>: دکمهٔ اشتراک‌گذاری <span class="chip bg-slate-100">⬆︎</span> پایین صفحه را بزنید، بعد <b>Add to Home Screen</b> و در آخر <b>Add</b>.
+      <div id="install-ios-inapp" class="hidden text-amber-700 mt-1">اگر لینک را داخل تلگرام یا اینستاگرام باز کرده‌اید، اول از منوی ⋯ گزینهٔ «Open in Safari» را بزنید.</div>
+    </div>
   </div>
 </div>
 
@@ -811,6 +830,20 @@ $('view').addEventListener('click', async (e) => {
 /* ---------------- خطاهای پیش‌بینی‌نشده روی صفحه دیده شوند ---------------- */
 window.addEventListener('error', (e) => { toast('خطای صفحه: ' + (e.message || 'نامشخص'), false); });
 window.addEventListener('unhandledrejection', (e) => { const r = e.reason; toast(r && r.message === 'NOT_SETUP' ? errText(r) : 'خطا: ' + ((r && r.message) || r || 'نامشخص'), false); });
+
+/* ---------------- نصب به‌شکل برنامه ---------------- */
+(function setupInstall() {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (standalone) return;
+  const ua = navigator.userAgent || '';
+  const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const inApp = /Telegram|Instagram|FBAN|FBAV|WhatsApp/i.test(ua) || (ios && !/Safari/i.test(ua));
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; $('install-card').classList.remove('hidden'); $('install-btn').classList.remove('hidden'); });
+  $('install-btn').onclick = async () => { if (!deferred) return; deferred.prompt(); try { await deferred.userChoice; } catch (x) {} deferred = null; $('install-card').classList.add('hidden'); };
+  if (ios) { $('install-card').classList.remove('hidden'); $('install-ios').classList.remove('hidden'); if (inApp) $('install-ios-inapp').classList.remove('hidden'); }
+})();
 
 /* ---------------- شروع ---------------- */
 (async function init() {
