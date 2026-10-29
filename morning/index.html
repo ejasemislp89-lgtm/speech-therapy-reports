@@ -283,22 +283,21 @@ function trainerStats(tid, rows, fromIso, toIso) {
 }
 /* ---------------- امتیاز و پاداش ماهانه ---------------- */
 const BONUS_CAP = 1500000; // سقف پاداش هر مربی در ماه (تومان)
-const PTS = { onTime: 2, late: 1, folFast: 2, folLate: 1, craft: 5, craftMax: 8, full: 10 };
+const PTS = { folFast: 2, folLate: 1, craft: 5, craftMax: 8 };
 function bonusCalc(tid, rows, crafts, fromIso, toIso) {
   const st = trainerStats(tid, rows, fromIso, toIso);
   const mine = rows.filter((r) => { const c = classById(r.class_id); return (c && c.trainer_id === tid) || r.trainer_id === tid; });
   const sessions = new Map();
   mine.forEach((r) => { const k = r.class_id + '|' + r.att_date; if (!sessions.has(k)) sessions.set(k, []); sessions.get(k).push(r); });
-  let rec = 0;
-  sessions.forEach((rs) => { rec += rs.some((r) => recordedDay(r) === r.att_date) ? PTS.onTime : PTS.late; });
+  // حضور و غیاب الزامی است و امتیاز ندارد؛ فقط وضعیتش نمایش داده می‌شود
+  const recDone = Math.min(sessions.size, st.expected), recMissing = Math.max(0, st.expected - sessions.size);
   const abs = mine.filter((r) => r.status === 'a'); let fol = 0, folFast = 0;
   abs.forEach((r) => { if (!(r.followup && r.followup.trim())) return; const fast = r.followup_at && tehranISO(new Date(r.followup_at)) <= addDays(r.att_date, 2); fol += fast ? PTS.folFast : PTS.folLate; if (fast) folFast += 1; });
   const cc = craftCounts(crafts, tid); const craftN = Math.min(cc.approved, PTS.craftMax); const craft = craftN * PTS.craft;
-  const full = st.expected > 0 && sessions.size >= st.expected ? PTS.full : 0;
-  const earned = rec + fol + craft + full;
-  const max = st.expected * PTS.onTime + abs.length * PTS.folFast + PTS.craftMax * PTS.craft + PTS.full;
+  const earned = fol + craft;
+  const max = abs.length * PTS.folFast + PTS.craftMax * PTS.craft;
   const money = max ? Math.min(BONUS_CAP, Math.round(BONUS_CAP * earned / max / 10000) * 10000) : 0;
-  return { rec, fol, folFast, craft, craftN, full, earned, max, money, pct: max ? Math.round(earned / max * 100) : 0, st, absN: abs.length };
+  return { recDone, recMissing, fol, folFast, craft, craftN, earned, max, money, pct: max ? Math.round(earned / max * 100) : 0, st, absN: abs.length };
 }
 const toman = (n) => fa(n) + ' تومان';
 function bonusCard(b, running) {
@@ -306,10 +305,10 @@ function bonusCard(b, running) {
   return '<div class="card p-4 mb-3 border-2 border-emerald-200"><div class="flex items-center justify-between gap-2 mb-1"><div class="font-extrabold">💰 پاداش ' + (running ? 'تا امروز' : 'این ماه') + '</div><div class="text-xl font-extrabold text-emerald-700">' + toman(b.money) + '</div></div>' +
     '<div class="text-xs text-slate-500 mb-2">' + fa(b.earned) + ' امتیاز از ' + fa(b.max) + ' (' + fa(b.pct) + '٪) · سقف پاداش ' + toman(BONUS_CAP) + '</div>' +
     '<div class="h-2 rounded-full bg-slate-100 mb-3 overflow-hidden"><div class="h-2 bg-emerald-500" style="width:' + Math.min(100, b.pct) + '%"></div></div>' +
-    row('ثبت حضور و غیاب', b.rec, 'هر کلاس: همان روز ' + fa(PTS.onTime) + ' امتیاز، دیرتر ' + fa(PTS.late)) +
     row('پیگیری غیبت‌ها', b.fol, 'هر غیبت: تا ۴۸ ساعت ' + fa(PTS.folFast) + '، دیرتر ' + fa(PTS.folLate) + ' · ' + fa(b.absN) + ' غیبت') +
     row('کاردستی تأییدشده', b.craft, 'هر کدام ' + fa(PTS.craft) + ' امتیاز (حداکثر ' + fa(PTS.craftMax) + ' عدد) · ' + fa(b.craftN) + ' عدد') +
-    row('جایزهٔ ثبت کامل ماه', b.full, 'اگر حضور و غیاب همهٔ کلاس‌های ماه، بدون جاافتادگی، ثبت شود: ' + fa(PTS.full)) + '</div>';
+    '<div class="mt-3 rounded-xl p-2 text-sm ' + (b.recMissing ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-slate-50 text-slate-700') + '"><b>حضور و غیاب (الزامی):</b> ' + fa(b.recDone) + ' از ' + fa(b.st.expected) + ' کلاس ثبت شده' + (b.recMissing ? ' · ' + fa(b.recMissing) + ' کلاس جا افتاده' : ' ✓') + '</div>' +
+    '</div>';
 }
 function scoreChip(v) {
   if (v === null || v === undefined) return '<span class="chip bg-slate-100 text-slate-500">—</span>';
@@ -464,7 +463,7 @@ function renderCrafts(list, r) {
   });
 }
 
-const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و پاداش ماهانه</b><br>ثبت به‌موقع حضور و غیاب، پیگیری غیبت‌ها و ثبت کاردستی‌ها و وسایل آموزشی که برای کلاس می‌سازید، امتیاز کارنامهٔ شما را بالا می‌برد. آخر هر ماه بر اساس همین کارنامه، <b>پاداش مازاد بر حقوق تا سقف ۱٬۵۰۰٬۰۰۰ تومان</b> پرداخت می‌شود.</div>';
+const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و پاداش ماهانه</b><br>ثبت حضور و غیاب همهٔ کلاس‌ها <b>الزامی</b> است. پیگیری غیبت‌ها و ثبت کاردستی‌ها و وسایل آموزشی که برای کلاس می‌سازید، امتیاز کارنامهٔ شما را بالا می‌برد. آخر هر ماه بر اساس همین کارنامه، <b>پاداش مازاد بر حقوق تا سقف ۱٬۵۰۰٬۰۰۰ تومان</b> پرداخت می‌شود.</div>';
 function renderToday() {
   const list = classesOnDate(me.id, tDate);
   const pend = pendingFollowups(tAtt, me.id).filter((r) => r.att_date < tDate || (r.att_date === tDate && r.class_id !== tClass));
@@ -831,7 +830,7 @@ const ADMIN = {
     const summary = '<div class="card overflow-x-auto mb-3"><table class="t"><thead><tr><th>مربی</th><th>پاداش</th><th>امتیاز</th><th>کاردستی</th><th>حضور بچه‌ها</th></tr></thead><tbody>' +
       stats.map((x) => '<tr><td class="font-bold">' + esc(x.t.name) + '</td><td class="num font-bold text-emerald-700 whitespace-nowrap">' + toman(x.b.money) + '</td><td>' + scoreChip(x.b.pct) + '</td><td class="num font-bold">' + fa(x.cc.approved) + (x.cc.total > x.cc.approved ? ' <span class="text-xs text-amber-700 font-normal">(+' + fa(x.cc.total - x.cc.approved) + ')</span>' : '') + '</td><td>' + scoreChip(x.s.attPct) + '</td></tr>').join('') + '</tbody></table></div>';
     $('view').innerHTML = monthNav() + summary + stats.map((x) => '<div class="mb-3"><div class="font-extrabold text-teal-900 mb-1 px-1">' + esc(x.t.name) + ' · سطح ' + fa(x.t.level) + '</div>' + bonusCard(x.b, running) + statsCard(x.s, x.cc) + '</div>').join('') +
-      '<p class="text-xs text-slate-500 px-1">پاداش = سقف ' + toman(BONUS_CAP) + ' × (امتیاز گرفته‌شده ÷ حداکثر امتیاز ممکن آن ماه). حداکثر امتیاز بر اساس تعداد کلاس‌ها و غیبت‌های همان مربی حساب می‌شود، پس مربی با کلاس کمتر ضرر نمی‌کند.</p>';
+      '<p class="text-xs text-slate-500 px-1">پاداش = سقف ' + toman(BONUS_CAP) + ' × (امتیاز گرفته‌شده ÷ حداکثر امتیاز ممکن آن ماه). امتیاز فقط از پیگیری غیبت‌ها و کاردستی‌ها می‌آید؛ حضور و غیاب الزامی است و جداگانه نمایش داده می‌شود.</p>';
   },
   async crafts() {
     await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const crafts = await loadCrafts(r.start, r.end);
