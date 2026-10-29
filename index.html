@@ -93,6 +93,28 @@
             <button onclick="logout()" class="text-red-600 font-bold text-sm hover:text-red-800">خروج از حساب</button>
         </div>
 
+        <!-- THERAPIST TABS -->
+        <div class="no-print grid grid-cols-2 gap-2 mb-6">
+            <button id="ttab-new" onclick="switchTherapistTab('new')" class="py-3 rounded-lg font-bold transition">📝 ثبت گزارش جدید</button>
+            <button id="ttab-mine" onclick="switchTherapistTab('mine')" class="py-3 rounded-lg font-bold transition">📁 مراجعین من</button>
+        </div>
+
+        <!-- MY PATIENTS PANE -->
+        <div id="my-patients-pane" class="hidden no-print">
+            <p class="text-gray-600 text-sm mb-4 leading-relaxed">مراجعینی که برایشان گزارش ثبت کرده‌اید. اگر مراجع با درمانگر دیگری هم جلسه دارد، گزارش‌های آن درمانگر هم در پرونده دیده می‌شود.</p>
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <input type="text" id="my-patient-search" oninput="renderMyPatients()" placeholder="🔍 جستجوی نام مراجع..." class="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50">
+                <label class="flex items-center gap-2 bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 cursor-pointer whitespace-nowrap">
+                    <input type="checkbox" id="my-shared-only" onchange="renderMyPatients()" class="w-5 h-5">
+                    <span class="font-bold text-gray-700 text-sm">فقط مراجعین مشترک</span>
+                </label>
+            </div>
+            <div id="my-patients-loader" class="loader mb-4"></div>
+            <p id="my-patients-msg" class="text-center text-gray-500 py-6 hidden"></p>
+            <div id="my-patients-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+        </div>
+
+        <div id="new-report-pane">
         <div class="flex justify-between items-center border-b-4 border-blue-700 pb-6 mb-8">
             <div class="text-right">
                 <h1 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-2">گفتاردرمانی احسان جاسمی</h1>
@@ -119,7 +141,7 @@
 
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">نام و نام خانوادگی مراجع (کودک):</label>
-                    <input type="text" id="f_patient" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" required>
+                    <input type="text" id="f_patient" list="my-patient-names" autocomplete="off" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" required>
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">تاریخ مراجعه:</label>
@@ -221,6 +243,7 @@
                 <textarea id="f_secret_note" rows="2" class="w-full border-2 border-red-200 rounded-lg px-4 py-2 focus:outline-none focus:border-red-500 bg-red-50 transition" placeholder="یادداشت خصوصی، پیگیری مالی، درخواست‌ها و..."></textarea>
             </div>
         </form>
+        <datalist id="my-patient-names"></datalist>
 
         <div class="mt-8 pt-4 border-t-2 border-gray-200 text-sm text-gray-600 flex justify-between">
             <p>📍 اهواز، گلستان، کوی سعدی، خیابان پوشینه باف</p>
@@ -240,6 +263,7 @@
         </div>
         <div id="submit-loader" class="loader mt-4"></div>
         <p id="submit-msg" class="text-center mt-4 font-bold hidden"></p>
+        </div>
     </div>
 
     <!-- ADMIN VIEW -->
@@ -353,6 +377,7 @@
                         📁 پرونده مراجع: <span id="history-patient-name" class="text-blue-600"></span>
                     </h3>
                     <p class="text-sm text-gray-500 mt-1">مشاهده روند کامل جلسات در کلینیک (تمام درمانگران)</p>
+                    <div id="history-therapist-filter" class="flex flex-wrap gap-2 mt-3"></div>
                 </div>
                 <button onclick="closeModal('patient-history-modal')" class="text-gray-400 hover:text-red-500 font-bold text-4xl leading-none">&times;</button>
             </div>
@@ -500,6 +525,11 @@
                     
                     hideAll();
                     document.getElementById('therapist-view').classList.remove('hidden');
+                    therapistReports = [];
+                    document.getElementById('my-patient-search').value = '';
+                    document.getElementById('my-shared-only').checked = false;
+                    switchTherapistTab('new');
+                    loadTherapistData();
                 } else {
                     err.classList.remove('hidden');
                 }
@@ -511,6 +541,10 @@
             document.getElementById('login-view').classList.remove('hidden');
             resetLogin();
             currentTherapist = '';
+            therapistReports = [];
+            document.getElementById('my-patient-names').innerHTML = '';
+            document.getElementById('my-patients-list').innerHTML = '';
+            closeModal('patient-history-modal');
         }
 
         function closeModal(modalId) {
@@ -612,6 +646,7 @@ ${finalEvaluation}`;
                     document.getElementById('report-form').reset();
                     document.getElementById('f_is_new_eval').checked = false;
                     toggleNewEvalForm();
+                    loadTherapistData();
                 } else {
                     let detail = '';
                     try { detail = (await response.json()).message || ''; } catch (e) {}
@@ -789,8 +824,7 @@ ${finalEvaluation}`;
         function renderPatientFolders(data) {
             const patientsMap = {};
             data.forEach(row => {
-                let name = (row.patient_name || 'نامشخص').trim();
-                let normalized = name.replace(/\\s+/g, ' '); 
+                let normalized = normalizeName(row.patient_name) || 'نامشخص';
                 if(!patientsMap[normalized]) patientsMap[normalized] = [];
                 patientsMap[normalized].push(row);
             });
@@ -830,52 +864,191 @@ ${finalEvaluation}`;
             });
         }
 
-        function openPatientHistory(pName, records) {
+        // -- Shared helpers --
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+        // Same child typed by two therapists should land in one folder:
+        // unify Arabic/Persian letters, half-spaces and repeated spaces.
+        function normalizeName(s) {
+            return String(s || '')
+                .replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[ۀة]/g, 'ه')
+                .replace(/[‌‍‎‏]/g, ' ')
+                .replace(/[ً-ْ]/g, '')
+                .replace(/\s+/g, ' ').trim();
+        }
+
+        // -- THERAPIST: my patients --
+        let therapistReports = [];
+        let therapistTab = 'new';
+
+        function switchTherapistTab(tab) {
+            therapistTab = tab;
+            const on = 'bg-blue-700 text-white shadow py-3 rounded-lg font-bold transition';
+            const off = 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 py-3 rounded-lg font-bold transition';
+            document.getElementById('ttab-new').className = tab === 'new' ? on : off;
+            document.getElementById('ttab-mine').className = tab === 'mine' ? on : off;
+            document.getElementById('new-report-pane').classList.toggle('hidden', tab !== 'new');
+            document.getElementById('my-patients-pane').classList.toggle('hidden', tab !== 'mine');
+            if (tab === 'mine') loadTherapistData();
+        }
+
+        async function loadTherapistData() {
+            const loader = document.getElementById('my-patients-loader');
+            const msg = document.getElementById('my-patients-msg');
+            loader.style.display = 'block';
+            msg.classList.add('hidden');
+            try {
+                // secret_note is for management only, so it is never fetched here
+                const cols = 'id,created_at,therapist_name,patient_name,session_date,session_number,diagnosis,evaluation,home_practice,next_session,performance';
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/reports?select=${cols}&order=created_at.desc`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (!response.ok) throw new Error('Fetch failed');
+                therapistReports = await response.json();
+                fillPatientSuggestions();
+                renderMyPatients();
+            } catch (e) {
+                console.error(e);
+                document.getElementById('my-patients-list').innerHTML = '';
+                msg.innerText = 'ارتباط با پایگاه داده برقرار نشد. اینترنت یا فیلترشکن را چک کنید.';
+                msg.classList.remove('hidden');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function groupMyPatients() {
+            const me = currentTherapist;
+            const groups = {};
+            therapistReports.forEach(r => {
+                const key = normalizeName(r.patient_name);
+                if (!key) return;
+                (groups[key] = groups[key] || { name: (r.patient_name || '').trim(), rows: [] }).rows.push(r);
+            });
+            return Object.keys(groups)
+                .map(k => groups[k])
+                .filter(g => g.rows.some(r => r.therapist_name === me))
+                .map(g => {
+                    const others = [...new Set(g.rows.map(r => r.therapist_name).filter(t => t && t !== me))];
+                    const last = g.rows.reduce((m, r) => r.created_at > m ? r.created_at : m, '');
+                    return { name: g.name, rows: g.rows, others, last, mine: g.rows.filter(r => r.therapist_name === me).length };
+                })
+                .sort((a, b) => (b.others.length > 0) - (a.others.length > 0) || b.last.localeCompare(a.last));
+        }
+
+        function fillPatientSuggestions() {
+            const dl = document.getElementById('my-patient-names');
+            dl.innerHTML = groupMyPatients().map(g => `<option value="${escapeHtml(g.name)}"></option>`).join('');
+        }
+
+        function renderMyPatients() {
+            const list = document.getElementById('my-patients-list');
+            const msg = document.getElementById('my-patients-msg');
+            const q = normalizeName(document.getElementById('my-patient-search').value);
+            const sharedOnly = document.getElementById('my-shared-only').checked;
+            const groups = groupMyPatients().filter(g => (!q || normalizeName(g.name).includes(q)) && (!sharedOnly || g.others.length));
+            list.innerHTML = '';
+            if (!groups.length) {
+                msg.innerText = therapistReports.length && sharedOnly ? 'مراجع مشترکی پیدا نشد.' : (q ? 'مراجعی با این نام پیدا نشد.' : 'هنوز گزارشی ثبت نکرده‌اید.');
+                msg.classList.remove('hidden');
+                return;
+            }
+            msg.classList.add('hidden');
+            groups.forEach(g => {
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'text-right bg-white p-4 rounded-2xl border-2 ' + (g.others.length ? 'border-amber-200 hover:border-amber-400' : 'border-gray-100 hover:border-blue-400') + ' hover:shadow-lg transition flex flex-col gap-2';
+                card.onclick = () => openPatientHistory(g.name, g.rows, { therapist: true });
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <h3 class="font-bold text-lg text-gray-800">${escapeHtml(g.name)}</h3>
+                        ${g.others.length ? '<span class="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-1 rounded-full whitespace-nowrap">مشترک</span>' : ''}
+                    </div>
+                    <p class="text-sm text-gray-500">جلسات شما: <span class="font-bold text-gray-800">${g.mine}</span> · کل جلسات: <span class="font-bold text-gray-800">${g.rows.length}</span></p>
+                    ${g.others.length ? `<p class="text-sm text-amber-800">همچنین با: <span class="font-bold">${g.others.map(escapeHtml).join('، ')}</span></p>` : ''}
+                    <span class="text-blue-600 font-bold text-sm">مشاهده پرونده &larr;</span>`;
+                list.appendChild(card);
+            });
+        }
+
+        function therapistBadge(tName) {
+            if (tName.includes('موسوی')) return "bg-purple-100 text-purple-800 border-purple-200";
+            if (tName.includes('پریسا')) return "bg-pink-100 text-pink-800 border-pink-200";
+            return "bg-blue-100 text-blue-800 border-blue-200";
+        }
+
+        function openPatientHistory(pName, records, opts) {
+            opts = opts || {};
             document.getElementById('history-patient-name').innerText = pName;
+            const sorted = records.slice().sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+            const names = [...new Set(sorted.map(r => r.therapist_name || 'نامشخص'))];
+            const filterEl = document.getElementById('history-therapist-filter');
+            let active = 'all';
+            const draw = () => {
+                filterEl.innerHTML = names.length > 1 ? ['all'].concat(names).map(n => {
+                    const label = n === 'all' ? 'همه درمانگران' : n;
+                    const on = active === n;
+                    return `<button type="button" data-n="${escapeHtml(n)}" class="text-xs font-bold px-3 py-1.5 rounded-full border transition ${on ? 'bg-blue-700 text-white border-blue-700' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}">${escapeHtml(label)}</button>`;
+                }).join('') : '';
+                filterEl.querySelectorAll('button').forEach(b => b.onclick = () => { active = b.dataset.n; draw(); });
+                renderHistoryTimeline(active === 'all' ? sorted : sorted.filter(r => (r.therapist_name || 'نامشخص') === active), sorted, opts);
+            };
+            draw();
+            document.getElementById('patient-history-modal').classList.remove('hidden');
+        }
+
+        function renderHistoryTimeline(rows, allSorted, opts) {
             const timeline = document.getElementById('history-timeline');
             timeline.innerHTML = '';
-            const sorted = records.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-            sorted.forEach((row, index) => {
+            rows.forEach((row) => {
+                const index = allSorted.indexOf(row);
                 const dateObj = new Date(row.created_at);
-                let badgeColor = "bg-blue-100 text-blue-800 border-blue-200";
                 let tName = row.therapist_name || 'نامشخص';
-                if(tName.includes('موسوی')) badgeColor = "bg-purple-100 text-purple-800 border-purple-200";
-                if(tName.includes('پریسا')) badgeColor = "bg-pink-100 text-pink-800 border-pink-200";
-                
+                const badgeColor = therapistBadge(tName);
+                const isMine = opts.therapist && tName === currentTherapist;
+
                 let sessionText = row.session_number || `جلسه ${index + 1}`;
                 if(sessionText.includes('ارزیابی جدید')) sessionText = "📝 ارزیابی اولیه";
-                
+
                 const item = document.createElement('div');
-                item.className = "relative pl-4 pr-6 py-4 bg-gray-50 border border-gray-200 rounded-xl shadow-sm";
+                item.className = "relative pl-4 pr-6 py-4 " + (isMine ? "bg-blue-50/60 border-blue-200" : "bg-gray-50 border-gray-200") + " border rounded-xl shadow-sm";
                 item.innerHTML = `
-                    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-full bg-blue-500 rounded-r-xl"></div>
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-full ${isMine ? 'bg-blue-700' : 'bg-blue-400'} rounded-r-xl"></div>
                     <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-3 pb-2 border-b border-gray-200 gap-2">
                         <div class="flex items-center gap-2">
-                            <span class="font-extrabold text-gray-800 bg-white px-3 py-1 rounded shadow-sm border border-gray-100">${sessionText}</span>
-                            <span class="text-sm text-gray-500">🗓️ ${row.session_date || dateObj.toLocaleDateString('fa-IR')}</span>
+                            <span class="font-extrabold text-gray-800 bg-white px-3 py-1 rounded shadow-sm border border-gray-100">${escapeHtml(sessionText)}</span>
+                            <span class="text-sm text-gray-500">🗓️ ${escapeHtml(row.session_date || dateObj.toLocaleDateString('fa-IR'))}</span>
                         </div>
-                        <span class="text-sm font-bold border px-3 py-1 rounded-full shadow-sm ${badgeColor}">👤 ${tName}</span>
+                        <span class="text-sm font-bold border px-3 py-1 rounded-full shadow-sm ${badgeColor}">👤 ${escapeHtml(tName)}${isMine ? ' (شما)' : ''}</span>
                     </div>
                     <div class="space-y-2">
-                        ${row.diagnosis ? `<div class="text-sm"><span class="font-bold text-gray-700">تشخیص:</span> <span class="text-gray-600">${row.diagnosis}</span></div>` : ''}
+                        ${row.diagnosis ? `<div class="text-sm"><span class="font-bold text-gray-700">تشخیص:</span> <span class="text-gray-600">${escapeHtml(row.diagnosis)}</span></div>` : ''}
+                        ${row.performance ? `<div class="text-sm"><span class="font-bold text-gray-700">عملکرد کودک:</span> <span class="text-gray-600">${escapeHtml(row.performance)}</span></div>` : ''}
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mt-2">
-                            <span class="font-bold text-blue-900 block border-b border-gray-50 pb-1 mb-1 text-sm">شرح ارزیابی / گزارش:</span> 
-                            <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${row.evaluation || 'ثبت نشده'}</p>
+                            <span class="font-bold text-blue-900 block border-b border-gray-50 pb-1 mb-1 text-sm">شرح ارزیابی / گزارش:</span>
+                            <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(row.evaluation || 'ثبت نشده')}</p>
                         </div>
                         ${row.home_practice ? `
                         <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mt-2">
-                            <span class="font-bold text-green-700 block border-b border-gray-50 pb-1 mb-1 text-sm">برنامه منزل:</span> 
-                            <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${row.home_practice}</p>
+                            <span class="font-bold text-green-700 block border-b border-gray-50 pb-1 mb-1 text-sm">برنامه منزل:</span>
+                            <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(row.home_practice)}</p>
                         </div>` : ''}
+                        ${row.next_session ? `
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mt-2">
+                            <span class="font-bold text-amber-700 block border-b border-gray-50 pb-1 mb-1 text-sm">اهداف جلسه آینده:</span>
+                            <p class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(row.next_session)}</p>
+                        </div>` : ''}
+                        ${opts.therapist ? '' : `
                         <div class="text-left mt-2 border-t pt-2 border-gray-100">
-                             <button onclick="deleteReport('${row.id}')" class="text-red-500 hover:text-red-700 text-xs font-bold transition">🗑️ حذف این جلسه</button>
-                        </div>
+                             <button onclick="deleteReport('${escapeHtml(row.id)}')" class="text-red-500 hover:text-red-700 text-xs font-bold transition">🗑️ حذف این جلسه</button>
+                        </div>`}
                     </div>
                 `;
                 timeline.appendChild(item);
             });
-            document.getElementById('patient-history-modal').classList.remove('hidden');
         }
+
     </script>
 </body>
 </html>
