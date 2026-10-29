@@ -2,7 +2,15 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#1d4ed8">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="گزارش جلسات">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>سیستم جامع کلینیک گفتاردرمانی احسان جاسمی</title>
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -28,7 +36,7 @@
         .modal-scroll { max-height: 70vh; overflow-y: auto; }
     </style>
 </head>
-<body class="p-4 md:p-10">
+<body class="p-4 md:p-10" style="padding-top:max(1rem,env(safe-area-inset-top));padding-bottom:max(1rem,env(safe-area-inset-bottom))">
 
     <!-- LOGIN VIEW -->
     <div id="login-view" class="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 mt-10">
@@ -47,6 +55,18 @@
             <button onclick="showLoginMode('admin')" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-800 font-bold py-3 px-4 rounded-lg border border-gray-200 transition">
                 ورود به پنل مدیریت
             </button>
+        </div>
+
+        <div id="install-card" class="hidden mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <div class="flex items-center gap-3">
+                <img src="icons/icon-192.png" alt="" class="w-12 h-12 rounded-xl shrink-0">
+                <div class="min-w-0"><div class="font-extrabold text-blue-900">نصب روی گوشی</div><div class="text-xs text-gray-500">آیکون برنامه روی صفحهٔ اصلی گوشی می‌آید و مثل اپ باز می‌شود.</div></div>
+            </div>
+            <button id="install-btn" class="hidden w-full mt-3 bg-blue-700 hover:bg-blue-800 text-white font-bold py-2.5 rounded-lg" type="button">نصب برنامه</button>
+            <div id="install-ios" class="hidden text-sm text-gray-700 mt-3 leading-7">
+                در <b>Safari</b>: دکمهٔ اشتراک‌گذاری <span class="px-2 rounded bg-white border">⬆︎</span> پایین صفحه را بزنید، بعد <b>Add to Home Screen</b> و در آخر <b>Add</b>.
+                <div id="install-ios-inapp" class="hidden text-amber-700 mt-1">اگر لینک را داخل تلگرام یا اینستاگرام باز کرده‌اید، اول از منوی ⋯ گزینهٔ «Open in Safari» را بزنید.</div>
+            </div>
         </div>
 
         <!-- Dynamic Login Forms -->
@@ -1049,6 +1069,20 @@ ${finalEvaluation}`;
             });
         }
 
+        /* ---------------- نصب به‌شکل برنامه ---------------- */
+        (function setupInstall() {
+            const el = (id) => document.getElementById(id);
+            const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
+            if (standalone) return;
+            const ua = navigator.userAgent || '';
+            const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const inApp = /Telegram|Instagram|FBAN|FBAV|WhatsApp/i.test(ua) || (ios && !/Safari/i.test(ua));
+            let deferred = null;
+            window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; el('install-card').classList.remove('hidden'); el('install-btn').classList.remove('hidden'); });
+            el('install-btn').onclick = async () => { if (!deferred) return; deferred.prompt(); try { await deferred.userChoice; } catch (x) {} deferred = null; el('install-card').classList.add('hidden'); };
+            if (ios) { el('install-card').classList.remove('hidden'); el('install-ios').classList.remove('hidden'); if (inApp) el('install-ios-inapp').classList.remove('hidden'); }
+        })();
     </script>
 </body>
 </html>
