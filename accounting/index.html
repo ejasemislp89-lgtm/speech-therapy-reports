@@ -28,6 +28,22 @@
   table.t tfoot td { font-weight: 800; background: #f8fafc; }
   .num { font-variant-numeric: tabular-nums; }
   .hidden { display: none !important; }
+  .chip { padding: .35rem .8rem; border-radius: 999px; font-weight: 700; font-size: .8rem; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; white-space: nowrap; }
+  .chip.on { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: .4rem; }
+  @media (min-width: 640px) { .seg { grid-template-columns: repeat(4, 1fr); } }
+  .seg button { padding: .6rem .4rem; border-radius: .6rem; font-weight: 800; font-size: .85rem; border: 2px solid #e5e7eb; background: #fff; color: #374151; }
+  .seg button.on[data-st="followup"] { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+  .seg button.on[data-st="booked"]   { background: #dcfce7; border-color: #16a34a; color: #166534; }
+  .seg button.on[data-st="active"]   { background: #dbeafe; border-color: #2563eb; color: #1e3a8a; }
+  .seg button.on[data-st="lost"]     { background: #f3f4f6; border-color: #6b7280; color: #374151; }
+  .badge { display: inline-block; min-width: 1.3rem; padding: 0 .35rem; border-radius: 999px; background: #dc2626; color: #fff; font-size: .72rem; line-height: 1.3rem; text-align: center; margin-right: .25rem; }
+  .st { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 800; }
+  .st-followup { background: #fef3c7; color: #92400e; } .st-booked { background: #dcfce7; color: #166534; }
+  .st-active { background: #dbeafe; color: #1e3a8a; } .st-lost { background: #f3f4f6; color: #6b7280; }
+  .lead { border-right: 4px solid #e5e7eb; }
+  .lead.late { border-right-color: #dc2626; } .lead.due { border-right-color: #f59e0b; } .lead.ok { border-right-color: #16a34a; }
+  .qbtn { padding: .3rem .7rem; border-radius: .5rem; font-weight: 700; font-size: .8rem; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
   @media print {
     body { background: #fff; }
     .no-print { display: none !important; }
@@ -81,6 +97,7 @@
 
   <nav id="tabs" class="no-print flex gap-2 overflow-x-auto pb-2 mb-4">
     <button class="tabbtn on" data-tab="entry">ثبت امروز</button>
+    <button class="tabbtn" data-tab="intake">📞 مراجعین جدید<span id="intake-badge" class="badge hidden"></span></button>
     <button class="tabbtn admin-only" data-tab="day">گزارش روزانه</button>
     <button class="tabbtn admin-only" data-tab="month">صورت‌حساب ماهانه</button>
     <button class="tabbtn admin-only" data-tab="settings">تنظیمات</button>
@@ -88,6 +105,7 @@
 
   <!-- ---- ثبت امروز ---- -->
   <section id="tab-entry">
+    <button id="intake-banner" type="button" class="hidden no-print w-full card p-3 mb-4 text-right border-2 border-amber-300 bg-amber-50"></button>
     <div class="card p-4 mb-4 no-print">
       <div class="flex items-center justify-between mb-3">
         <h2 class="font-extrabold text-blue-900">ثبت مراجعه‌ی جدید</h2>
@@ -112,6 +130,38 @@
       </form>
     </div>
     <div id="entry-out"></div>
+  </section>
+
+  <!-- ---- مراجعین جدید ---- -->
+  <section id="tab-intake" class="hidden">
+    <div class="card p-4 mb-4 no-print">
+      <button id="i-new" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-extrabold py-3 rounded-xl text-lg">＋ ثبت تماس جدید</button>
+      <div class="flex items-center justify-between mt-3 text-sm">
+        <span class="text-gray-600">تماس‌های ثبت‌شده‌ی امروز: <b id="i-today-count" class="text-blue-900">۰</b></span>
+        <span id="i-today-hint" class="text-amber-700 font-bold hidden">هر تماس جدید را همان لحظه ثبت کنید ✍️</span>
+      </div>
+    </div>
+    <nav id="i-views" class="flex gap-2 overflow-x-auto pb-2 mb-3">
+      <button class="chip on" data-v="todo">کارهای امروز</button>
+      <button class="chip" data-v="all">همه‌ی مراجعین جدید</button>
+      <button class="chip admin-only" data-v="stats">آمار ماهانه</button>
+    </nav>
+    <div id="i-filter" class="hidden card p-3 mb-3">
+      <input id="i-search" class="inp mb-2" placeholder="جستجوی نام کودک، والد یا شماره..." autocomplete="off">
+      <div id="i-stfilter" class="flex gap-2 overflow-x-auto">
+        <button class="chip on" data-f="">همه</button>
+        <button class="chip" data-f="followup">نیاز به پیگیری</button>
+        <button class="chip" data-f="booked">بیعانه و نوبت</button>
+        <button class="chip" data-f="active">شروع درمان</button>
+        <button class="chip" data-f="lost">منصرف</button>
+      </div>
+    </div>
+    <div id="i-statsbar" class="hidden card p-3 mb-3 flex flex-wrap items-end gap-3">
+      <div><label class="lbl">سال</label><select id="is-y" class="inp"></select></div>
+      <div><label class="lbl">ماه</label><select id="is-m" class="inp"></select></div>
+      <button id="is-show" class="bg-blue-700 text-white font-bold px-5 py-2 rounded-lg">نمایش</button>
+    </div>
+    <div id="intake-out"></div>
   </section>
 
   <!-- ---- گزارش روزانه ---- -->
@@ -189,6 +239,100 @@
         <button type="button" id="e-cancel" class="flex-1 bg-gray-200 text-gray-800 font-bold py-2 rounded-lg">انصراف</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ================= LEAD MODAL ================= -->
+<div id="lead-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-3">
+  <div class="card p-4 w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-b-none sm:rounded-b-xl">
+    <div class="flex items-center justify-between mb-3">
+      <h3 id="lm-title" class="font-extrabold text-blue-900">تماس جدید</h3>
+      <button type="button" id="lm-x" class="text-gray-500 text-2xl leading-none px-2">×</button>
+    </div>
+    <form id="lead-form" class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">نام کودک *</label><input id="lf-child" class="inp" autocomplete="off" required></div>
+        <div><label class="lbl">شماره تماس *</label><input id="lf-phone" class="inp num" dir="ltr" inputmode="tel" autocomplete="off" required></div>
+        <div id="lf-dup" class="col-span-2 hidden text-sm bg-amber-50 border border-amber-300 text-amber-800 rounded-lg p-2"></div>
+        <div><label class="lbl">نام والد</label><input id="lf-parent" class="inp" autocomplete="off"></div>
+        <div><label class="lbl">سن کودک</label><input id="lf-age" class="inp" placeholder="مثلاً ۳ سال و ۲ ماه" autocomplete="off"></div>
+        <div><label class="lbl">خدمت مورد نیاز</label>
+          <select id="lf-service" class="inp"><option value="">— نامشخص —</option><option>گفتاردرمانی</option><option>کاردرمانی</option><option>روانشناسی</option><option>گفتاردرمانی + کاردرمانی</option></select></div>
+        <div><label class="lbl">از کجا آشنا شدند؟</label>
+          <select id="lf-referral" class="inp"><option value="">— نپرسیدم —</option><option>اینستاگرام</option><option>معرفی آشنا</option><option>معرفی پزشک</option><option>مراجع قبلی</option><option>گوگل / سایت</option><option>تابلو / رهگذر</option><option>بهزیستی</option><option>سایر</option></select></div>
+        <div class="col-span-2"><label class="lbl">علت مراجعه</label><input id="lf-concern" class="inp" placeholder="مثلاً هنوز حرف نمی‌زند، لکنت، تأخیر رشد..." autocomplete="off"></div>
+      </div>
+
+      <div>
+        <label class="lbl">نتیجه‌ی تماس *</label>
+        <div id="lf-seg" class="seg">
+          <button type="button" data-st="followup">🔁 نیاز به پیگیری</button>
+          <button type="button" data-st="booked">✅ بیعانه داد، نوبت قطعی</button>
+          <button type="button" data-st="active">🩺 ارزیابی شد، شروع درمان</button>
+          <button type="button" data-st="lost">✖ منصرف شد</button>
+        </div>
+      </div>
+
+      <div id="lf-p-followup" class="lf-p hidden bg-amber-50 rounded-xl p-3 space-y-2">
+        <label class="lbl">تاریخ تماس بعدی</label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="qbtn" data-fu="1">فردا</button>
+          <button type="button" class="qbtn" data-fu="2">پس‌فردا</button>
+          <button type="button" class="qbtn" data-fu="3">۳ روز بعد</button>
+          <button type="button" class="qbtn" data-fu="7">هفته‌ی بعد</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2" id="lf-fu-date"></div>
+      </div>
+
+      <div id="lf-p-booked" class="lf-p hidden bg-green-50 rounded-xl p-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="lbl">مبلغ بیعانه (تومان)</label><input id="lf-dep" class="inp num" dir="ltr" inputmode="numeric" autocomplete="off"></div>
+          <div><label class="lbl">روش پرداخت</label>
+            <select id="lf-depm" class="inp"><option value="transfer">کارت‌به‌کارت</option><option value="cash">نقدی</option><option value="card_mellat">کارتخوان ملت</option><option value="card_refah">کارتخوان رفاه</option></select></div>
+          <div class="col-span-2"><label class="lbl">تاریخ نوبت ارزیابی</label><div class="grid grid-cols-3 gap-2" id="lf-appt-date"></div></div>
+          <div><label class="lbl">ساعت</label><input id="lf-time" class="inp num" dir="ltr" placeholder="17:30" autocomplete="off"></div>
+          <div><label class="lbl">درمانگر ارزیاب</label><select id="lf-assessor" class="inp"></select></div>
+        </div>
+      </div>
+
+      <div id="lf-p-active" class="lf-p hidden bg-blue-50 rounded-xl p-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="col-span-2"><label class="lbl">درمانگر *</label><select id="lf-therapist" class="inp"></select></div>
+          <div class="col-span-2"><label class="lbl">چند جلسه در هفته؟ *</label>
+            <div id="lf-spw" class="flex gap-2">
+              <button type="button" class="chip" data-n="1">۱ جلسه</button><button type="button" class="chip" data-n="2">۲ جلسه</button>
+              <button type="button" class="chip" data-n="3">۳ جلسه</button><button type="button" class="chip" data-n="4">۴ جلسه</button>
+            </div></div>
+          <div class="col-span-2"><label class="lbl">تاریخ شروع درمان</label><div class="grid grid-cols-3 gap-2" id="lf-start-date"></div></div>
+        </div>
+      </div>
+
+      <div id="lf-p-lost" class="lf-p hidden bg-gray-100 rounded-xl p-3">
+        <label class="lbl">علت</label>
+        <select id="lf-lost" class="inp"><option>هزینه</option><option>دوری مسیر</option><option>ساعت مناسب نبود</option><option>جای دیگری رفت</option><option>جواب تماس را نداد</option><option>بعد از ارزیابی ادامه نداد</option><option>نیازی ندید</option><option>سایر</option></select>
+      </div>
+
+      <div><label class="lbl">یادداشت این تماس</label><textarea id="lf-note" class="inp" rows="2" placeholder="خلاصه‌ی صحبت، قرار بعدی..."></textarea></div>
+      <div id="lf-log" class="hidden text-xs text-gray-600 bg-gray-50 rounded-lg p-2 max-h-36 overflow-y-auto"></div>
+
+      <div class="flex gap-2">
+        <button id="lf-save" class="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-extrabold py-3 rounded-xl">ذخیره</button>
+        <button type="button" id="lf-cancel" class="bg-gray-200 text-gray-800 font-bold px-5 rounded-xl">انصراف</button>
+      </div>
+      <button type="button" id="lf-del" class="hidden w-full text-red-600 text-sm font-bold">حذف این مراجع (فقط مدیر)</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= FORGOT-INTAKE PROMPT ================= -->
+<div id="forgot-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3">
+  <div class="card p-5 w-full max-w-sm text-center">
+    <div class="text-3xl mb-2">🔔</div>
+    <p class="font-bold text-blue-900 leading-7" id="forgot-text"></p>
+    <div class="flex gap-2 mt-4">
+      <button id="forgot-yes" class="flex-1 bg-green-600 text-white font-bold py-2 rounded-lg">الان ثبت می‌کنم</button>
+      <button id="forgot-no" class="flex-1 bg-gray-200 text-gray-800 font-bold py-2 rounded-lg">قبلاً ثبت شده</button>
+    </div>
   </div>
 </div>
 
@@ -393,9 +537,10 @@ $('logout-btn').addEventListener('click', doLogout);
 
 /* ---------------- تب‌ها ---------------- */
 function showTab(name) {
-  ['entry', 'day', 'month', 'settings'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
+  ['entry', 'intake', 'day', 'month', 'settings'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
   document.querySelectorAll('#tabs .tabbtn').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
-  if (name === 'entry') loadEntryDay();
+  if (name === 'entry') { loadEntryDay(); refreshIntakeBadge(); }
+  if (name === 'intake') loadIntake();
   if (name === 'day') loadDayReport();
   if (name === 'settings') renderSettings();
 }
@@ -489,6 +634,7 @@ $('visit-form').addEventListener('submit', async (e) => {
     if (svc && svc.default_price > 0) $('v-amount').value = svc.default_price.toLocaleString('en-US');
     toast('✔ ثبت شد'); $('v-patient').focus();
     await loadEntryDay();
+    if (svc && /ارزیابی/.test(svc.name)) checkForgottenIntake(patient, tid);
   } catch (err) { toast('ثبت نشد: ' + err.message, false); }
   finally { btn.disabled = false; }
 });
@@ -693,6 +839,293 @@ $('sv-add').addEventListener('submit', async (e) => {
     await api('/rest/v1/acc_services', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: { name: $('sv-name').value.trim(), default_price: isNaN(p) ? 0 : p } });
     $('sv-name').value = ''; $('sv-price').value = '0'; await loadRefs(); renderSettings(); initEntryForm(); toast('خدمت اضافه شد');
   } catch (err) { toast('اضافه نشد: ' + (/duplicate|unique/i.test(err.message) ? 'این نام قبلاً هست' : err.message), false); }
+});
+
+/* ===================================================================
+   مراجعین جدید: تماس، پیگیری، بیعانه و نوبت ارزیابی، شروع درمان
+   =================================================================== */
+const ST = { followup: 'نیاز به پیگیری', booked: 'بیعانه و نوبت', active: 'شروع درمان', lost: 'منصرف' };
+const WEEKDAYS = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+const toFa = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const normPhone = (s) => normDigits(s).replace(/[^\d+]/g, '');
+const dnum = (iso) => { const g = parseISO(iso); return g2d(g.gy, g.gm, g.gd); };
+const diffDays = (a, b) => dnum(a) - dnum(b);
+const weekdayOf = (iso) => WEEKDAYS[new Date(iso + 'T12:00:00Z').getUTCDay()];
+let leads = [], intakeView = 'todo', intakeFilter = '', editingLead = null, lfStatus = null, lfSpw = null, lfCountCall = false, forgotPrefill = null;
+
+function makeJPicker(id) {
+  const box = $(id);
+  box.innerHTML = '<select class="inp"></select><select class="inp"></select><select class="inp"></select>';
+  const [sd, sm, sy] = box.querySelectorAll('select');
+  const set = (iso) => {
+    const g = parseISO(iso || todayISO()); const j = toJalali(g.gy, g.gm, g.gd);
+    const base = toJalali(...Object.values(parseISO(todayISO()))).jy; let h = '';
+    for (let y = Math.min(base - 1, j.jy); y <= Math.max(base + 1, j.jy); y++) h += '<option value="' + y + '"' + (y === j.jy ? ' selected' : '') + '>' + toFa(y) + '</option>';
+    sy.innerHTML = h; fillMonthSelect(sm, j.jm); fillDaySelect(sd, j.jy, j.jm, j.jd);
+  };
+  const onYM = () => { const y = +sy.value, m = +sm.value; fillDaySelect(sd, y, m, Math.min(+sd.value || 1, jMonthLen(y, m))); };
+  sy.addEventListener('change', onYM); sm.addEventListener('change', onYM);
+  return { set, get: () => isoFromJ(+sy.value, +sm.value, +sd.value) };
+}
+const pkFu = makeJPicker('lf-fu-date'), pkAppt = makeJPicker('lf-appt-date'), pkStart = makeJPicker('lf-start-date');
+
+function intakeErrorHTML(err) {
+  const missing = /intake_leads|42P01|PGRST205|schema cache/i.test(err.message);
+  return '<p class="card p-4 text-center ' + (missing ? 'text-amber-700' : 'text-red-600') + '">' +
+    (missing ? 'بخش «مراجعین جدید» هنوز در پایگاه داده راه‌اندازی نشده است (فایل accounting/intake.sql).' : 'خطا در خواندن اطلاعات: ' + esc(err.message)) + '</p>';
+}
+async function fetchLeads() { leads = await fetchAll('/rest/v1/intake_leads?select=*&order=updated_at.desc'); return leads; }
+
+function buckets() {
+  const t = todayISO();
+  const byDate = (f) => (a, b) => String(a[f] || '').localeCompare(String(b[f] || ''));
+  const byAppt = (a, b) => String(a.appt_date || '').localeCompare(String(b.appt_date || '')) || String(a.appt_time || '').localeCompare(String(b.appt_time || ''));
+  return {
+    fu: leads.filter((l) => l.status === 'followup' && (!l.next_followup || l.next_followup <= t)).sort(byDate('next_followup')),
+    result: leads.filter((l) => l.status === 'booked' && (!l.appt_date || l.appt_date < t)).sort(byAppt),
+    apptToday: leads.filter((l) => l.status === 'booked' && l.appt_date === t).sort(byAppt),
+    upcoming: leads.filter((l) => l.status === 'booked' && l.appt_date > t).sort(byAppt),
+    laterFu: leads.filter((l) => l.status === 'followup' && l.next_followup > t).sort(byDate('next_followup')),
+    today: leads.filter((l) => l.call_date === t)
+  };
+}
+
+function updateBadge() {
+  const b = buckets(); const n = b.fu.length + b.result.length;
+  const badge = $('intake-badge'); badge.textContent = toFa(n); badge.classList.toggle('hidden', n === 0);
+  const ban = $('intake-banner');
+  if (n > 0) {
+    const parts = [];
+    if (b.fu.length) parts.push(toFa(b.fu.length) + ' پیگیری');
+    if (b.result.length) parts.push(toFa(b.result.length) + ' نتیجه‌ی ارزیابی');
+    if (b.apptToday.length) parts.push(toFa(b.apptToday.length) + ' نوبت ارزیابی امروز');
+    ban.innerHTML = '<div class="font-extrabold text-amber-800">🔔 کارهای امروز در «مراجعین جدید»</div><div class="text-sm text-amber-900 mt-1">' + parts.join(' · ') + ' — برای دیدن بزنید</div>';
+    ban.classList.remove('hidden');
+  } else ban.classList.add('hidden');
+  $('i-today-count').textContent = toFa(b.today.length);
+  $('i-today-hint').classList.toggle('hidden', b.today.length > 0);
+}
+async function refreshIntakeBadge() { try { await fetchLeads(); updateBadge(); } catch (e) { /* جدول هنوز ساخته نشده */ } }
+
+function leadCard(l, kind) {
+  const t = todayISO(); let cls = '', info = '', btns = '';
+  if (l.status === 'followup') {
+    const d = l.next_followup ? diffDays(t, l.next_followup) : 0;
+    cls = d > 0 ? 'late' : (d === 0 ? 'due' : '');
+    info = !l.next_followup ? '⏰ تاریخ پیگیری ندارد' : d > 0 ? '⏰ ' + toFa(d) + ' روز عقب افتاده' : d === 0 ? '⏰ پیگیری امروز' : '📆 پیگیری: ' + weekdayOf(l.next_followup) + ' ' + jalaliLabel(l.next_followup);
+    if (l.followup_count) info += ' · ' + toFa(l.followup_count) + ' بار پیگیری شده';
+    btns = '<button class="qbtn" data-act="fu" data-id="' + l.id + '">ثبت نتیجه‌ی پیگیری</button>';
+  } else if (l.status === 'booked') {
+    cls = kind === 'result' ? 'late' : 'ok';
+    info = '📅 ارزیابی: ' + (l.appt_date ? weekdayOf(l.appt_date) + ' ' + jalaliLabel(l.appt_date) : 'تاریخ ندارد') + (l.appt_time ? ' ساعت ' + toFa(esc(l.appt_time)) : '') +
+      (l.assessor_id ? ' · ' + esc(thName(l.assessor_id)) : '') + (l.deposit_amount ? ' · بیعانه ' + fa(l.deposit_amount) : '');
+    btns = kind === 'result'
+      ? '<button class="qbtn" style="background:#dbeafe" data-act="assessed" data-id="' + l.id + '">🩺 ارزیابی شد، تعیین درمانگر</button><button class="qbtn" data-act="noshow" data-id="' + l.id + '">↩ نیامد</button><button class="qbtn" data-act="lostafter" data-id="' + l.id + '">✖ ادامه نداد</button>'
+      : '<button class="qbtn" data-act="edit" data-id="' + l.id + '">✏️ جزئیات</button>';
+  } else if (l.status === 'active') {
+    cls = 'ok';
+    info = '🩺 ' + esc(thName(l.therapist_id)) + ' · ' + toFa(l.sessions_per_week || '؟') + ' جلسه در هفته' + (l.start_date ? ' · شروع ' + jalaliLabel(l.start_date) : '');
+    btns = '<button class="qbtn" data-act="edit" data-id="' + l.id + '">✏️ جزئیات</button>';
+  } else {
+    info = '✖ ' + esc(l.lost_reason || 'منصرف شد');
+    btns = '<button class="qbtn" data-act="edit" data-id="' + l.id + '">✏️ جزئیات</button>';
+  }
+  const sub = [l.parent_name ? 'والد: ' + esc(l.parent_name) : '', esc(l.child_age || ''), esc(l.service || ''), l.referral ? 'از ' + esc(l.referral) : ''].filter(Boolean).join(' · ');
+  return '<div class="card lead ' + cls + ' p-3">' +
+    '<div class="flex items-start justify-between gap-2"><div class="min-w-0">' +
+      '<div class="font-extrabold text-blue-900">' + esc(l.child_name) + ' <span class="st st-' + l.status + '">' + ST[l.status] + '</span></div>' +
+      (sub ? '<div class="text-xs text-gray-500 mt-0.5">' + sub + '</div>' : '') + '</div>' +
+      '<a href="tel:' + esc(l.phone) + '" class="shrink-0 bg-green-600 text-white font-bold text-sm px-3 py-1.5 rounded-lg num" dir="ltr">📞 ' + esc(l.phone) + '</a></div>' +
+    (l.concern ? '<div class="text-sm text-gray-700 mt-1">' + esc(l.concern) + '</div>' : '') +
+    '<div class="text-sm mt-2 font-bold text-gray-700">' + info + '</div>' +
+    '<div class="flex flex-wrap gap-2 mt-2">' + btns + '</div></div>';
+}
+function section(title, list, kind, empty, hideIfEmpty) {
+  if (hideIfEmpty && !list.length) return '';
+  return '<div class="mb-5"><h3 class="font-extrabold text-blue-900 mb-2">' + title + ' <span class="text-gray-400 text-sm">(' + toFa(list.length) + ')</span></h3>' +
+    (list.length ? '<div class="grid md:grid-cols-2 gap-2">' + list.map((l) => leadCard(l, kind)).join('') + '</div>' : '<p class="text-sm text-gray-400 card p-3">' + empty + '</p>') + '</div>';
+}
+
+function renderIntake() {
+  $('i-filter').classList.toggle('hidden', intakeView !== 'all');
+  $('i-statsbar').classList.toggle('hidden', intakeView !== 'stats');
+  document.querySelectorAll('#i-views .chip').forEach((c) => c.classList.toggle('on', c.dataset.v === intakeView));
+  if (intakeView === 'stats') return renderIntakeStats();
+  if (intakeView === 'all') {
+    const q = normDigits($('i-search').value.trim()).toLowerCase(); const qp = normPhone(q);
+    const list = leads.filter((l) => (!intakeFilter || l.status === intakeFilter) &&
+      (!q || String(l.child_name).toLowerCase().includes(q) || String(l.parent_name || '').toLowerCase().includes(q) || (qp.length >= 3 && String(l.phone).includes(qp))));
+    $('intake-out').innerHTML = list.length ? '<div class="grid md:grid-cols-2 gap-2">' + list.map((l) => leadCard(l, 'all')).join('') + '</div>' : '<p class="text-center text-gray-400 card p-4">موردی پیدا نشد</p>';
+    return;
+  }
+  const b = buckets();
+  $('intake-out').innerHTML =
+    section('🔔 پیگیری‌های امروز و عقب‌افتاده', b.fu, 'fu', 'پیگیری امروزی نداری 👌') +
+    section('⏳ ارزیابی‌شده‌ها: نتیجه را ثبت کنید', b.result, 'result', '', true) +
+    section('📅 نوبت‌های ارزیابی امروز', b.apptToday, 'appt', 'امروز نوبت ارزیابی نداریم') +
+    section('📞 تماس‌های ثبت‌شده‌ی امروز', b.today, 'today', 'هنوز تماسی برای امروز ثبت نشده است. هر تماس جدید را همان لحظه با دکمه‌ی سبز بالا ثبت کنید.') +
+    section('🗓 نوبت‌های ارزیابی روزهای بعد', b.upcoming, 'appt', '', true) +
+    section('🔁 پیگیری‌های روزهای بعد', b.laterFu, 'later', '', true);
+}
+async function loadIntake() {
+  $('intake-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
+  try { await fetchLeads(); updateBadge(); renderIntake(); }
+  catch (err) { $('intake-out').innerHTML = intakeErrorHTML(err); }
+}
+$('i-views').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (!c) return; intakeView = c.dataset.v; renderIntake(); });
+$('i-stfilter').addEventListener('click', (e) => {
+  const c = e.target.closest('.chip'); if (!c) return; intakeFilter = c.dataset.f;
+  document.querySelectorAll('#i-stfilter .chip').forEach((x) => x.classList.toggle('on', x === c)); renderIntake();
+});
+$('i-search').addEventListener('input', renderIntake);
+$('intake-banner').addEventListener('click', () => { intakeView = 'todo'; showTab('intake'); });
+
+/* ---- آمار ماهانه (مدیر) ---- */
+(function initStatsPicker() { const t = parseISO(todayISO()); const j = toJalali(t.gy, t.gm, t.gd); fillYearSelect($('is-y'), j.jy); fillMonthSelect($('is-m'), j.jm); })();
+$('is-show').addEventListener('click', renderIntakeStats);
+function renderIntakeStats() {
+  if (role !== 'admin') { $('intake-out').innerHTML = ''; return; }
+  const jy = +$('is-y').value, jm = +$('is-m').value;
+  const start = isoFromJ(jy, jm, 1), end = jm === 12 ? isoFromJ(jy + 1, 1, 1) : isoFromJ(jy, jm + 1, 1);
+  const inM = (d) => d && d >= start && d < end;
+  const calls = leads.filter((l) => inM(l.call_date));
+  const dep = calls.filter((l) => l.deposit_date || l.status === 'booked' || l.status === 'active');
+  const act = calls.filter((l) => l.status === 'active'), lost = calls.filter((l) => l.status === 'lost'), open = calls.filter((l) => l.status === 'followup');
+  const pct = (a, b) => (b ? Math.round(a * 100 / b) : 0).toLocaleString('fa-IR') + '٪';
+  const cards = [['تماس‌های جدید', fa(calls.length), 'text-blue-800'], ['بیعانه داده‌اند', fa(dep.length) + ' (' + pct(dep.length, calls.length) + ')', 'text-green-700'],
+    ['شروع درمان', fa(act.length) + ' (' + pct(act.length, calls.length) + ')', 'text-blue-700'], ['هنوز در پیگیری', fa(open.length), 'text-amber-700'], ['منصرف', fa(lost.length), 'text-gray-600']]
+    .map((c) => '<div class="card p-3 text-center"><div class="text-xs text-gray-500 mb-1">' + c[0] + '</div><div class="font-extrabold ' + c[2] + ' num">' + c[1] + '</div></div>').join('');
+  const group = (list, key) => { const m = new Map(); list.forEach((l) => { const k = l[key] || '— نامشخص —'; m.set(k, (m.get(k) || 0) + 1); }); return m; };
+  const refCalls = group(calls, 'referral'), refDep = group(dep, 'referral'), refAct = group(act, 'referral');
+  const refRows = [...refCalls.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => '<tr><td class="font-bold">' + esc(k) + '</td><td class="num">' + fa(n) + '</td><td class="num">' + fa(refDep.get(k) || 0) + '</td><td class="num">' + fa(refAct.get(k) || 0) + '</td></tr>').join('');
+  const lostRows = [...group(lost, 'lost_reason').entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => '<tr><td>' + esc(k) + '</td><td class="num">' + fa(n) + '</td></tr>').join('');
+  const started = leads.filter((l) => l.status === 'active' && inM(l.start_date)); const th = new Map();
+  started.forEach((l) => { const r = th.get(l.therapist_id) || { n: 0, s: 0 }; r.n += 1; r.s += Number(l.sessions_per_week || 0); th.set(l.therapist_id, r); });
+  const thRows = [...th.entries()].sort((a, b) => b[1].s - a[1].s).map(([id, r]) => '<tr><td class="font-bold">' + esc(thName(id)) + '</td><td class="num">' + fa(r.n) + '</td><td class="num">' + fa(r.s) + '</td></tr>').join('');
+  const tbl = (title, head, rows) => '<div class="card p-4 mb-4"><h3 class="font-extrabold text-blue-900 mb-2">' + title + '</h3><div class="overflow-x-auto"><table class="t"><thead><tr>' + head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' + (rows || '<tr><td colspan="' + head.length + '" class="text-center text-gray-400 py-3">—</td></tr>') + '</tbody></table></div></div>';
+  $('intake-out').innerHTML = '<div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">' + cards + '</div>' +
+    tbl('از کجا آشنا شدند؟ (تماس‌های این ماه)', ['منبع', 'تماس', 'بیعانه', 'شروع درمان'], refRows) +
+    tbl('مراجعین جدیدی که این ماه درمان را شروع کردند', ['درمانگر', 'تعداد مراجع', 'جلسه در هفته (جمع)'], thRows) +
+    tbl('علت انصراف', ['علت', 'تعداد'], lostRows);
+}
+
+/* ---- فرم ثبت / ویرایش ---- */
+function setLfStatus(st) {
+  lfStatus = st;
+  document.querySelectorAll('#lf-seg button').forEach((b) => b.classList.toggle('on', b.dataset.st === st));
+  document.querySelectorAll('.lf-p').forEach((p) => p.classList.toggle('hidden', p.id !== 'lf-p-' + st));
+}
+function setSpw(n) { lfSpw = n; document.querySelectorAll('#lf-spw .chip').forEach((c) => c.classList.toggle('on', +c.dataset.n === n)); }
+$('lf-seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setLfStatus(b.dataset.st); });
+$('lf-spw').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (c) setSpw(+c.dataset.n); });
+document.querySelectorAll('[data-fu]').forEach((b) => b.addEventListener('click', () => pkFu.set(addDaysISO(todayISO(), +b.dataset.fu))));
+$('lf-dep').addEventListener('input', (e) => formatMoneyInput(e.target));
+
+function checkDup() {
+  const p = normPhone($('lf-phone').value); const box = $('lf-dup');
+  const d = p.length >= 7 ? leads.filter((l) => l.phone === p && (!editingLead || l.id !== editingLead.id)) : [];
+  if (!d.length) { box.classList.add('hidden'); return; }
+  box.innerHTML = '⚠ این شماره قبلاً ثبت شده: ' + d.map((l) => '<button type="button" class="underline font-bold" data-open="' + l.id + '">' + esc(l.child_name) + ' (' + ST[l.status] + ')</button>').join('، ');
+  box.classList.remove('hidden');
+}
+$('lf-phone').addEventListener('input', checkDup);
+$('lf-dup').addEventListener('click', (e) => { const b = e.target.closest('[data-open]'); if (!b) return; const l = leads.find((x) => x.id === +b.dataset.open); if (l) openLead(l); });
+
+function openLead(l, opts = {}) {
+  editingLead = l || null; lfCountCall = !!opts.countCall;
+  const v = Object.assign({}, l || {}, opts.prefill || {});
+  $('lm-title').textContent = l ? 'پرونده‌ی ' + l.child_name : 'ثبت تماس جدید';
+  $('lf-child').value = v.child_name || ''; $('lf-phone').value = v.phone || ''; $('lf-parent').value = v.parent_name || '';
+  $('lf-age').value = v.child_age || ''; $('lf-service').value = v.service || ''; $('lf-referral').value = v.referral || ''; $('lf-concern').value = v.concern || '';
+  const thOpts = (sel) => '<option value="">— انتخاب درمانگر —</option>' + optionsHTML(therapists, sel || null, true);
+  $('lf-assessor').innerHTML = thOpts(v.assessor_id); $('lf-therapist').innerHTML = thOpts(v.therapist_id || v.assessor_id);
+  $('lf-dep').value = v.deposit_amount ? Number(v.deposit_amount).toLocaleString('en-US') : ''; $('lf-depm').value = v.deposit_method || 'transfer';
+  $('lf-time').value = v.appt_time || ''; $('lf-lost').value = opts.lost || v.lost_reason || 'هزینه';
+  pkFu.set(l && l.status === 'followup' && l.next_followup > todayISO() ? l.next_followup : addDaysISO(todayISO(), 1));
+  pkAppt.set(v.appt_date || addDaysISO(todayISO(), 1)); pkStart.set(v.start_date || todayISO());
+  setSpw(v.sessions_per_week || null);
+  setLfStatus(opts.status || (l ? l.status : null));
+  $('lf-note').value = opts.note || '';
+  const log = (l && Array.isArray(l.log)) ? l.log.slice().reverse() : [];
+  $('lf-log').innerHTML = log.map((x) => '<div class="py-1 border-b border-gray-200"><b>' + esc(jalaliLabel(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(x.at)))) + ' ' + esc(timeLabel(x.at)) + '</b> · ' + esc(ST[x.st] || '') + (x.text ? ': ' + esc(x.text) : '') + '</div>').join('');
+  $('lf-log').classList.toggle('hidden', !log.length);
+  $('lf-del').classList.toggle('hidden', !(l && role === 'admin'));
+  checkDup();
+  $('lead-modal').classList.remove('hidden');
+  if (!l) setTimeout(() => $('lf-child').focus(), 50);
+}
+const closeLead = () => $('lead-modal').classList.add('hidden');
+$('lm-x').addEventListener('click', closeLead); $('lf-cancel').addEventListener('click', closeLead);
+$('i-new').addEventListener('click', () => openLead(null));
+
+$('lead-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const child = $('lf-child').value.trim(), phone = normPhone($('lf-phone').value);
+  if (!child) return toast('نام کودک را بنویسید', false);
+  if (phone.replace(/\D/g, '').length < 10) return toast('شماره تماس کامل نیست', false);
+  if (!lfStatus) return toast('نتیجه‌ی تماس را انتخاب کنید', false);
+  const l = editingLead; const t = todayISO();
+  const body = { child_name: child, phone, parent_name: $('lf-parent').value.trim() || null, child_age: $('lf-age').value.trim() || null,
+    service: $('lf-service').value || null, referral: $('lf-referral').value || null, concern: $('lf-concern').value.trim() || null, status: lfStatus };
+  if (lfStatus === 'followup') body.next_followup = pkFu.get();
+  if (lfStatus === 'booked') {
+    const dep = parseMoney($('lf-dep').value); const aid = parseInt($('lf-assessor').value, 10);
+    body.deposit_amount = isNaN(dep) ? null : dep; body.deposit_method = isNaN(dep) ? null : $('lf-depm').value;
+    body.deposit_date = (l && l.deposit_date) || (isNaN(dep) ? null : t);
+    body.appt_date = pkAppt.get(); body.appt_time = normDigits($('lf-time').value).trim() || null; body.assessor_id = aid || null;
+    if (body.appt_date < t && !(l && l.appt_date === body.appt_date)) return toast('تاریخ نوبت ارزیابی گذشته است', false);
+  }
+  if (lfStatus === 'active') {
+    const tid = parseInt($('lf-therapist').value, 10);
+    if (!tid) return toast('درمانگر را انتخاب کنید', false);
+    if (!lfSpw) return toast('تعداد جلسه در هفته را انتخاب کنید', false);
+    body.therapist_id = tid; body.sessions_per_week = lfSpw; body.start_date = pkStart.get();
+  }
+  if (lfStatus === 'lost') body.lost_reason = $('lf-lost').value;
+  if (l && l.status === 'followup' && lfCountCall) body.followup_count = (l.followup_count || 0) + 1;
+  const note = $('lf-note').value.trim();
+  if (!l || note || l.status !== lfStatus) body.log = ((l && l.log) || []).concat([{ at: new Date().toISOString(), by: session.email, st: lfStatus, text: note || null }]);
+  const btn = $('lf-save'); btn.disabled = true;
+  try {
+    if (l) await api('/rest/v1/intake_leads?id=eq.' + l.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body });
+    else await api('/rest/v1/intake_leads', { method: 'POST', headers: { Prefer: 'return=minimal' }, body });
+    closeLead(); toast('✔ ذخیره شد'); await loadIntake();
+  } catch (err) { toast('ذخیره نشد: ' + err.message, false); }
+  finally { btn.disabled = false; }
+});
+$('lf-del').addEventListener('click', async () => {
+  const l = editingLead; if (!l || role !== 'admin') return;
+  if (!confirm('«' + l.child_name + '» از مراجعین جدید حذف شود؟')) return;
+  try { await api('/rest/v1/intake_leads?id=eq.' + l.id, { method: 'DELETE' }); closeLead(); toast('حذف شد'); await loadIntake(); }
+  catch (err) { toast('حذف نشد: ' + err.message, false); }
+});
+
+$('intake-out').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const l = leads.find((x) => x.id === +b.dataset.id); if (!l) return;
+  const a = b.dataset.act;
+  if (a === 'fu') openLead(l, { countCall: true });
+  else if (a === 'assessed') openLead(l, { status: 'active' });
+  else if (a === 'noshow') openLead(l, { status: 'followup', note: 'به نوبت ارزیابی نیامد' });
+  else if (a === 'lostafter') openLead(l, { status: 'lost', lost: 'بعد از ارزیابی ادامه نداد' });
+  else openLead(l);
+});
+
+/* ---- یادآوری: مراجع ارزیابی که در «مراجعین جدید» ثبت نشده ---- */
+async function checkForgottenIntake(name, tid) {
+  try {
+    const q = encodeURIComponent('*' + name.replace(/[*,()%]/g, ' ').trim() + '*');
+    const rows = await api('/rest/v1/intake_leads?select=id&child_name=ilike.' + q + '&limit=1');
+    if (rows && rows.length) return;
+    forgotPrefill = { child_name: name, assessor_id: tid, appt_date: todayISO() };
+    $('forgot-text').innerHTML = '«' + esc(name) + '» برای ارزیابی آمده، ولی در «مراجعین جدید» ثبت نشده است.<br>ثبتش کنیم؟';
+    $('forgot-modal').classList.remove('hidden');
+  } catch (e) { /* اگر جدول هنوز نیست، چیزی نشان نده */ }
+}
+$('forgot-no').addEventListener('click', () => $('forgot-modal').classList.add('hidden'));
+$('forgot-yes').addEventListener('click', async () => {
+  $('forgot-modal').classList.add('hidden'); intakeView = 'todo'; showTab('intake');
+  openLead(null, { status: 'booked', prefill: forgotPrefill || {} });
 });
 
 /* ---------------- شروع ---------------- */
