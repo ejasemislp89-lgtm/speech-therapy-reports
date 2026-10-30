@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="نوبت‌ها">
+<title>دفتر نوبت‌های کلینیک ترنم</title>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Vazirmatn', sans-serif; background-color: #f1f5f9; }
+  .inp { width: 100%; border: 2px solid #e2e8f0; border-radius: .5rem; padding: .45rem .7rem; background: #f8fafc; font-size: .9rem; }
+  .inp:focus { outline: none; border-color: #0d9488; background: #fff; }
+  .lbl { display: block; font-weight: 700; color: #0f766e; margin-bottom: .2rem; font-size: .8rem; }
+  .card { background: #fff; border-radius: .75rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); border: 1px solid #e2e8f0; }
+  .tabbtn { padding: .5rem 1.1rem; border-radius: .5rem; font-weight: 700; white-space: nowrap; background: #fff; color: #334155; border: 1px solid #e2e8f0; font-size: .9rem; }
+  .tabbtn.on { background: #0f766e; color: #fff; border-color: #0f766e; }
+  .hidden { display: none !important; }
+  .num { font-variant-numeric: tabular-nums; }
+  table.t { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  table.t th { background: #f0fdfa; color: #0f766e; padding: .45rem .5rem; text-align: right; white-space: nowrap; font-weight: 800; }
+  table.t td { padding: .3rem .4rem; border-bottom: 1px solid #f1f5f9; }
+  .slot { border-right: 5px solid #e2e8f0; }
+  .st-قطعی      { border-right-color:#16a34a } .st-قطعی .pill      { background:#dcfce7; color:#166534 }
+  .st-نیازمند   { border-right-color:#f59e0b } .st-نیازمند .pill   { background:#fef3c7; color:#92400e }
+  .st-کنسلی     { border-right-color:#dc2626 } .st-کنسلی .pill     { background:#fee2e2; color:#991b1b }
+  .st-انجام     { border-right-color:#2563eb } .st-انجام .pill     { background:#dbeafe; color:#1e3a8a }
+  .st-استراحت   { border-right-color:#94a3b8 } .st-استراحت .pill   { background:#f1f5f9; color:#475569 }
+  .pill { display:inline-block; padding:.05rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800 }
+  .empty { background: #fafafa; }
+  .cellbtn { width:100%; text-align:right; padding:.5rem .6rem; border-radius:.5rem; border:1px dashed #cbd5e1; color:#94a3b8; font-size:.85rem; }
+  .cellbtn:hover { background:#f0fdfa; border-color:#0d9488; color:#0f766e }
+  .wk { min-width: 120px; }
+  #datebar select { width: auto; min-width: 5.5rem; }
+  #th-pick { min-width: 10rem; }
+  @media print { body{background:#fff} .no-print{display:none!important} .card{box-shadow:none} }
+</style>
+</head>
+<body class="min-h-screen" style="padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)">
+
+<!-- ================= LOGIN ================= -->
+<div id="login-view" class="max-w-sm mx-auto mt-16 px-4">
+  <div class="card p-8">
+    <div class="text-center mb-6">
+      <div class="text-4xl mb-2">📅</div>
+      <h1 class="text-xl font-extrabold text-teal-800">دفتر نوبت‌های کلینیک ترنم</h1>
+      <p class="text-gray-500 text-sm mt-1">ورود با ایمیل و رمز عبور</p>
+    </div>
+    <form id="login-form" class="space-y-4">
+      <div><label class="lbl" for="l-email">ایمیل</label><input id="l-email" type="email" dir="ltr" autocomplete="username" class="inp" required></div>
+      <div><label class="lbl" for="l-pass">رمز عبور</label><input id="l-pass" type="password" dir="ltr" autocomplete="current-password" class="inp" required></div>
+      <p id="login-error" class="text-red-600 text-sm text-center hidden"></p>
+      <button id="login-btn" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 rounded-lg">ورود</button>
+    </form>
+  </div>
+  <div id="install-card" class="card p-4 mt-4 hidden">
+    <div class="flex items-center gap-3">
+      <img src="icons/icon-192.png" alt="" class="w-12 h-12 rounded-xl shrink-0">
+      <div class="min-w-0"><div class="font-extrabold text-teal-800">نصب روی گوشی</div><div class="text-xs text-gray-500">آیکون برنامه روی صفحهٔ اصلی گوشی می‌آید و مثل اپ باز می‌شود.</div></div>
+    </div>
+    <button id="install-btn" class="hidden w-full mt-3 bg-teal-700 text-white font-bold py-2.5 rounded-lg" type="button">نصب برنامه</button>
+    <div id="install-ios" class="hidden text-sm text-gray-700 mt-3 leading-7">
+      در <b>Safari</b>: دکمهٔ اشتراک‌گذاری <span class="px-2 rounded bg-gray-100 border">⬆︎</span> پایین صفحه را بزنید، بعد <b>Add to Home Screen</b> و در آخر <b>Add</b>.
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app-view" class="hidden max-w-7xl mx-auto px-3 py-4">
+  <header class="no-print card p-3 flex flex-wrap items-center justify-between gap-2 mb-4">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">📅</span>
+      <div>
+        <div class="font-extrabold text-teal-800">دفتر نوبت‌ها</div>
+        <div class="text-xs text-gray-500"><span id="who" dir="ltr"></span> · <span id="role-badge" class="font-bold"></span></div>
+      </div>
+    </div>
+    <button id="logout-btn" class="text-red-600 font-bold text-sm">خروج</button>
+  </header>
+
+  <nav id="tabs" class="no-print flex gap-2 overflow-x-auto pb-2 mb-3">
+    <button class="tabbtn on" data-tab="day">برنامه‌ی روز</button>
+    <button class="tabbtn" data-tab="week">هفته‌ی یک درمانگر</button>
+    <button class="tabbtn admin-only" data-tab="links">لینک درمانگرها</button>
+  </nav>
+
+  <!-- date bar -->
+  <div id="datebar" class="no-print card p-3 mb-3 flex flex-wrap items-end gap-2">
+    <div><label class="lbl">سال</label><select id="d-y" class="inp"></select></div>
+    <div><label class="lbl">ماه</label><select id="d-m" class="inp"></select></div>
+    <div><label class="lbl">روز</label><select id="d-d" class="inp"></select></div>
+    <button id="d-prev" class="tabbtn">‹ دیروز</button>
+    <button id="d-today" class="tabbtn">امروز</button>
+    <button id="d-next" class="tabbtn">فردا ›</button>
+    <div id="th-pick-wrap" class="hidden"><label class="lbl">درمانگر</label><select id="th-pick" class="inp wk"></select></div>
+    <div class="grow"></div>
+    <button id="b-copy" class="tabbtn">📋 کپی از هفته‌ی قبل</button>
+    <button id="b-print" class="tabbtn">🖨 چاپ</button>
+  </div>
+
+  <div id="daylabel" class="font-extrabold text-teal-900 mb-2"></div>
+  <section id="tab-day"><div id="day-out"></div></section>
+  <section id="tab-week" class="hidden"><div id="week-out"></div></section>
+  <section id="tab-links" class="hidden"><div id="links-out"></div></section>
+</div>
+
+<!-- ================= SLOT MODAL ================= -->
+<div id="slot-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-3">
+  <div class="card p-4 w-full max-w-md max-h-[92vh] overflow-y-auto rounded-b-none sm:rounded-b-xl">
+    <div class="flex items-center justify-between mb-3">
+      <h3 id="sm-title" class="font-extrabold text-teal-800"></h3>
+      <button type="button" id="sm-x" class="text-gray-500 text-2xl leading-none px-2">×</button>
+    </div>
+    <form id="slot-form" class="space-y-3">
+      <div><label class="lbl">نام مراجع</label><input id="sf-name" class="inp" autocomplete="off" list="client-list"><datalist id="client-list"></datalist></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">نوع خدمت</label>
+          <select id="sf-service" class="inp"><option value="">—</option><option>گفتاردرمانی</option><option>کاردرمانی</option><option>روانشناسی</option><option>ارزیابی</option></select></div>
+        <div><label class="lbl">وضعیت نوبت</label>
+          <select id="sf-status" class="inp"><option value="">—</option><option>قطعی</option><option>نیازمند تأیید</option><option>انجام شد</option><option>کنسلی</option><option>استراحت</option></select></div>
+        <div><label class="lbl">شماره تماس</label><input id="sf-phone" class="inp num" dir="ltr" inputmode="tel" autocomplete="off"></div>
+        <div><label class="lbl">وضعیت پرداخت</label>
+          <select id="sf-payment" class="inp"><option value="">—</option><option>پرداخت شد</option><option>بدهکار</option><option>کارت به کارت</option><option>رایگان</option></select></div>
+      </div>
+      <div><label class="lbl">توضیحات منشی</label><input id="sf-note" class="inp" autocomplete="off"></div>
+      <div class="flex gap-2 pt-1">
+        <button id="sf-save" class="flex-1 bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2.5 rounded-xl">ذخیره</button>
+        <button type="button" id="sf-clear" class="bg-red-50 text-red-600 font-bold px-4 rounded-xl">خالی کردن</button>
+        <button type="button" id="sf-cancel" class="bg-gray-200 text-gray-800 font-bold px-4 rounded-xl">انصراف</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 text-white px-5 py-2 rounded-lg shadow-lg z-50 font-bold"></div>
+
+<script>
+const SUPABASE_URL = 'https://gtjqzwdgmilcdgqlqhik.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uzoljC3RKdT8tBe7WyGH_A_E7wthbmV';
+
+/* ---------------- ابزارها ---------------- */
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toFa = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const normDigits = (s) => String(s == null ? '' : s).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+const MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+const WEEKDAYS = ['یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه','شنبه'];
+const SLOTS = Array.from({length:14}, (_,i) => { const m = 14*60 + i*30; const p = (x) => String(x).padStart(2,'0');
+  return p(Math.floor(m/60))+':'+p(m%60)+' - '+p(Math.floor((m+30)/60))+':'+p((m+30)%60); });
+const stClass = (s) => s ? ('st-' + String(s).split(' ')[0].replace('شد','')) : '';
+
+let toastTimer = null;
+function toast(msg, ok = true) {
+  const t = $('toast'); t.textContent = msg;
+  t.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 text-white px-5 py-2 rounded-lg shadow-lg z-50 font-bold ' + (ok ? 'bg-green-600' : 'bg-red-600');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 3200);
+}
+
+/* ---------------- تقویم شمسی (jalaali-js) ---------------- */
+const div = (a,b) => ~~(a/b), mod = (a,b) => a - ~~(a/b)*b;
+const BREAKS = [-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+function jalCal(jy){ const bl=BREAKS.length, gy=jy+621; let leapJ=-14, jp=BREAKS[0], jm, jump=0, n, i;
+  if(jy<jp||jy>=BREAKS[bl-1]) throw new Error('سال نامعتبر');
+  for(i=1;i<bl;i+=1){ jm=BREAKS[i]; jump=jm-jp; if(jy<jm) break; leapJ=leapJ+div(jump,33)*8+div(mod(jump,33),4); jp=jm; }
+  n=jy-jp; leapJ=leapJ+div(n,33)*8+div(mod(n,33)+3,4);
+  if(mod(jump,33)===4 && jump-n===4) leapJ+=1;
+  const leapG=div(gy,4)-div((div(gy,100)+1)*3,4)-150, march=20+leapJ-leapG;
+  if(jump-n<6) n=n-jump+div(jump+4,33)*33;
+  let leap=mod(mod(n+1,33)-1,4); if(leap===-1) leap=4;
+  return {leap,gy,march}; }
+function g2d(gy,gm,gd){ let d=div((gy+div(gm-8,6)+100100)*1461,4)+div(153*mod(gm+9,12)+2,5)+gd-34840408;
+  return d - div(div(gy+100100+div(gm-8,6),100)*3,4) + 752; }
+function d2g(jdn){ let j=4*jdn+139361631; j=j+div(div(4*jdn+183187720,146097)*3,4)*4-3908;
+  const i=div(mod(j,1461),4)*5+308, gd=div(mod(i,153),5)+1, gm=mod(div(i,153),12)+1, gy=div(j,1461)-100100+div(8-gm,6);
+  return {gy,gm,gd}; }
+function j2d(jy,jm,jd){ const r=jalCal(jy); return g2d(r.gy,3,r.march)+(jm-1)*31-div(jm,7)*(jm-7)+jd-1; }
+function d2j(jdn){ const g=d2g(jdn); let jy=g.gy-621; const r=jalCal(jy), jdn1f=g2d(g.gy,3,r.march);
+  let k=jdn-jdn1f, jm, jd;
+  if(k>=0){ if(k<=185){ jm=1+div(k,31); jd=mod(k,31)+1; return {jy,jm,jd}; } k-=186; }
+  else { jy-=1; k+=179; if(r.leap===1) k+=1; }
+  jm=7+div(k,30); jd=mod(k,30)+1; return {jy,jm,jd}; }
+const toJalali = (gy,gm,gd) => d2j(g2d(gy,gm,gd));
+const isJLeap = (jy) => jalCal(jy).leap === 0;
+const jMonthLen = (jy,jm) => (jm<=6 ? 31 : jm<=11 ? 30 : (isJLeap(jy) ? 30 : 29));
+const pad2 = (n) => String(n).padStart(2,'0');
+const isoFromG = (g) => g.gy+'-'+pad2(g.gm)+'-'+pad2(g.gd);
+const isoFromJ = (jy,jm,jd) => isoFromG(d2g(j2d(jy,jm,jd)));
+const parseISO = (iso) => { const p = iso.split('-').map(Number); return {gy:p[0],gm:p[1],gd:p[2]}; };
+const todayISO = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran'}).format(new Date());
+const addDaysISO = (iso,n) => { const g=parseISO(iso); return isoFromG(d2g(g2d(g.gy,g.gm,g.gd)+n)); };
+function jalaliLabel(iso){ const g=parseISO(iso), j=toJalali(g.gy,g.gm,g.gd);
+  return toFa(j.jd)+' '+MONTHS[j.jm-1]+' '+toFa(j.jy); }
+const weekdayOf = (iso) => WEEKDAYS[new Date(iso+'T12:00:00Z').getUTCDay()];
+const fullLabel = (iso) => weekdayOf(iso)+' ' + jalaliLabel(iso);
+
+/* ---------------- Supabase ---------------- */
+let session = null;
+const saveSession = () => { try { localStorage.setItem('sch_session', JSON.stringify(session)); } catch(e){} };
+const loadSession = () => { try { const s = localStorage.getItem('sch_session'); return s ? JSON.parse(s) : null; } catch(e){ return null; } };
+const clearSession = () => { session = null; try { localStorage.removeItem('sch_session'); } catch(e){} };
+
+async function authCall(grant, body){
+  const res = await fetch(SUPABASE_URL+'/auth/v1/token?grant_type='+grant, {
+    method:'POST', headers:{apikey:SUPABASE_KEY,'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data.error_description || data.msg || 'خطا در ورود');
+  session = { access_token:data.access_token, refresh_token:data.refresh_token, email:(data.user&&data.user.email)||(session&&session.email)||'' };
+  saveSession(); return session;
+}
+async function refreshSession(){ if(!session||!session.refresh_token) return false;
+  try { await authCall('refresh_token',{refresh_token:session.refresh_token}); return true; } catch(e){ return false; } }
+async function api(path, opts = {}){
+  const { method='GET', body, headers={}, retry=true } = opts;
+  const res = await fetch(SUPABASE_URL+path, { method,
+    headers: Object.assign({apikey:SUPABASE_KEY, Authorization:'Bearer '+(session?session.access_token:SUPABASE_KEY), 'Content-Type':'application/json'}, headers),
+    body: body === undefined ? undefined : JSON.stringify(body) });
+  if(res.status===401 && retry && session){
+    if(await refreshSession()) return api(path, Object.assign({}, opts, {retry:false}));
+    doLogout(); throw new Error('نشست شما تمام شده است. دوباره وارد شوید.'); }
+  if(!res.ok){ const t = await res.text(); throw new Error(t || ('خطا '+res.status)); }
+  if(res.status===204) return null;
+  const txt = await res.text(); return txt ? JSON.parse(txt) : null;
+}
+function missingTables(err){ return /sch_therapists|sch_appointments|42P01|PGRST205|schema cache/i.test(err.message); }
+function errHTML(err){ return '<p class="card p-4 text-center '+(missingTables(err)?'text-amber-700':'text-red-600')+'">'
+  + (missingTables(err) ? 'بخش نوبت‌دهی هنوز در پایگاه داده راه‌اندازی نشده است (فایل booking/setup.sql).' : 'خطا: '+esc(err.message)) + '</p>'; }
+
+/* ---------------- وضعیت ---------------- */
+let role=null, therapists=[], tab='day', curDate=todayISO(), dayRows=[], weekRows=[], editing=null, clientNames=new Set();
+const thName = (id) => { const t = therapists.find(x => x.id === id); return t ? t.name : '—'; };
+
+async function loadTherapists(){ therapists = await api('/rest/v1/sch_therapists?select=*&order=sort.asc,id.asc'); }
+
+/* ---------------- ورود ---------------- */
+function showApp(show){ $('login-view').classList.toggle('hidden', show); $('app-view').classList.toggle('hidden', !show); }
+async function startApp(){
+  role = await api('/rest/v1/rpc/acc_my_role', {method:'POST', body:{}});
+  if(role !== 'admin' && role !== 'secretary'){
+    clearSession(); showApp(false);
+    $('login-error').textContent = 'این ایمیل دسترسی به دفتر نوبت‌ها ندارد.'; $('login-error').classList.remove('hidden'); return; }
+  $('who').textContent = session.email;
+  $('role-badge').textContent = role === 'admin' ? 'مدیر' : 'منشی';
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', role !== 'admin'));
+  showApp(true);
+  try { await loadTherapists(); } catch(err){ $('day-out').innerHTML = errHTML(err); return; }
+  $('th-pick').innerHTML = therapists.map(t => '<option value="'+t.id+'">'+esc(t.name)+'</option>').join('');
+  initDatePicker(); showTab('day');
+}
+function doLogout(){ clearSession(); role=null; showApp(false); $('l-pass').value=''; $('login-error').classList.add('hidden'); }
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault(); const btn=$('login-btn'); btn.disabled=true; btn.textContent='در حال ورود...';
+  $('login-error').classList.add('hidden');
+  try { await authCall('password', {email:$('l-email').value.trim(), password:$('l-pass').value}); await startApp(); }
+  catch(err){ $('login-error').textContent = /Invalid login/i.test(err.message) ? 'ایمیل یا رمز عبور اشتباه است.' : 'ورود ناموفق: '+err.message;
+    $('login-error').classList.remove('hidden'); }
+  finally { btn.disabled=false; btn.textContent='ورود'; }
+});
+$('logout-btn').addEventListener('click', doLogout);
+
+/* ---------------- تب‌ها ---------------- */
+function showTab(name){
+  tab = name;
+  ['day','week','links'].forEach(t => $('tab-'+t).classList.toggle('hidden', t !== name));
+  document.querySelectorAll('#tabs .tabbtn').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  $('datebar').classList.toggle('hidden', name === 'links');
+  $('th-pick-wrap').classList.toggle('hidden', name !== 'week');
+  $('daylabel').classList.toggle('hidden', name === 'links');
+  if(name === 'day') loadDay();
+  if(name === 'week') loadWeek();
+  if(name === 'links') renderLinks();
+}
+$('tabs').addEventListener('click', (e) => { const b = e.target.closest('.tabbtn'); if(b) showTab(b.dataset.tab); });
+
+/* ---------------- انتخاب تاریخ ---------------- */
+function fillYear(sel, cur){ const base = toJalali(...Object.values(parseISO(todayISO()))).jy; let h='';
+  for(let y=base+1; y>=base-2; y--) h += '<option value="'+y+'"'+(y===cur?' selected':'')+'>'+toFa(y)+'</option>'; sel.innerHTML=h; }
+function fillMonth(sel, cur){ sel.innerHTML = MONTHS.map((m,i) => '<option value="'+(i+1)+'"'+(i+1===cur?' selected':'')+'>'+m+'</option>').join(''); }
+function fillDay(sel, jy, jm, cur){ let h=''; const len=jMonthLen(jy,jm);
+  for(let d=1; d<=len; d++) h += '<option value="'+d+'"'+(d===cur?' selected':'')+'>'+toFa(d)+'</option>'; sel.innerHTML=h; }
+function setPicker(iso){ curDate = iso; const g=parseISO(iso), j=toJalali(g.gy,g.gm,g.gd);
+  fillYear($('d-y'), j.jy); fillMonth($('d-m'), j.jm); fillDay($('d-d'), j.jy, j.jm, j.jd); }
+function initDatePicker(){ setPicker(todayISO()); }
+['d-y','d-m','d-d'].forEach(id => $(id).addEventListener('change', () => {
+  const y=+$('d-y').value, m=+$('d-m').value; const d=Math.min(+$('d-d').value||1, jMonthLen(y,m));
+  if(id !== 'd-d') fillDay($('d-d'), y, m, d);
+  curDate = isoFromJ(y, m, +$('d-d').value); reload(); }));
+const reload = () => { if(tab==='day') loadDay(); else if(tab==='week') loadWeek(); };
+$('d-prev').addEventListener('click', () => { setPicker(addDaysISO(curDate,-1)); reload(); });
+$('d-next').addEventListener('click', () => { setPicker(addDaysISO(curDate, 1)); reload(); });
+$('d-today').addEventListener('click', () => { setPicker(todayISO()); reload(); });
+$('b-print').addEventListener('click', () => window.print());
+$('th-pick').addEventListener('change', loadWeek);
+
+/* ---------------- برنامه‌ی روز (همه‌ی درمانگرها) ---------------- */
+function counters(rows){
+  const filled = rows.filter(r => r.client_name && r.status !== 'استراحت').length;
+  const sure   = rows.filter(r => r.status === 'قطعی').length;
+  const cancel = rows.filter(r => r.status === 'کنسلی').length;
+  return {filled, sure, cancel};
+}
+function cellHTML(tid, i, r){
+  if(!r || (!r.client_name && !r.status)) return '<button class="cellbtn no-print" data-t="'+tid+'" data-i="'+i+'">＋ خالی</button>';
+  const bits = [r.service, r.payment].filter(Boolean).map(esc).join(' · ');
+  return '<button class="w-full text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'">'
+    + '<div class="font-extrabold text-slate-800 text-sm">'+esc(r.client_name || '—')+(r.status?' <span class="pill">'+esc(r.status)+'</span>':'')+'</div>'
+    + (bits ? '<div class="text-xs text-gray-500">'+bits+'</div>' : '')
+    + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + '</button>';
+}
+function renderDay(){
+  $('daylabel').textContent = fullLabel(curDate) + ' — شیفت عصر';
+  const act = therapists.filter(t => t.active);
+  const byKey = new Map(dayRows.map(r => [r.therapist_id+'|'+r.slot_index, r]));
+  const head = '<tr><th class="w-24">ساعت</th>' + act.map(t => {
+    const c = counters(dayRows.filter(r => r.therapist_id === t.id));
+    return '<th class="wk"><div>'+esc(t.name)+'</div><div class="text-xs font-normal text-gray-500">'
+      + toFa(c.filled)+' نوبت · '+toFa(c.sure)+' قطعی'+(c.cancel?' · '+toFa(c.cancel)+' کنسل':'')+'</div></th>'; }).join('') + '</tr>';
+  const body = SLOTS.map((s, idx) => {
+    const i = idx + 1;
+    return '<tr><td class="num text-xs text-gray-600 whitespace-nowrap font-bold">'+toFa(s)+'</td>'
+      + act.map(t => '<td>'+cellHTML(t.id, i, byKey.get(t.id+'|'+i))+'</td>').join('') + '</tr>'; }).join('');
+  $('day-out').innerHTML = '<div class="card p-2 overflow-x-auto"><table class="t">'
+    + '<thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+}
+async function loadDay(){
+  $('day-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
+  try { dayRows = await api('/rest/v1/sch_appointments?select=*&appt_date=eq.'+curDate);
+    dayRows.forEach(r => { if(r.client_name) clientNames.add(r.client_name); });
+    renderDay(); refreshClientList(); }
+  catch(err){ $('day-out').innerHTML = errHTML(err); }
+}
+
+/* ---------------- هفته‌ی یک درمانگر ---------------- */
+function weekStart(iso){ const wd = new Date(iso+'T12:00:00Z').getUTCDay(); const back = (wd+1)%7; return addDaysISO(iso, -back); }
+function renderWeek(){
+  const tid = +$('th-pick').value, start = weekStart(curDate);
+  const days = Array.from({length:7}, (_,i) => addDaysISO(start, i));
+  $('daylabel').textContent = esc(thName(tid)) + ' — هفته‌ی ' + jalaliLabel(start) + ' تا ' + jalaliLabel(days[6]);
+  const byKey = new Map(weekRows.filter(r => r.therapist_id === tid).map(r => [r.appt_date+'|'+r.slot_index, r]));
+  const head = '<tr><th class="w-24">ساعت</th>' + days.map(d =>
+    '<th class="wk'+(d===todayISO()?' bg-teal-100':'')+'"><div>'+weekdayOf(d)+'</div><div class="text-xs font-normal text-gray-500">'+jalaliLabel(d)+'</div></th>').join('') + '</tr>';
+  const body = SLOTS.map((s, idx) => { const i = idx+1;
+    return '<tr><td class="num text-xs text-gray-600 whitespace-nowrap font-bold">'+toFa(s)+'</td>'
+      + days.map(d => { const r = byKey.get(d+'|'+i);
+          if(!r || (!r.client_name && !r.status)) return '<td><button class="cellbtn no-print" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">＋</button></td>';
+          return '<td><button class="w-full text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
+            + '<div class="font-bold text-slate-800 text-xs">'+esc(r.client_name||'—')+'</div>'
+            + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button></td>'; }).join('') + '</tr>'; }).join('');
+  $('week-out').innerHTML = '<div class="card p-2 overflow-x-auto"><table class="t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+}
+async function loadWeek(){
+  $('week-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
+  const start = weekStart(curDate), end = addDaysISO(start, 6);
+  try { weekRows = await api('/rest/v1/sch_appointments?select=*&appt_date=gte.'+start+'&appt_date=lte.'+end);
+    renderWeek(); }
+  catch(err){ $('week-out').innerHTML = errHTML(err); }
+}
+
+/* ---------------- ویرایش یک سانس ---------------- */
+function openSlot(tid, i, dateISO){
+  const d = dateISO || curDate;
+  const rows = dateISO ? weekRows : dayRows;
+  const r = rows.find(x => x.therapist_id === tid && x.slot_index === i && x.appt_date === d) || {};
+  editing = { tid, i, date: d, id: r.id || null };
+  $('sm-title').textContent = thName(tid) + ' · ' + toFa(SLOTS[i-1]) + ' · ' + fullLabel(d);
+  $('sf-name').value = r.client_name || ''; $('sf-service').value = r.service || '';
+  $('sf-status').value = r.status || ''; $('sf-phone').value = r.phone || '';
+  $('sf-payment').value = r.payment || ''; $('sf-note').value = r.note || '';
+  $('sf-clear').classList.toggle('hidden', !r.id);
+  $('slot-modal').classList.remove('hidden'); setTimeout(() => $('sf-name').focus(), 50);
+}
+const closeSlot = () => $('slot-modal').classList.add('hidden');
+$('sm-x').addEventListener('click', closeSlot); $('sf-cancel').addEventListener('click', closeSlot);
+$('day-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i); });
+$('week-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i, b.dataset.d); });
+
+$('slot-form').addEventListener('submit', async (e) => {
+  e.preventDefault(); if(!editing) return;
+  const body = { therapist_id: editing.tid, appt_date: editing.date, slot_index: editing.i,
+    client_name: $('sf-name').value.trim() || null, service: $('sf-service').value || null,
+    status: $('sf-status').value || null, phone: normDigits($('sf-phone').value).trim() || null,
+    payment: $('sf-payment').value || null, note: $('sf-note').value.trim() || null };
+  const btn = $('sf-save'); btn.disabled = true;
+  try {
+    await api('/rest/v1/sch_appointments?on_conflict=therapist_id,appt_date,slot_index',
+      { method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body });
+    if(body.client_name) clientNames.add(body.client_name);
+    closeSlot(); toast('✔ ذخیره شد'); reload();
+  } catch(err){ toast('ذخیره نشد: '+err.message, false); }
+  finally { btn.disabled = false; }
+});
+$('sf-clear').addEventListener('click', async () => {
+  if(!editing || !editing.id) return closeSlot();
+  try { await api('/rest/v1/sch_appointments?id=eq.'+editing.id, {method:'DELETE'}); closeSlot(); toast('خالی شد'); reload(); }
+  catch(err){ toast('حذف نشد: '+err.message, false); }
+});
+function refreshClientList(){ $('client-list').innerHTML = [...clientNames].sort().map(n => '<option value="'+esc(n)+'">').join(''); }
+
+/* ---------------- کپی از هفته‌ی قبل ---------------- */
+$('b-copy').addEventListener('click', async () => {
+  const src = addDaysISO(curDate, -7);
+  if(!confirm('نوبت‌های ' + fullLabel(src) + ' در ' + fullLabel(curDate) + ' کپی شود؟\n(سانس‌هایی که همین حالا پر هستند دست نمی‌خورند)')) return;
+  try {
+    const prev = await api('/rest/v1/sch_appointments?select=*&appt_date=eq.'+src);
+    if(!prev.length) return toast('هفته‌ی قبل در این روز نوبتی ثبت نشده بود', false);
+    const taken = new Set(dayRows.filter(r => r.client_name || r.status).map(r => r.therapist_id+'|'+r.slot_index));
+    const rows = prev.filter(r => (r.client_name || r.status) && r.status !== 'کنسلی' && !taken.has(r.therapist_id+'|'+r.slot_index))
+      .map(r => ({ therapist_id:r.therapist_id, appt_date:curDate, slot_index:r.slot_index, client_name:r.client_name,
+                   service:r.service, status:(r.status === 'انجام شد' ? 'قطعی' : r.status), phone:r.phone, payment:null, note:null }));
+    if(!rows.length) return toast('چیزی برای کپی نبود', false);
+    await api('/rest/v1/sch_appointments?on_conflict=therapist_id,appt_date,slot_index',
+      { method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body: rows });
+    toast('✔ ' + toFa(rows.length) + ' نوبت کپی شد'); reload();
+  } catch(err){ toast('کپی نشد: '+err.message, false); }
+});
+
+/* ---------------- لینک درمانگرها (مدیر) ---------------- */
+function linkFor(t){ return location.origin + location.pathname.replace(/[^/]*$/, '') + 't.html?k=' + t.token; }
+function renderLinks(){
+  if(role !== 'admin'){ $('links-out').innerHTML = ''; return; }
+  $('links-out').innerHTML = '<div class="card p-4">'
+    + '<p class="text-sm text-gray-600 mb-3">هر درمانگر یک لینک ثابت دارد. فقط برنامه‌ی خودش را می‌بیند، چیزی را نمی‌تواند تغییر دهد و شماره تماس مراجع در آن نمایش داده نمی‌شود. یک بار بفرستید، همیشه کار می‌کند.</p>'
+    + '<div class="space-y-2">' + therapists.map(t =>
+        '<div class="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">'
+        + '<div class="font-extrabold text-teal-800 min-w-32">'+esc(t.name)+'</div>'
+        + '<input class="inp num grow" dir="ltr" readonly value="'+esc(linkFor(t))+'">'
+        + '<button class="tabbtn" data-copy="'+esc(linkFor(t))+'">کپی</button>'
+        + '<a class="tabbtn" target="_blank" rel="noopener" href="'+esc(linkFor(t))+'">باز کردن</a></div>').join('')
+    + '</div></div>';
+}
+$('links-out').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-copy]'); if(!b) return;
+  try { await navigator.clipboard.writeText(b.dataset.copy); toast('لینک کپی شد'); }
+  catch(err){ toast('کپی نشد، دستی انتخابش کنید', false); }
+});
+
+/* ---------------- شروع ---------------- */
+(async function boot(){
+  session = loadSession(); if(!session) return;
+  try { if(!(await refreshSession())){ clearSession(); return; } await startApp(); }
+  catch(e){ clearSession(); showApp(false); }
+})();
+
+/* ---------------- نصب روی گوشی ---------------- */
+(function setupInstall(){
+  const el = (id) => document.getElementById(id);
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', {scope:'./'}).catch(() => {});
+  if(standalone) return;
+  const ua = navigator.userAgent || '';
+  const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e;
+    el('install-card').classList.remove('hidden'); el('install-btn').classList.remove('hidden'); });
+  el('install-btn').onclick = async () => { if(!deferred) return; deferred.prompt();
+    try { await deferred.userChoice; } catch(x){} deferred = null; el('install-card').classList.add('hidden'); };
+  if(ios){ el('install-card').classList.remove('hidden'); el('install-ios').classList.remove('hidden'); }
+})();
+</script>
+</body>
+</html>

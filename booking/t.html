@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0f766e">
+<title>برنامه‌ی من — کلینیک ترنم</title>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family:'Vazirmatn',sans-serif; background:#f1f5f9; }
+  .card { background:#fff; border-radius:.75rem; box-shadow:0 1px 3px rgba(0,0,0,.08); border:1px solid #e2e8f0 }
+  .num { font-variant-numeric: tabular-nums }
+  .hidden { display:none !important }
+  .chip { padding:.4rem .9rem; border-radius:999px; font-weight:800; font-size:.85rem; background:#fff; color:#334155; border:1px solid #e2e8f0; white-space:nowrap }
+  .chip.on { background:#0f766e; color:#fff; border-color:#0f766e }
+  .slot { border-right:5px solid #e2e8f0 }
+  .st-قطعی{border-right-color:#16a34a}   .st-قطعی .pill{background:#dcfce7;color:#166534}
+  .st-نیازمند{border-right-color:#f59e0b} .st-نیازمند .pill{background:#fef3c7;color:#92400e}
+  .st-کنسلی{border-right-color:#dc2626}   .st-کنسلی .pill{background:#fee2e2;color:#991b1b}
+  .st-انجام{border-right-color:#2563eb}   .st-انجام .pill{background:#dbeafe;color:#1e3a8a}
+  .st-استراحت{border-right-color:#94a3b8} .st-استراحت .pill{background:#f1f5f9;color:#475569}
+  .pill{display:inline-block;padding:.05rem .55rem;border-radius:999px;font-size:.72rem;font-weight:800}
+  @media print { body{background:#fff} .no-print{display:none!important} .card{box-shadow:none} }
+</style>
+</head>
+<body class="min-h-screen" style="padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)">
+<div class="max-w-xl mx-auto px-3 py-4">
+  <header class="card p-4 mb-3 text-center">
+    <div class="text-2xl">📅</div>
+    <h1 id="th-name" class="font-extrabold text-teal-800 text-lg mt-1">برنامه‌ی من</h1>
+    <p class="text-xs text-gray-500">کلینیک توانبخشی ترنم · شیفت عصر</p>
+  </header>
+
+  <nav id="views" class="no-print flex gap-2 justify-center mb-3">
+    <button class="chip on" data-v="today">امروز</button>
+    <button class="chip" data-v="tomorrow">فردا</button>
+    <button class="chip" data-v="week">این هفته</button>
+  </nav>
+
+  <div id="out"><p class="text-center text-gray-500 p-8">در حال بارگذاری...</p></div>
+
+  <p class="text-center text-xs text-gray-400 mt-5 no-print">این صفحه فقط برای دیدن برنامه است. برای تغییر نوبت با منشی هماهنگ کنید.</p>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://gtjqzwdgmilcdgqlqhik.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uzoljC3RKdT8tBe7WyGH_A_E7wthbmV';
+
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toFa = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+const WEEKDAYS = ['یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه','شنبه'];
+const SLOTS = Array.from({length:14}, (_,i) => { const m = 14*60 + i*30, p = (x) => String(x).padStart(2,'0');
+  return p(Math.floor(m/60))+':'+p(m%60)+' - '+p(Math.floor((m+30)/60))+':'+p((m+30)%60); });
+const stClass = (s) => s ? ('st-' + String(s).split(' ')[0].replace('شد','')) : '';
+
+/* تقویم شمسی */
+const div=(a,b)=>~~(a/b), mod=(a,b)=>a-~~(a/b)*b;
+const BREAKS=[-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+function jalCal(jy){const bl=BREAKS.length,gy=jy+621;let leapJ=-14,jp=BREAKS[0],jm,jump=0,n,i;
+  if(jy<jp||jy>=BREAKS[bl-1])throw new Error('bad year');
+  for(i=1;i<bl;i+=1){jm=BREAKS[i];jump=jm-jp;if(jy<jm)break;leapJ=leapJ+div(jump,33)*8+div(mod(jump,33),4);jp=jm;}
+  n=jy-jp;leapJ=leapJ+div(n,33)*8+div(mod(n,33)+3,4);
+  if(mod(jump,33)===4&&jump-n===4)leapJ+=1;
+  const leapG=div(gy,4)-div((div(gy,100)+1)*3,4)-150,march=20+leapJ-leapG;
+  if(jump-n<6)n=n-jump+div(jump+4,33)*33;
+  let leap=mod(mod(n+1,33)-1,4);if(leap===-1)leap=4;return{leap,gy,march};}
+function g2d(gy,gm,gd){let d=div((gy+div(gm-8,6)+100100)*1461,4)+div(153*mod(gm+9,12)+2,5)+gd-34840408;
+  return d-div(div(gy+100100+div(gm-8,6),100)*3,4)+752;}
+function d2g(jdn){let j=4*jdn+139361631;j=j+div(div(4*jdn+183187720,146097)*3,4)*4-3908;
+  const i=div(mod(j,1461),4)*5+308,gd=div(mod(i,153),5)+1,gm=mod(div(i,153),12)+1,gy=div(j,1461)-100100+div(8-gm,6);
+  return{gy,gm,gd};}
+function d2j(jdn){const g=d2g(jdn);let jy=g.gy-621;const r=jalCal(jy),f=g2d(g.gy,3,r.march);let k=jdn-f,jm,jd;
+  if(k>=0){if(k<=185){jm=1+div(k,31);jd=mod(k,31)+1;return{jy,jm,jd};}k-=186;}else{jy-=1;k+=179;if(r.leap===1)k+=1;}
+  jm=7+div(k,30);jd=mod(k,30)+1;return{jy,jm,jd};}
+const pad2=(n)=>String(n).padStart(2,'0');
+const parseISO=(iso)=>{const p=iso.split('-').map(Number);return{gy:p[0],gm:p[1],gd:p[2]};};
+const isoFromG=(g)=>g.gy+'-'+pad2(g.gm)+'-'+pad2(g.gd);
+const todayISO=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran'}).format(new Date());
+const addDaysISO=(iso,n)=>{const g=parseISO(iso);return isoFromG(d2g(g2d(g.gy,g.gm,g.gd)+n));};
+function jalaliLabel(iso){const g=parseISO(iso),j=d2j(g2d(g.gy,g.gm,g.gd));return toFa(j.jd)+' '+MONTHS[j.jm-1]+' '+toFa(j.jy);}
+const weekdayOf=(iso)=>WEEKDAYS[new Date(iso+'T12:00:00Z').getUTCDay()];
+const fullLabel=(iso)=>weekdayOf(iso)+' '+jalaliLabel(iso);
+
+const token = new URLSearchParams(location.search).get('k') || '';
+let rows = [], view = 'today';
+
+function dayBlock(iso){
+  const list = rows.filter(r => r.appt_date === iso && (r.client_name || r.status))
+                   .sort((a,b) => a.slot_index - b.slot_index);
+  const sure = list.filter(r => r.status === 'قطعی').length;
+  const head = '<div class="flex items-baseline justify-between mb-2">'
+    + '<h2 class="font-extrabold text-teal-900">'+fullLabel(iso)+(iso===todayISO()?' <span class="text-xs text-teal-600">(امروز)</span>':'')+'</h2>'
+    + '<span class="text-xs text-gray-500">'+toFa(list.length)+' نوبت'+(sure?' · '+toFa(sure)+' قطعی':'')+'</span></div>';
+  if(!list.length) return '<div class="mb-5">'+head+'<p class="card p-4 text-center text-gray-400 text-sm">نوبتی ثبت نشده است</p></div>';
+  const items = list.map(r => '<div class="card slot '+stClass(r.status)+' p-3">'
+    + '<div class="flex items-center justify-between gap-2">'
+    + '<span class="num font-extrabold text-slate-700 text-sm">'+toFa(SLOTS[r.slot_index-1])+'</span>'
+    + (r.status ? '<span class="pill">'+esc(r.status)+'</span>' : '') + '</div>'
+    + '<div class="font-extrabold text-teal-900 mt-1">'+esc(r.client_name || '—')+'</div>'
+    + ([r.service, r.payment].filter(Boolean).map(esc).join(' · ') ? '<div class="text-xs text-gray-500">'+[r.service,r.payment].filter(Boolean).map(esc).join(' · ')+'</div>' : '')
+    + (r.note ? '<div class="text-xs text-amber-700 mt-0.5">'+esc(r.note)+'</div>' : '') + '</div>').join('');
+  return '<div class="mb-5">'+head+'<div class="space-y-2">'+items+'</div></div>';
+}
+function render(){
+  document.querySelectorAll('#views .chip').forEach(c => c.classList.toggle('on', c.dataset.v === view));
+  if(view === 'today')    return void ($('out').innerHTML = dayBlock(todayISO()));
+  if(view === 'tomorrow') return void ($('out').innerHTML = dayBlock(addDaysISO(todayISO(),1)));
+  const t = todayISO(), back = (new Date(t+'T12:00:00Z').getUTCDay()+1)%7, start = addDaysISO(t,-back);
+  $('out').innerHTML = Array.from({length:7}, (_,i) => dayBlock(addDaysISO(start,i))).join('');
+}
+$('views').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if(!c) return; view = c.dataset.v; render(); });
+
+(async function load(){
+  if(!token){ $('out').innerHTML = '<p class="card p-6 text-center text-red-600">لینک ناقص است. لینک کامل را از منشی بگیرید.</p>'; return; }
+  const t = todayISO(), back = (new Date(t+'T12:00:00Z').getUTCDay()+1)%7;
+  const from = addDaysISO(t, Math.min(-back, -1)), to = addDaysISO(t, 9);
+  try {
+    const res = await fetch(SUPABASE_URL+'/rest/v1/rpc/sch_public_schedule', {
+      method:'POST', headers:{apikey:SUPABASE_KEY, Authorization:'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json'},
+      body: JSON.stringify({ p_token: token, p_from: from, p_to: to }) });
+    if(!res.ok) throw new Error('خطا '+res.status);
+    rows = await res.json();
+    if(!rows.length){ $('out').innerHTML = '<p class="card p-6 text-center text-amber-700">این لینک معتبر نیست یا برنامه‌ای برای آن ثبت نشده است. با منشی هماهنگ کنید.</p>'; return; }
+    const nm = rows[0] && rows[0].therapist_name;
+    if(nm){ $('th-name').textContent = 'برنامه‌ی ' + nm; document.title = 'برنامه‌ی ' + nm; }
+    rows = rows.filter(r => r.appt_date);
+    render();
+  } catch(err){
+    $('out').innerHTML = '<p class="card p-6 text-center text-red-600">برنامه باز نشد. اینترنت را بررسی کنید یا بعداً دوباره امتحان کنید.</p>';
+  }
+})();
+</script>
+</body>
+</html>
