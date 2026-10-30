@@ -100,6 +100,7 @@
     <button id="d-next" class="tabbtn">فردا ›</button>
     <div id="th-pick-wrap" class="hidden"><label class="lbl">درمانگر</label><select id="th-pick" class="inp wk"></select></div>
     <div class="grow"></div>
+    <button id="b-add" class="bg-green-600 hover:bg-green-700 text-white font-extrabold px-5 py-2 rounded-lg">＋ ثبت نوبت</button>
     <button id="b-copy" class="tabbtn">📋 کپی از هفته‌ی قبل</button>
     <button id="b-print" class="tabbtn">🖨 چاپ</button>
   </div>
@@ -118,6 +119,10 @@
       <button type="button" id="sm-x" class="text-gray-500 text-2xl leading-none px-2">×</button>
     </div>
     <form id="slot-form" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">درمانگر</label><select id="sf-th" class="inp"></select></div>
+        <div><label class="lbl">ساعت</label><select id="sf-slot" class="inp num"></select></div>
+      </div>
       <div><label class="lbl">نام مراجع</label><input id="sf-name" class="inp" autocomplete="off" list="client-list"><datalist id="client-list"></datalist></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="lbl">نوع خدمت</label>
@@ -365,9 +370,12 @@ async function loadWeek(){
 function openSlot(tid, i, dateISO){
   const d = dateISO || curDate;
   const rows = dateISO ? weekRows : dayRows;
-  const r = rows.find(x => x.therapist_id === tid && x.slot_index === i && x.appt_date === d) || {};
+  const r = (tid && i) ? (rows.find(x => x.therapist_id === tid && x.slot_index === i && x.appt_date === d) || {}) : {};
   editing = { tid, i, date: d, id: r.id || null };
-  $('sm-title').textContent = thName(tid) + ' · ' + toFa(SLOTS[i-1]) + ' · ' + fullLabel(d);
+  $('sf-th').innerHTML = therapists.filter(t => t.active || t.id === tid)
+    .map(t => '<option value="'+t.id+'"'+(t.id === tid ? ' selected' : '')+'>'+esc(t.name)+'</option>').join('');
+  $('sf-slot').innerHTML = SLOTS.map((s, k) => '<option value="'+(k+1)+'"'+(k+1 === i ? ' selected' : '')+'>'+toFa(s)+'</option>').join('');
+  $('sm-title').textContent = (tid && i) ? ('ویرایش نوبت · ' + fullLabel(d)) : ('ثبت نوبت · ' + fullLabel(d));
   $('sf-name').value = r.client_name || ''; $('sf-service').value = r.service || '';
   $('sf-status').value = r.status || ''; $('sf-phone').value = r.phone || '';
   $('sf-payment').value = r.payment || ''; $('sf-note').value = r.note || '';
@@ -376,21 +384,38 @@ function openSlot(tid, i, dateISO){
 }
 const closeSlot = () => $('slot-modal').classList.add('hidden');
 $('sm-x').addEventListener('click', closeSlot); $('sf-cancel').addEventListener('click', closeSlot);
+$('b-add').addEventListener('click', () => {
+  if(!therapists.length) return toast('لیست درمانگرها خالی است', false);
+  const d = tab === 'week' ? curDate : curDate;
+  const tid = tab === 'week' ? +$('th-pick').value : (therapists.find(t => t.active) || therapists[0]).id;
+  openSlot(tid, 0, d);
+});
 $('day-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i); });
 $('week-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i, b.dataset.d); });
 
 $('slot-form').addEventListener('submit', async (e) => {
   e.preventDefault(); if(!editing) return;
-  const body = { therapist_id: editing.tid, appt_date: editing.date, slot_index: editing.i,
-    client_name: $('sf-name').value.trim() || null, service: $('sf-service').value || null,
+  const tid = +$('sf-th').value, slot = +$('sf-slot').value;
+  if(!tid || !slot) return toast('درمانگر و ساعت را انتخاب کنید', false);
+  const name = $('sf-name').value.trim();
+  if(!name && !$('sf-status').value) return toast('نام مراجع را بنویسید', false);
+  const moved = editing.id && (tid !== editing.tid || slot !== editing.i);
+  const rows = editing.date === curDate ? dayRows : weekRows;
+  if(moved){
+    const clash = rows.find(x => x.therapist_id === tid && x.slot_index === slot && x.appt_date === editing.date && (x.client_name || x.status));
+    if(clash && !confirm('این ساعت برای «' + (clash.client_name || clash.status) + '» پر است. جایگزین شود؟')) return;
+  }
+  const body = { therapist_id: tid, appt_date: editing.date, slot_index: slot,
+    client_name: name || null, service: $('sf-service').value || null,
     status: $('sf-status').value || null, phone: normDigits($('sf-phone').value).trim() || null,
     payment: $('sf-payment').value || null, note: $('sf-note').value.trim() || null };
   const btn = $('sf-save'); btn.disabled = true;
   try {
     await api('/rest/v1/sch_appointments?on_conflict=therapist_id,appt_date,slot_index',
       { method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body });
+    if(moved) await api('/rest/v1/sch_appointments?id=eq.' + editing.id, {method:'DELETE'});
     if(body.client_name) clientNames.add(body.client_name);
-    closeSlot(); toast('✔ ذخیره شد'); reload();
+    closeSlot(); toast(moved ? '✔ جابه‌جا شد' : '✔ ذخیره شد'); reload();
   } catch(err){ toast('ذخیره نشد: '+err.message, false); }
   finally { btn.disabled = false; }
 });
