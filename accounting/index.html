@@ -98,6 +98,7 @@
   <nav id="tabs" class="no-print flex gap-2 overflow-x-auto pb-2 mb-4">
     <button class="tabbtn on" data-tab="entry">ثبت امروز</button>
     <button class="tabbtn" data-tab="intake">📞 مراجعین جدید<span id="intake-badge" class="badge hidden"></span></button>
+    <button class="tabbtn" data-tab="churn">📉 ریزش مراجعین<span id="churn-badge" class="badge hidden"></span></button>
     <button class="tabbtn admin-only" data-tab="day">گزارش روزانه</button>
     <button class="tabbtn admin-only" data-tab="month">صورت‌حساب ماهانه</button>
     <button class="tabbtn admin-only" data-tab="settings">تنظیمات</button>
@@ -162,6 +163,27 @@
       <button id="is-show" class="bg-blue-700 text-white font-bold px-5 py-2 rounded-lg">نمایش</button>
     </div>
     <div id="intake-out"></div>
+  </section>
+
+  <!-- ---- ریزش مراجعین ---- -->
+  <section id="tab-churn" class="hidden">
+    <div class="card p-4 mb-4 no-print">
+      <button id="c-new" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-extrabold py-3 rounded-xl text-lg">＋ افزودن مراجع ریزشی (دستی)</button>
+      <p class="text-xs text-gray-500 mt-2 leading-5">سیستم خودش از روی «ثبت امروز» کسانی را که مدتی نیامده‌اند پیدا می‌کند. چون حساب‌کتاب تازه راه افتاده، مراجعین قدیمی‌تر را با همین دکمه دستی اضافه کنید.</p>
+      <div class="flex items-center gap-2 mt-3">
+        <label class="text-sm font-bold text-gray-700">بعد از چند روز نیامدن؟</label>
+        <select id="c-days" class="inp" style="width:auto">
+          <option value="10">۱۰ روز</option><option value="14" selected>۱۴ روز</option>
+          <option value="21">۲۱ روز</option><option value="30">۳۰ روز</option>
+        </select>
+      </div>
+    </div>
+    <nav id="c-views" class="flex gap-2 overflow-x-auto pb-2 mb-3">
+      <button class="chip on" data-cv="open">نیاز به پیگیری</button>
+      <button class="chip" data-cv="done">نتیجه‌گرفته‌ها</button>
+      <button class="chip admin-only" data-cv="stats">علت‌های قطع</button>
+    </nav>
+    <div id="churn-out"></div>
   </section>
 
   <!-- ---- گزارش روزانه ---- -->
@@ -320,6 +342,65 @@
         <button type="button" id="lf-cancel" class="bg-gray-200 text-gray-800 font-bold px-5 rounded-xl">انصراف</button>
       </div>
       <button type="button" id="lf-del" class="hidden w-full text-red-600 text-sm font-bold">حذف این مراجع (فقط مدیر)</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= CHURN MODAL ================= -->
+<div id="churn-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-3">
+  <div class="card p-4 w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-b-none sm:rounded-b-xl">
+    <div class="flex items-center justify-between mb-3">
+      <h3 id="cm-title" class="font-extrabold text-blue-900">مراجع ریزشی</h3>
+      <button type="button" id="cm-x" class="text-gray-500 text-2xl leading-none px-2">×</button>
+    </div>
+    <form id="churn-form" class="space-y-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2"><label class="lbl">نام مراجع *</label><input id="cf-name" class="inp" autocomplete="off" list="client-list" required><datalist id="client-list"></datalist></div>
+        <div><label class="lbl">درمانگر</label><select id="cf-therapist" class="inp"></select></div>
+        <div><label class="lbl">شماره تماس</label><input id="cf-phone" class="inp num" dir="ltr" inputmode="tel" autocomplete="off"></div>
+        <div><label class="lbl">تعداد جلسه‌هایی که آمده</label><input id="cf-sessions" class="inp num" dir="ltr" inputmode="numeric" autocomplete="off"></div>
+        <div><label class="lbl">آخرین جلسه (تقریبی)</label><div class="grid grid-cols-3 gap-1" id="cf-last"></div></div>
+      </div>
+
+      <div>
+        <label class="lbl">نتیجه‌ی پیگیری</label>
+        <div id="cf-seg" class="seg">
+          <button type="button" data-st="open">🔁 هنوز پیگیری نشده</button>
+          <button type="button" data-st="returned">✅ برمی‌گرده</button>
+          <button type="button" data-st="paused">⏸ موقتاً نمی‌آید</button>
+          <button type="button" data-st="discharged">🎓 درمانش تمام شده</button>
+          <button type="button" data-st="lost">✖ قطع کرده</button>
+        </div>
+      </div>
+
+      <div id="cf-p-paused" class="cf-p hidden bg-amber-50 rounded-xl p-3">
+        <label class="lbl">چند وقت دیگر دوباره یادآوری شود؟</label>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="qbtn" data-snooze="7">۱ هفته</button>
+          <button type="button" class="qbtn" data-snooze="14">۲ هفته</button>
+          <button type="button" class="qbtn" data-snooze="30">۱ ماه</button>
+          <button type="button" class="qbtn" data-snooze="60">۲ ماه</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-2" id="cf-next"></div>
+      </div>
+
+      <div id="cf-p-lost" class="cf-p hidden bg-gray-100 rounded-xl p-3">
+        <label class="lbl">علت قطع کردن</label>
+        <select id="cf-reason" class="inp">
+          <option>هزینه</option><option>دوری مسیر</option><option>ساعت مناسب نبود</option>
+          <option>نتیجه نگرفت</option><option>جای دیگری می‌رود</option><option>مشکل خانوادگی</option>
+          <option>کودک همکاری نمی‌کرد</option><option>جواب تماس را نداد</option><option>سایر</option>
+        </select>
+      </div>
+
+      <div><label class="lbl">یادداشت</label><textarea id="cf-note" class="inp" rows="2" placeholder="خلاصه‌ی صحبت..."></textarea></div>
+      <div id="cf-log" class="hidden text-xs text-gray-600 bg-gray-50 rounded-lg p-2 max-h-32 overflow-y-auto"></div>
+
+      <div class="flex gap-2">
+        <button id="cf-save" class="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-extrabold py-3 rounded-xl">ذخیره</button>
+        <button type="button" id="cf-cancel" class="bg-gray-200 text-gray-800 font-bold px-5 rounded-xl">انصراف</button>
+      </div>
+      <button type="button" id="cf-del" class="hidden w-full text-red-600 text-sm font-bold">حذف از لیست ریزش (فقط مدیر)</button>
     </form>
   </div>
 </div>
@@ -537,10 +618,11 @@ $('logout-btn').addEventListener('click', doLogout);
 
 /* ---------------- تب‌ها ---------------- */
 function showTab(name) {
-  ['entry', 'intake', 'day', 'month', 'settings'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
+  ['entry', 'intake', 'churn', 'day', 'month', 'settings'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== name));
   document.querySelectorAll('#tabs .tabbtn').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
   if (name === 'entry') { loadEntryDay(); refreshIntakeBadge(); }
   if (name === 'intake') loadIntake();
+  if (name === 'churn') loadChurn();
   if (name === 'day') loadDayReport();
   if (name === 'settings') renderSettings();
 }
@@ -1128,6 +1210,196 @@ $('forgot-no').addEventListener('click', () => $('forgot-modal').classList.add('
 $('forgot-yes').addEventListener('click', async () => {
   $('forgot-modal').classList.add('hidden'); intakeView = 'todo'; showTab('intake');
   openLead(null, { status: 'booked', prefill: forgotPrefill || {} });
+});
+
+/* ===================================================================
+   ریزش مراجعین: کسانی که قبلاً می‌آمدند و مدتی است نمی‌آیند
+   =================================================================== */
+const CST = { open:'نیاز به پیگیری', returned:'برمی‌گردد', paused:'موقتاً نمی‌آید', discharged:'درمان تمام شده', lost:'قطع کرده' };
+let churnCases = [], churnAuto = [], churnView = 'open', editingChurn = null, cfStatus = null, clientNames = new Set();
+function refreshClientList() {
+  const dl = $('client-list'); if (!dl) return;
+  dl.innerHTML = [...clientNames].sort().slice(0, 500).map((n) => '<option value="' + esc(n) + '">').join('');
+}
+const pkLast = makeJPicker('cf-last'), pkNext = makeJPicker('cf-next');
+const keyOf = (s) => String(s || '').replace(/‌/g, '').replace(/\s+/g, ' ').trim();
+
+async function fetchChurn() { churnCases = await fetchAll('/rest/v1/churn_cases?select=*&order=updated_at.desc'); return churnCases; }
+
+/* از روی مراجعه‌های ثبت‌شده، کسانی که مدتی نیامده‌اند را پیدا می‌کند */
+async function buildAuto() {
+  const rows = await fetchAll('/rest/v1/acc_visits?select=patient_name,therapist_id,visit_date&order=visit_date.asc');
+  const m = new Map();
+  rows.forEach((v) => {
+    const k = keyOf(v.patient_name); if (!k) return;
+    const r = m.get(k) || { name: v.patient_name, sessions: 0, last: '', tid: null };
+    r.sessions += 1; if (v.visit_date > r.last) { r.last = v.visit_date; r.tid = v.therapist_id; }
+    m.set(k, r);
+  });
+  const t = todayISO(), days = +$('c-days').value;
+  churnAuto = [...m.entries()]
+    .filter(([, r]) => r.sessions >= 2 && diffDays(t, r.last) >= days)
+    .map(([k, r]) => ({ key: k, client_name: r.name, therapist_id: r.tid, sessions: r.sessions, last_visit: r.last, auto: true }));
+  rows.forEach((v) => { if (v.patient_name) clientNames.add(v.patient_name); });
+}
+
+/* فهرست نهایی: پرونده‌های ثبت‌شده + پیشنهادهای خودکارِ بدون پرونده */
+function churnList() {
+  const t = todayISO();
+  const byKey = new Map(churnCases.map((c) => [keyOf(c.client_name), c]));
+  const open = [], done = [];
+  churnCases.forEach((c) => {
+    const snoozed = c.status === 'paused' && c.next_check && c.next_check > t;
+    if (c.status === 'open' || (c.status === 'paused' && !snoozed)) open.push(c); else done.push(c);
+  });
+  churnAuto.forEach((a) => { if (!byKey.has(a.key)) open.push(a); });
+  const w = (x) => (x.last_visit ? diffDays(t, x.last_visit) : 0) + (x.sessions || 0) * 2;
+  open.sort((a, b) => w(b) - w(a));
+  done.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+  return { open, done };
+}
+function updateChurnBadge() {
+  const n = churnList().open.length; const b = $('churn-badge');
+  b.textContent = toFa(n); b.classList.toggle('hidden', n === 0);
+}
+
+function churnCard(c) {
+  const t = todayISO();
+  const gone = c.last_visit ? diffDays(t, c.last_visit) : null;
+  const st = c.status || 'open';
+  const bits = [
+    c.therapist_id ? esc(thName(c.therapist_id)) : '',
+    c.sessions ? toFa(c.sessions) + ' جلسه آمده' : '',
+    c.last_visit ? 'آخرین جلسه: ' + jalaliLabel(c.last_visit) + (gone !== null ? ' (' + toFa(gone) + ' روز پیش)' : '') : 'تاریخ آخرین جلسه نامشخص'
+  ].filter(Boolean).join(' · ');
+  const cls = gone === null ? '' : gone >= 30 ? 'late' : gone >= 21 ? 'due' : '';
+  const stLabel = st === 'open'
+    ? '<span class="st st-followup">نیاز به پیگیری</span>'
+    : '<span class="st st-' + (st === 'lost' ? 'lost' : st === 'returned' ? 'active' : 'booked') + '">' + CST[st] + '</span>';
+  return '<div class="card lead ' + cls + ' p-3">' +
+    '<div class="flex items-start justify-between gap-2"><div class="min-w-0">' +
+      '<div class="font-extrabold text-blue-900">' + esc(c.client_name) + ' ' + stLabel +
+      (c.auto ? ' <span class="text-xs text-gray-400">(از روی مراجعه‌ها)</span>' : '') + '</div>' +
+      '<div class="text-xs text-gray-500 mt-0.5">' + bits + '</div></div>' +
+      (c.phone ? '<a href="tel:' + esc(c.phone) + '" class="shrink-0 bg-green-600 text-white font-bold text-sm px-3 py-1.5 rounded-lg num" dir="ltr">📞 ' + esc(c.phone) + '</a>' : '') +
+    '</div>' +
+    (c.reason ? '<div class="text-sm text-gray-700 mt-1">علت: ' + esc(c.reason) + '</div>' : '') +
+    (c.note ? '<div class="text-sm text-gray-600 mt-1">' + esc(c.note) + '</div>' : '') +
+    (c.status === 'paused' && c.next_check ? '<div class="text-sm font-bold text-amber-700 mt-1">⏰ یادآوری: ' + jalaliLabel(c.next_check) + '</div>' : '') +
+    '<div class="flex flex-wrap gap-2 mt-2"><button class="qbtn" data-cact="edit" data-ck="' + esc(c.id || ('auto:' + c.key)) + '">ثبت نتیجه‌ی پیگیری</button></div></div>';
+}
+function renderChurn() {
+  document.querySelectorAll('#c-views .chip').forEach((c) => c.classList.toggle('on', c.dataset.cv === churnView));
+  if (churnView === 'stats') return renderChurnStats();
+  const { open, done } = churnList();
+  const list = churnView === 'open' ? open : done;
+  const empty = churnView === 'open'
+    ? 'الان کسی در لیست ریزش نیست 👌 هر مراجعی که مدتی نیاید خودش این‌جا می‌آید. مراجعین قدیمی‌تر را با دکمه‌ی سبز بالا اضافه کنید.'
+    : 'هنوز نتیجه‌ای ثبت نشده است.';
+  $('churn-out').innerHTML = list.length
+    ? '<div class="grid md:grid-cols-2 gap-2">' + list.map(churnCard).join('') + '</div>'
+    : '<p class="card p-4 text-center text-gray-400">' + empty + '</p>';
+}
+async function loadChurn() {
+  $('churn-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
+  try { await fetchChurn(); await buildAuto(); refreshClientList(); updateChurnBadge(); renderChurn(); }
+  catch (err) { $('churn-out').innerHTML = churnErrorHTML(err); }
+}
+function churnErrorHTML(err) {
+  const missing = /churn_cases|42P01|PGRST205|schema cache/i.test(err.message);
+  return '<p class="card p-4 text-center ' + (missing ? 'text-amber-700' : 'text-red-600') + '">' +
+    (missing ? 'بخش «ریزش مراجعین» هنوز در پایگاه داده راه‌اندازی نشده است (فایل accounting/churn.sql).' : 'خطا: ' + esc(err.message)) + '</p>';
+}
+$('c-views').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (!c) return; churnView = c.dataset.cv; renderChurn(); });
+$('c-days').addEventListener('change', async () => { await buildAuto(); updateChurnBadge(); renderChurn(); });
+
+/* ---- آمار علت‌های قطع (مدیر) ---- */
+function renderChurnStats() {
+  if (role !== 'admin') { $('churn-out').innerHTML = ''; return; }
+  const lost = churnCases.filter((c) => c.status === 'lost');
+  const back = churnCases.filter((c) => c.status === 'returned');
+  const disc = churnCases.filter((c) => c.status === 'discharged');
+  const cards = [['پیگیری‌شده‌ها', fa(churnCases.length), 'text-blue-800'], ['برگشتند', fa(back.length), 'text-green-700'],
+    ['درمان تمام شد', fa(disc.length), 'text-blue-700'], ['قطع کردند', fa(lost.length), 'text-red-600']]
+    .map((c) => '<div class="card p-3 text-center"><div class="text-xs text-gray-500 mb-1">' + c[0] + '</div><div class="font-extrabold ' + c[2] + ' num">' + c[1] + '</div></div>').join('');
+  const g = new Map(); lost.forEach((c) => { const k = c.reason || '— نامشخص —'; g.set(k, (g.get(k) || 0) + 1); });
+  const rows = [...g.entries()].sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => '<tr><td>' + esc(k) + '</td><td class="num">' + fa(n) + '</td><td class="num">' + (lost.length ? Math.round(n * 100 / lost.length).toLocaleString('fa-IR') : '۰') + '٪</td></tr>').join('');
+  const gt = new Map(); lost.forEach((c) => { if (!c.therapist_id) return; gt.set(c.therapist_id, (gt.get(c.therapist_id) || 0) + 1); });
+  const rowsT = [...gt.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => '<tr><td class="font-bold">' + esc(thName(id)) + '</td><td class="num">' + fa(n) + '</td></tr>').join('');
+  const tbl = (title, head, body) => '<div class="card p-4 mb-4"><h3 class="font-extrabold text-blue-900 mb-2">' + title + '</h3><div class="overflow-x-auto"><table class="t"><thead><tr>' +
+    head.map((h) => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>' + (body || '<tr><td colspan="' + head.length + '" class="text-center text-gray-400 py-3">—</td></tr>') + '</tbody></table></div></div>';
+  $('churn-out').innerHTML = '<div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">' + cards + '</div>' +
+    tbl('چرا قطع کردند؟', ['علت', 'تعداد', 'سهم'], rows) +
+    tbl('قطع‌کرده‌ها به تفکیک درمانگر', ['درمانگر', 'تعداد'], rowsT);
+}
+
+/* ---- فرم ---- */
+function setCfStatus(st) {
+  cfStatus = st;
+  document.querySelectorAll('#cf-seg button').forEach((b) => b.classList.toggle('on', b.dataset.st === st));
+  document.querySelectorAll('.cf-p').forEach((p) => p.classList.toggle('hidden', p.id !== 'cf-p-' + st));
+}
+$('cf-seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setCfStatus(b.dataset.st); });
+document.querySelectorAll('[data-snooze]').forEach((b) => b.addEventListener('click', () => pkNext.set(addDaysISO(todayISO(), +b.dataset.snooze))));
+
+function openChurn(c) {
+  editingChurn = c || null;
+  const v = c || {};
+  $('cm-title').textContent = c ? esc(v.client_name) : 'افزودن مراجع ریزشی';
+  $('cf-name').value = v.client_name || '';
+  $('cf-therapist').innerHTML = '<option value="">— انتخاب درمانگر —</option>' + optionsHTML(therapists, v.therapist_id || null, true);
+  $('cf-phone').value = v.phone || ''; $('cf-sessions').value = v.sessions || '';
+  pkLast.set(v.last_visit || todayISO()); pkNext.set(v.next_check || addDaysISO(todayISO(), 14));
+  $('cf-reason').value = v.reason || 'هزینه'; $('cf-note').value = '';
+  setCfStatus(v.status || 'open');
+  const log = (c && Array.isArray(c.log)) ? c.log.slice().reverse() : [];
+  $('cf-log').innerHTML = log.map((x) => '<div class="py-1 border-b border-gray-200"><b>' + esc(jalaliLabel(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(x.at)))) + '</b> · ' + esc(CST[x.st] || '') + (x.text ? ': ' + esc(x.text) : '') + '</div>').join('');
+  $('cf-log').classList.toggle('hidden', !log.length);
+  $('cf-del').classList.toggle('hidden', !(c && c.id && role === 'admin'));
+  $('churn-modal').classList.remove('hidden');
+  if (!c) setTimeout(() => $('cf-name').focus(), 50);
+}
+const closeChurn = () => $('churn-modal').classList.add('hidden');
+$('cm-x').addEventListener('click', closeChurn); $('cf-cancel').addEventListener('click', closeChurn);
+$('c-new').addEventListener('click', () => openChurn(null));
+$('churn-out').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-cact]'); if (!b) return;
+  const k = b.dataset.ck;
+  const c = k.startsWith('auto:') ? churnAuto.find((x) => x.key === k.slice(5)) : churnCases.find((x) => String(x.id) === k);
+  if (c) openChurn(c);
+});
+
+$('churn-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('cf-name').value.trim();
+  if (!name) return toast('نام مراجع را بنویسید', false);
+  if (!cfStatus) return toast('نتیجه‌ی پیگیری را انتخاب کنید', false);
+  const c = editingChurn, isNew = !(c && c.id);
+  const sess = parseInt(normDigits($('cf-sessions').value), 10);
+  const body = { client_name: name, therapist_id: parseInt($('cf-therapist').value, 10) || null,
+    phone: normPhone($('cf-phone').value) || null, sessions: isNaN(sess) ? null : sess,
+    last_visit: pkLast.get(), status: cfStatus,
+    next_check: cfStatus === 'paused' ? pkNext.get() : null,
+    reason: cfStatus === 'lost' ? $('cf-reason').value : null,
+    source: (c && c.auto) ? 'auto' : (c && c.source) || 'manual' };
+  const note = $('cf-note').value.trim();
+  if (note) body.note = note;
+  if (isNew || note || (c && c.status !== cfStatus))
+    body.log = ((c && c.log) || []).concat([{ at: new Date().toISOString(), by: session.email, st: cfStatus, text: note || null }]);
+  const btn = $('cf-save'); btn.disabled = true;
+  try {
+    if (c && c.id) await api('/rest/v1/churn_cases?id=eq.' + c.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body });
+    else await api('/rest/v1/churn_cases', { method: 'POST', headers: { Prefer: 'return=minimal' }, body });
+    closeChurn(); toast('✔ ذخیره شد'); await loadChurn();
+  } catch (err) { toast('ذخیره نشد: ' + err.message, false); }
+  finally { btn.disabled = false; }
+});
+$('cf-del').addEventListener('click', async () => {
+  const c = editingChurn; if (!c || !c.id || role !== 'admin') return;
+  if (!confirm('«' + c.client_name + '» از لیست ریزش حذف شود؟')) return;
+  try { await api('/rest/v1/churn_cases?id=eq.' + c.id, { method: 'DELETE' }); closeChurn(); toast('حذف شد'); await loadChurn(); }
+  catch (err) { toast('حذف نشد: ' + err.message, false); }
 });
 
 /* ---------------- شروع ---------------- */
