@@ -958,14 +958,16 @@ function renderIntake() {
     $('intake-out').innerHTML = list.length ? '<div class="grid md:grid-cols-2 gap-2">' + list.map((l) => leadCard(l, 'all')).join('') + '</div>' : '<p class="text-center text-gray-400 card p-4">موردی پیدا نشد</p>';
     return;
   }
-  const b = buckets();
+  // هر مراجع فقط یک بار و در مهم‌ترین بخش خودش نشان داده می‌شود
+  const b = buckets(); const seen = new Set();
+  const once = (list) => list.filter((l) => !seen.has(l.id) && seen.add(l.id));
   $('intake-out').innerHTML =
-    section('🔔 پیگیری‌های امروز و عقب‌افتاده', b.fu, 'fu', 'پیگیری امروزی نداری 👌') +
-    section('⏳ ارزیابی‌شده‌ها: نتیجه را ثبت کنید', b.result, 'result', '', true) +
-    section('📅 نوبت‌های ارزیابی امروز', b.apptToday, 'appt', 'امروز نوبت ارزیابی نداریم') +
-    section('📞 تماس‌های ثبت‌شده‌ی امروز', b.today, 'today', 'هنوز تماسی برای امروز ثبت نشده است. هر تماس جدید را همان لحظه با دکمه‌ی سبز بالا ثبت کنید.') +
-    section('🗓 نوبت‌های ارزیابی روزهای بعد', b.upcoming, 'appt', '', true) +
-    section('🔁 پیگیری‌های روزهای بعد', b.laterFu, 'later', '', true);
+    section('🔔 پیگیری‌های امروز و عقب‌افتاده', once(b.fu), 'fu', 'پیگیری امروزی نداری 👌') +
+    section('⏳ ارزیابی‌شده‌ها: نتیجه را ثبت کنید', once(b.result), 'result', '', true) +
+    section('📅 نوبت‌های ارزیابی امروز', once(b.apptToday), 'appt', 'امروز نوبت ارزیابی نداریم') +
+    section('🗓 نوبت‌های ارزیابی روزهای بعد', once(b.upcoming), 'appt', '', true) +
+    section('🔁 پیگیری‌های روزهای بعد', once(b.laterFu), 'later', '', true) +
+    section('📞 تماس‌های امروز (بدون کار باز)', once(b.today), 'today', '', true);
 }
 async function loadIntake() {
   $('intake-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
