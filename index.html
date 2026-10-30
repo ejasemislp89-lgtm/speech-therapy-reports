@@ -385,7 +385,7 @@
         <!-- CASE DISCUSSIONS VIEW (read-only for management) -->
         <div id="admin-chat-view" class="hidden">
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-900 leading-relaxed">
-                همهٔ پیام‌هایی که گفتاردرمانگرها و کاردرمانگر دربارهٔ کیس‌های مشترک به هم می‌فرستند اینجا دیده می‌شود (فقط خواندنی).
+                همهٔ پیام‌هایی که گفتاردرمانگرها و کاردرمانگر دربارهٔ کیس‌های مشترک به هم می‌فرستند اینجا دیده می‌شود. فقط مدیریت می‌تواند پیامی را حذف کند.
             </div>
             <div class="flex flex-col sm:flex-row gap-2 mb-4">
                 <input type="text" id="admin-chat-search" oninput="renderAdminChat()" placeholder="🔍 جستجوی نام مراجع یا درمانگر..." class="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50">
@@ -552,6 +552,7 @@
             
             if (currentRole === 'admin') {
                 if (pass === 'admin1880') {
+                    adminSessionPass = pass;
                     hideAll();
                     document.getElementById('admin-view').classList.remove('hidden');
                     loadAdminData();
@@ -1315,6 +1316,7 @@ ${finalEvaluation}`;
 
         /* ---------------- مدیریت: خواندن گفتگوی گفتاردرمانگر ↔ کاردرمانگر ---------------- */
         let adminChatMessages = [];
+        let adminSessionPass = '';
         async function loadAdminChat() {
             const loader = document.getElementById('admin-chat-loader');
             const empty = document.getElementById('admin-chat-empty');
@@ -1334,6 +1336,25 @@ ${finalEvaluation}`;
                 empty.classList.remove('hidden');
             } finally {
                 loader.style.display = 'none';
+            }
+        }
+
+        async function adminDeleteCaseMessage(id, btn) {
+            if (!confirm('این پیام برای همیشه حذف شود؟')) return;
+            btn.disabled = true;
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_delete_case_message`, {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ p_id: id, p_pass: adminSessionPass })
+                });
+                if (!r.ok) throw new Error('Delete failed ' + r.status);
+                adminChatMessages = adminChatMessages.filter(m => String(m.id) !== String(id));
+                renderAdminChat();
+            } catch (e) {
+                console.error(e);
+                btn.disabled = false;
+                alert('حذف انجام نشد. اینترنت را چک کنید و دوباره تلاش کنید.');
             }
         }
 
@@ -1373,7 +1394,8 @@ ${finalEvaluation}`;
                         <div class="rounded-xl border ${m.author_role === 'ot' ? 'bg-purple-50 border-purple-200' : 'bg-amber-50 border-amber-200'} p-3">
                             <div class="flex flex-wrap items-center justify-between gap-2 mb-1 text-xs">
                                 <span class="font-extrabold text-gray-800">👤 ${escapeHtml(m.author_name)} <span class="font-bold text-gray-500">· ${label[m.author_role] || ''}</span></span>
-                                <span class="text-gray-500">${escapeHtml(new Date(m.created_at).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }))}</span>
+                                <span class="flex items-center gap-2 text-gray-500">${escapeHtml(new Date(m.created_at).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }))}
+                                    <button onclick="adminDeleteCaseMessage('${escapeHtml(String(m.id))}', this)" class="text-red-600 hover:bg-red-50 border border-red-200 rounded-lg px-2 py-0.5 font-bold">🗑 حذف</button></span>
                             </div>
                             <p class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(m.body)}</p>
                         </div>`).join('')}</div>`;
