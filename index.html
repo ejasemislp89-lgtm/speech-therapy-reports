@@ -114,9 +114,27 @@
         </div>
 
         <!-- THERAPIST TABS -->
-        <div class="no-print grid grid-cols-2 gap-2 mb-6">
+        <div id="ttabs" class="no-print grid grid-cols-2 gap-2 mb-6">
             <button id="ttab-new" onclick="switchTherapistTab('new')" class="py-3 rounded-lg font-bold transition">📝 ثبت گزارش جدید</button>
             <button id="ttab-mine" onclick="switchTherapistTab('mine')" class="py-3 rounded-lg font-bold transition">📁 مراجعین من</button>
+            <button id="ttab-chat" onclick="switchTherapistTab('chat')" class="hidden relative py-3 rounded-lg font-bold transition"><span id="chat-tab-label">💬 صحبت با همکار</span><span id="chat-badge" class="hidden absolute -top-2 -left-2 bg-red-600 text-white text-xs font-extrabold rounded-full min-w-[22px] h-[22px] px-1 flex items-center justify-center"></span></button>
+        </div>
+
+        <!-- CASE DISCUSSION PANE (speech therapist <-> occupational therapist) -->
+        <div id="chat-pane" class="hidden no-print">
+            <p id="chat-intro" class="text-gray-600 text-sm mb-4 leading-relaxed"></p>
+            <div class="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 mb-5 space-y-3">
+                <label class="block text-blue-900 font-bold text-sm">پیام جدید دربارهٔ کیس:</label>
+                <input type="text" id="chat-patient" list="chat-patient-names" autocomplete="off" placeholder="نام مراجع (کودک)..." class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-white">
+                <datalist id="chat-patient-names"></datalist>
+                <textarea id="chat-body" rows="3" placeholder="نظر، سؤال یا توصیه‌تان دربارهٔ این کودک را بنویسید..." class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-white"></textarea>
+                <button type="button" onclick="sendCaseMessage('chat-patient','chat-body',this)" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 rounded-xl transition">📨 ارسال پیام</button>
+                <p id="chat-send-msg" class="text-center text-sm font-bold hidden"></p>
+            </div>
+            <input type="text" id="chat-search" oninput="renderChat()" placeholder="🔍 جستجوی نام مراجع در گفتگوها..." class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-blue-500 bg-gray-50">
+            <div id="chat-loader" class="loader mb-4"></div>
+            <p id="chat-empty" class="text-center text-gray-500 py-6 hidden"></p>
+            <div id="chat-threads" class="space-y-5"></div>
         </div>
 
         <!-- MY PATIENTS PANE -->
@@ -308,6 +326,7 @@
             <button id="tab-daily" onclick="switchAdminTab('daily')" class="bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap">📋 لیست گزارش‌های روزانه</button>
             <button id="tab-evals" onclick="switchAdminTab('evals')" class="bg-gray-100 hover:bg-purple-100 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200">🔍 ارزیابی‌های جدید</button>
             <button id="tab-folders" onclick="switchAdminTab('folders')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200">📁 پرونده جامع مراجعین</button>
+            <button id="tab-chat" onclick="switchAdminTab('chat')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200">💬 گفتگوی گفتاردرمانگر و کاردرمانگر</button>
         </div>
 
         <div id="admin-loader" class="loader mb-4"></div>
@@ -361,6 +380,20 @@
             <div id="patients-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <!-- Patient cards injected here -->
             </div>
+        </div>
+
+        <!-- CASE DISCUSSIONS VIEW (read-only for management) -->
+        <div id="admin-chat-view" class="hidden">
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-900 leading-relaxed">
+                همهٔ پیام‌هایی که گفتاردرمانگرها و کاردرمانگر دربارهٔ کیس‌های مشترک به هم می‌فرستند اینجا دیده می‌شود (فقط خواندنی).
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <input type="text" id="admin-chat-search" oninput="renderAdminChat()" placeholder="🔍 جستجوی نام مراجع یا درمانگر..." class="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 bg-gray-50">
+                <button onclick="loadAdminChat()" class="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-3 px-5 rounded-xl transition whitespace-nowrap">🔄 بروزرسانی گفتگوها</button>
+            </div>
+            <div id="admin-chat-loader" class="loader mb-4"></div>
+            <p id="admin-chat-empty" class="text-center text-gray-500 py-6 hidden"></p>
+            <div id="admin-chat-threads" class="grid grid-cols-1 lg:grid-cols-2 gap-5"></div>
         </div>
     </div>
 
@@ -545,11 +578,13 @@
                     
                     hideAll();
                     document.getElementById('therapist-view').classList.remove('hidden');
+                    setupChatForTherapist();
                     therapistReports = [];
                     document.getElementById('my-patient-search').value = '';
                     document.getElementById('my-shared-only').checked = false;
                     switchTherapistTab('new');
                     loadTherapistData();
+                    startChatPolling();
                 } else {
                     err.classList.remove('hidden');
                 }
@@ -560,8 +595,10 @@
             hideAll();
             document.getElementById('login-view').classList.remove('hidden');
             resetLogin();
+            stopChatPolling();
             currentTherapist = '';
             therapistReports = [];
+            caseMessages = [];
             document.getElementById('my-patient-names').innerHTML = '';
             document.getElementById('my-patients-list').innerHTML = '';
             closeModal('patient-history-modal');
@@ -746,15 +783,17 @@ ${finalEvaluation}`;
             const tDaily = document.getElementById('tab-daily');
             const tEvals = document.getElementById('tab-evals');
             const tFolders = document.getElementById('tab-folders');
+            const tChat = document.getElementById('tab-chat');
             
             const vDaily = document.getElementById('admin-daily-view');
             const vEvals = document.getElementById('admin-evals-view');
             const vFolders = document.getElementById('admin-folders-view');
+            const vChat = document.getElementById('admin-chat-view');
 
             const inactiveClass = "bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg transition whitespace-nowrap border border-gray-200";
-            tDaily.className = inactiveClass; tEvals.className = inactiveClass; tFolders.className = inactiveClass;
+            tDaily.className = inactiveClass; tEvals.className = inactiveClass; tFolders.className = inactiveClass; tChat.className = inactiveClass;
             
-            vDaily.classList.add('hidden'); vEvals.classList.add('hidden'); vFolders.classList.add('hidden');
+            vDaily.classList.add('hidden'); vEvals.classList.add('hidden'); vFolders.classList.add('hidden'); vChat.classList.add('hidden');
 
             if(tabName === 'daily') {
                 vDaily.classList.remove('hidden');
@@ -765,6 +804,10 @@ ${finalEvaluation}`;
             } else if(tabName === 'folders') {
                 vFolders.classList.remove('hidden');
                 tFolders.className = "bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
+            } else if(tabName === 'chat') {
+                vChat.classList.remove('hidden');
+                tChat.className = "bg-blue-900 text-white font-bold py-2 px-6 rounded-lg transition shadow whitespace-nowrap";
+                loadAdminChat();
             }
         }
 
@@ -906,11 +949,15 @@ ${finalEvaluation}`;
             therapistTab = tab;
             const on = 'bg-blue-700 text-white shadow py-3 rounded-lg font-bold transition';
             const off = 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 py-3 rounded-lg font-bold transition';
+            const chatCls = (tab === 'chat' ? on : off) + (chatAllowed() ? '' : ' hidden') + ' relative';
             document.getElementById('ttab-new').className = tab === 'new' ? on : off;
             document.getElementById('ttab-mine').className = tab === 'mine' ? on : off;
+            document.getElementById('ttab-chat').className = chatCls;
             document.getElementById('new-report-pane').classList.toggle('hidden', tab !== 'new');
             document.getElementById('my-patients-pane').classList.toggle('hidden', tab !== 'mine');
+            document.getElementById('chat-pane').classList.toggle('hidden', tab !== 'chat');
             if (tab === 'mine') loadTherapistData();
+            if (tab === 'chat') openChatTab();
         }
 
         async function loadTherapistData() {
@@ -928,6 +975,7 @@ ${finalEvaluation}`;
                 therapistReports = await response.json();
                 fillPatientSuggestions();
                 renderMyPatients();
+                renderChat();
             } catch (e) {
                 console.error(e);
                 document.getElementById('my-patients-list').innerHTML = '';
@@ -1066,6 +1114,270 @@ ${finalEvaluation}`;
                     </div>
                 `;
                 timeline.appendChild(item);
+            });
+        }
+
+
+        /* ---------------- گفتگوی کیس مشترک: گفتاردرمانگر ↔ کاردرمانگر ---------------- */
+        const SLP_NAMES = ['احسان جاسمی', 'فاطمه امامی', 'فاطمه کیانی', 'امین لب ابیان', 'کامیاب فتحعلی', 'سارا نادری', 'مهسا جوادنوری'];
+        const OT_NAMES = ['خانم موسوی'];
+        let caseMessages = [];
+        let chatPoll = null;
+        const ROLE_LABEL = { slp: 'گفتاردرمانگر', ot: 'کاردرمانگر' };
+
+        function myChatRole() {
+            if (OT_NAMES.includes(currentTherapist)) return 'ot';
+            if (SLP_NAMES.includes(currentTherapist)) return 'slp';
+            return '';
+        }
+        function chatAllowed() { return !!myChatRole(); }
+        function otherRole() { return myChatRole() === 'ot' ? 'slp' : 'ot'; }
+        function seenKey() { return 'cc_seen_' + currentTherapist; }
+        function getSeen() { try { return localStorage.getItem(seenKey()) || ''; } catch (e) { return ''; } }
+        function setSeen(v) { try { localStorage.setItem(seenKey(), v); } catch (e) {} }
+
+        function setupChatForTherapist() {
+            const role = myChatRole();
+            const tabs = document.getElementById('ttabs');
+            const btn = document.getElementById('ttab-chat');
+            tabs.classList.toggle('grid-cols-3', !!role);
+            tabs.classList.toggle('grid-cols-2', !role);
+            btn.classList.toggle('hidden', !role);
+            if (!role) return;
+            const other = ROLE_LABEL[otherRole()];
+            document.getElementById('chat-tab-label').innerText = '💬 صحبت با ' + other;
+            document.getElementById('chat-intro').innerText = 'اینجا می‌توانید دربارهٔ کیس‌های مشترک با ' + other + ' گفتگو کنید و نظر بدهید یا نظر بگیرید. پیام‌ها فقط برای گفتاردرمانگران و کاردرمانگر دیده می‌شود و به پرونده یا PDF مراجع اضافه نمی‌شود.';
+        }
+
+        async function loadCaseMessages() {
+            if (!chatAllowed()) return;
+            const loader = document.getElementById('chat-loader');
+            if (therapistTab === 'chat') loader.style.display = 'block';
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/case_messages?select=id,created_at,patient_name,author_name,author_role,body&order=created_at.asc&limit=2000`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (!r.ok) throw new Error('Fetch failed ' + r.status);
+                caseMessages = await r.json();
+                renderChat();
+            } catch (e) {
+                console.error(e);
+                if (therapistTab === 'chat') {
+                    const em = document.getElementById('chat-empty');
+                    em.innerText = 'ارتباط با پایگاه داده برقرار نشد. اینترنت یا فیلترشکن را چک کنید.';
+                    em.classList.remove('hidden');
+                }
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function chatThreads() {
+            const me = currentTherapist;
+            const mine = new Set(groupMyPatients().map(g => normalizeName(g.name)));
+            const groups = {};
+            caseMessages.forEach(m => {
+                const key = normalizeName(m.patient_name);
+                if (!key) return;
+                (groups[key] = groups[key] || { key, name: (m.patient_name || '').trim(), msgs: [] }).msgs.push(m);
+            });
+            return Object.values(groups)
+                .filter(g => mine.has(g.key) || g.msgs.some(m => m.author_name === me))
+                .map(g => ({ ...g, last: g.msgs[g.msgs.length - 1].created_at }))
+                .sort((a, b) => b.last.localeCompare(a.last));
+        }
+
+        function unreadCount() {
+            const seen = getSeen();
+            const role = myChatRole();
+            return chatThreads().reduce((n, g) => n + g.msgs.filter(m => m.author_role !== role && m.created_at > seen).length, 0);
+        }
+
+        function updateChatBadge() {
+            const badge = document.getElementById('chat-badge');
+            const n = chatAllowed() && therapistTab !== 'chat' ? unreadCount() : 0;
+            badge.innerText = n > 99 ? '99+' : String(n);
+            badge.classList.toggle('hidden', !n);
+        }
+
+        function fmtChatTime(iso) {
+            try { return new Date(iso).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { return ''; }
+        }
+
+        function renderChat() {
+            if (!chatAllowed()) return;
+            const seen = chatSeenAtOpen;
+            const role = myChatRole();
+            const q = normalizeName((document.getElementById('chat-search') || {}).value || '');
+            const threads = chatThreads();
+            // patient suggestions for the new-message box: my patients + existing threads
+            const names = new Set(groupMyPatients().map(g => g.name));
+            threads.forEach(g => names.add(g.name));
+            document.getElementById('chat-patient-names').innerHTML = [...names].map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+            updateChatBadge();
+            if (therapistTab !== 'chat') return;
+            const box = document.getElementById('chat-threads');
+            const empty = document.getElementById('chat-empty');
+            const shown = threads.filter(g => !q || g.key.includes(q));
+            box.innerHTML = '';
+            if (!shown.length) {
+                empty.innerText = q ? 'گفتگویی با این نام پیدا نشد.' : 'هنوز گفتگویی برای کیس‌های شما ثبت نشده. اولین پیام را از کادر بالا بفرستید.';
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            shown.forEach((g, i) => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm';
+                const bubbles = g.msgs.map(m => {
+                    const isMine = m.author_name === currentTherapist;
+                    const isNew = !isMine && m.author_role !== role && m.created_at > seen;
+                    const tone = isMine ? 'bg-blue-50 border-blue-200' : (m.author_role === 'ot' ? 'bg-purple-50 border-purple-200' : 'bg-amber-50 border-amber-200');
+                    return `<div class="rounded-xl border ${tone} p-3 ${isMine ? 'mr-0 ml-8' : 'ml-0 mr-8'}">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-1 text-xs">
+                            <span class="font-extrabold text-gray-800">👤 ${escapeHtml(m.author_name)}${isMine ? ' (شما)' : ''} <span class="font-bold text-gray-500">· ${ROLE_LABEL[m.author_role] || ''}</span>${isNew ? ' <span class="bg-red-600 text-white rounded-full px-2 py-0.5">جدید</span>' : ''}</span>
+                            <span class="text-gray-500">${escapeHtml(fmtChatTime(m.created_at))}</span>
+                        </div>
+                        <p class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(m.body)}</p>
+                    </div>`;
+                }).join('');
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+                        <h3 class="font-extrabold text-lg text-gray-800">${escapeHtml(g.name)}</h3>
+                        <span class="text-xs text-gray-500">${g.msgs.length} پیام</span>
+                    </div>
+                    <div class="space-y-3 mb-3">${bubbles}</div>
+                    <input type="hidden" id="chat-reply-patient-${i}" value="${escapeHtml(g.name)}">
+                    <textarea id="chat-reply-body-${i}" rows="2" placeholder="پاسخ به این گفتگو..." class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-gray-50"></textarea>
+                    <button type="button" onclick="sendCaseMessage('chat-reply-patient-${i}','chat-reply-body-${i}',this)" class="mt-2 bg-blue-700 hover:bg-blue-800 text-white font-bold text-sm py-2 px-5 rounded-lg transition">ارسال پاسخ</button>`;
+                box.appendChild(card);
+            });
+        }
+
+        let chatSeenAtOpen = '';
+        function openChatTab() {
+            chatSeenAtOpen = getSeen();
+            renderChat();
+            loadCaseMessages().then(() => {
+                // everything fetched up to now counts as read; "جدید" tags stay for this visit
+                const last = caseMessages.reduce((m, r) => r.created_at > m ? r.created_at : m, getSeen());
+                setSeen(last);
+                updateChatBadge();
+            });
+        }
+
+        async function sendCaseMessage(patientId, bodyId, btn) {
+            const role = myChatRole();
+            if (!role) return;
+            const patient = document.getElementById(patientId).value.trim();
+            const bodyEl = document.getElementById(bodyId);
+            const body = bodyEl.value.trim();
+            const out = document.getElementById('chat-send-msg');
+            const say = (t, ok) => {
+                out.innerText = t;
+                out.className = 'text-center text-sm font-bold ' + (ok ? 'text-green-600' : 'text-red-600');
+                setTimeout(() => out.classList.add('hidden'), 5000);
+            };
+            if (!patient) { say('نام مراجع را وارد کنید.', false); return; }
+            if (!body) { say('متن پیام را بنویسید.', false); return; }
+            if (btn) btn.disabled = true;
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/case_messages`, {
+                    method: 'POST',
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                    body: JSON.stringify({ patient_name: patient, author_name: currentTherapist, author_role: role, body })
+                });
+                if (!r.ok) {
+                    let d = ''; try { d = (await r.json()).message || ''; } catch (e) {}
+                    throw new Error('HTTP ' + r.status + ' ' + d);
+                }
+                bodyEl.value = '';
+                say('✅ پیام ارسال شد.', true);
+                await loadCaseMessages();
+                setSeen(caseMessages.reduce((m, x) => x.created_at > m ? x.created_at : m, getSeen()));
+            } catch (e) {
+                console.error(e);
+                say('❌ ارسال نشد. اینترنت را چک کنید و دوباره امتحان کنید.', false);
+            } finally {
+                if (btn) btn.disabled = false;
+                out.classList.remove('hidden');
+            }
+        }
+
+        function startChatPolling() {
+            stopChatPolling();
+            if (!chatAllowed()) return;
+            loadCaseMessages();
+            chatPoll = setInterval(() => { if (!document.hidden) loadCaseMessages(); }, 60000);
+        }
+        function stopChatPolling() { if (chatPoll) { clearInterval(chatPoll); chatPoll = null; } }
+
+
+        /* ---------------- مدیریت: خواندن گفتگوی گفتاردرمانگر ↔ کاردرمانگر ---------------- */
+        let adminChatMessages = [];
+        async function loadAdminChat() {
+            const loader = document.getElementById('admin-chat-loader');
+            const empty = document.getElementById('admin-chat-empty');
+            loader.style.display = 'block';
+            empty.classList.add('hidden');
+            try {
+                const r = await fetch(`${SUPABASE_URL}/rest/v1/case_messages?select=id,created_at,patient_name,author_name,author_role,body&order=created_at.asc&limit=5000`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                if (!r.ok) throw new Error('Fetch failed ' + r.status);
+                adminChatMessages = await r.json();
+                renderAdminChat();
+            } catch (e) {
+                console.error(e);
+                document.getElementById('admin-chat-threads').innerHTML = '';
+                empty.innerText = 'ارتباط با پایگاه داده برقرار نشد. اینترنت یا فیلترشکن را چک کنید.';
+                empty.classList.remove('hidden');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+
+        function renderAdminChat() {
+            const box = document.getElementById('admin-chat-threads');
+            const empty = document.getElementById('admin-chat-empty');
+            const q = normalizeName(document.getElementById('admin-chat-search').value);
+            const groups = {};
+            adminChatMessages.forEach(m => {
+                const key = normalizeName(m.patient_name);
+                if (!key) return;
+                (groups[key] = groups[key] || { key, name: (m.patient_name || '').trim(), msgs: [] }).msgs.push(m);
+            });
+            const threads = Object.values(groups)
+                .map(g => ({ ...g, last: g.msgs[g.msgs.length - 1].created_at }))
+                .filter(g => !q || g.key.includes(q) || g.msgs.some(m => normalizeName(m.author_name).includes(q)))
+                .sort((a, b) => b.last.localeCompare(a.last));
+            box.innerHTML = '';
+            if (!threads.length) {
+                empty.innerText = q ? 'گفتگویی پیدا نشد.' : 'هنوز هیچ پیامی بین گفتاردرمانگرها و کاردرمانگر ثبت نشده است.';
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+            const label = { slp: 'گفتاردرمانگر', ot: 'کاردرمانگر' };
+            threads.forEach(g => {
+                const people = [...new Set(g.msgs.map(m => m.author_name))];
+                const card = document.createElement('div');
+                card.className = 'bg-white border-2 border-gray-100 rounded-2xl p-4 shadow-sm';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <h3 class="font-extrabold text-lg text-gray-800">${escapeHtml(g.name)}</h3>
+                        <span class="text-xs text-gray-500">${g.msgs.length} پیام · آخرین: ${escapeHtml(new Date(g.last).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }))}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3 pb-2 border-b border-gray-100">شرکت‌کنندگان: ${people.map(escapeHtml).join('، ')}</p>
+                    <div class="space-y-3">${g.msgs.map(m => `
+                        <div class="rounded-xl border ${m.author_role === 'ot' ? 'bg-purple-50 border-purple-200' : 'bg-amber-50 border-amber-200'} p-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-1 text-xs">
+                                <span class="font-extrabold text-gray-800">👤 ${escapeHtml(m.author_name)} <span class="font-bold text-gray-500">· ${label[m.author_role] || ''}</span></span>
+                                <span class="text-gray-500">${escapeHtml(new Date(m.created_at).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }))}</span>
+                            </div>
+                            <p class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">${escapeHtml(m.body)}</p>
+                        </div>`).join('')}</div>`;
+                box.appendChild(card);
             });
         }
 
