@@ -270,8 +270,11 @@ function trainerStats(tid, rows, fromIso, toIso) {
   let expected = 0; const last = toIso < todayISO() ? toIso : todayISO();
   const first = mine.reduce((m, r) => (!m || r.att_date < m ? r.att_date : m), null);
   for (let d = first && first > fromIso ? first : (first ? fromIso : addDays(last, 1)); d <= last; d = addDays(d, 1)) classesOnDate(tid, d).forEach((c) => { if (kidsOf(c.id).length) expected += 1; });
-  const abs = mine.filter((r) => r.status === 'a'); const fol = abs.filter((r) => r.followup && r.followup.trim());
-  const p = mine.filter((r) => r.status === 'p').length, a = abs.length, e = mine.filter((r) => r.status === 'e').length;
+  const absAll = mine.filter((r) => r.status === 'a');
+  // غیبت‌هایی که هنوز ۴۸ ساعت فرصت پیگیری دارند، در درصدها نمی‌آیند
+  const abs = absAll.filter((r) => (r.followup && r.followup.trim()) || addDays(r.att_date, 2) < todayISO());
+  const fol = abs.filter((r) => r.followup && r.followup.trim());
+  const p = mine.filter((r) => r.status === 'p').length, a = abs.length, e = mine.filter((r) => r.status === 'e').length, aAll = absAll.length;
   const rated = mine.filter((r) => r.rating);
   const ratingAvg = rated.length ? rated.reduce((s, r) => s + RATING_SCORE[r.rating], 0) / rated.length : null;
   const sessCount = sessions.size;
@@ -279,7 +282,7 @@ function trainerStats(tid, rows, fromIso, toIso) {
   const coverage = pct(Math.min(sessCount, expected), expected), onTimePct = pct(onTime, sessCount), followPct = a ? pct(fol.length, a) : null;
   const parts = [coverage, onTimePct, followPct].filter((x) => x !== null);
   const score = parts.length ? Math.round(parts.reduce((s, x) => s + x, 0) / parts.length) : null;
-  return { sessCount, expected, onTime, coverage, onTimePct, abs: a, followed: fol.length, followPct, p, e, attPct: pct(p, p + a + e), ratingAvg, rated: rated.length, score };
+  return { sessCount, expected, onTime, coverage, onTimePct, abs: a, absAll: aAll, followed: fol.length, followPct, p, e, attPct: pct(p, p + aAll + e), ratingAvg, rated: rated.length, score };
 }
 /* ---------------- امتیاز ماهانه (از ۱۰۰) ---------------- */
 // حضور و غیاب الزامی است و امتیاز ندارد. امتیاز: پیگیری غیبت ۴۰ + نظم حضور بچه‌ها ۳۰ + کاردستی ۳۰
@@ -289,24 +292,50 @@ function bonusCalc(tid, rows, crafts, fromIso, toIso) {
   const mine = rows.filter((r) => { const c = classById(r.class_id); return (c && c.trainer_id === tid) || r.trainer_id === tid; });
   const recDone = Math.min(st.sessCount, st.expected), recMissing = Math.max(0, st.expected - st.sessCount);
   const abs = mine.filter((r) => r.status === 'a');
-  const fast = abs.filter((r) => r.followup && r.followup.trim() && r.followup_at && tehranISO(new Date(r.followup_at)) <= addDays(r.att_date, 2)).length;
+  // غیبتی که هنوز ۴۸ ساعتش نگذشته، فرصت پیگیری دارد و در امتیاز حساب نمی‌شود
+  const graded = abs.filter((r) => (r.followup && r.followup.trim()) || addDays(r.att_date, 2) < todayISO());
+  const waiting = abs.length - graded.length;
+  const fast = graded.filter((r) => r.followup && r.followup.trim() && r.followup_at && tehranISO(new Date(r.followup_at)) <= addDays(r.att_date, 2)).length;
   const has = mine.length > 0;
-  const followPct = abs.length ? Math.round(fast / abs.length * 100) : (has ? 100 : 0);
+  const followPct = graded.length ? Math.round(fast / graded.length * 100) : (has ? 100 : 0);
   const fol = Math.round(PTS.follow * followPct / 100);
   const p = mine.filter((r) => r.status === 'p').length;
   const attendPct = p + abs.length ? Math.round(p / (p + abs.length) * 100) : 0;
   const att = Math.round(PTS.attend * attendPct / 100);
   const cc = craftCounts(crafts, tid); const craftN = Math.min(cc.approved, PTS.craftMax); const craft = craftN * PTS.craftEach;
   const score = fol + att + craft;
-  return { score, fol, followPct, fast, absN: abs.length, att, attendPct, craft, craftN, recDone, recMissing, st };
+  // سهم ماه که تا امروز گذشته است؛ تا ماه تمام نشده، سقف امتیاز هم کامل نیست
+  const dayNo = (iso) => Math.round(new Date(iso + 'T12:00:00Z') / 86400000);
+  const total = dayNo(toIso) - dayNo(fromIso) + 1;
+  const t = todayISO();
+  const passed = t < fromIso ? 0 : t > toIso ? total : dayNo(t) - dayNo(fromIso) + 1;
+  const frac = Math.max(0, Math.min(1, passed / total));
+  const craftFull = PTS.craftEach * PTS.craftMax;
+  const maxFollow = mine.length ? PTS.follow : 0;
+  const maxAttend = (p + abs.length) ? PTS.attend : 0;
+  const maxCraft = Math.round(craftFull * frac);
+  const possible = maxFollow + maxAttend + maxCraft;
+  const pct = possible ? Math.round(score / possible * 100) : null;
+  return { score, fol, followPct, fast, absN: abs.length, gradedN: graded.length, waiting, att, attendPct, craft, craftN, recDone, recMissing, st,
+           possible, pct, maxFollow, maxAttend, maxCraft, craftFull, frac, daysLeft: total - passed };
 }
 function bonusCard(b, running) {
   const row = (label, pts, max, sub) => '<div class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"><div><div class="font-bold text-sm">' + label + '</div>' + (sub ? '<div class="text-xs text-slate-500">' + sub + '</div>' : '') + '</div><div class="num font-extrabold text-teal-800 whitespace-nowrap">' + fa(pts) + ' <span class="text-xs text-slate-400 font-normal">از ' + fa(max) + '</span></div></div>';
-  return '<div class="card p-4 mb-3 border-2 border-emerald-200"><div class="flex items-center justify-between gap-2 mb-2"><div class="font-extrabold">🌟 امتیاز ' + (running ? 'ماه تا امروز' : 'ماه') + '</div><div class="text-2xl font-extrabold text-emerald-700 num">' + fa(b.score) + '<span class="text-sm text-slate-400 font-normal"> از ۱۰۰</span></div></div>' +
-    '<div class="h-2 rounded-full bg-slate-100 mb-3 overflow-hidden"><div class="h-2 bg-emerald-500" style="width:' + Math.min(100, b.score) + '%"></div></div>' +
-    row('پیگیری غیبت‌ها', b.fol, PTS.follow, b.absN ? fa(b.fast) + ' از ' + fa(b.absN) + ' غیبت تا ۴۸ ساعت پیگیری شده' : 'غیبتی نبوده') +
-    row('نظم حضور بچه‌ها', b.att, PTS.attend, 'حضور ' + fa(b.attendPct) + '٪ (مرخصی با اطلاع، غیبت حساب نمی‌شود)') +
-    row('کاردستی تأییدشده', b.craft, PTS.craftEach * PTS.craftMax, fa(b.craftN) + ' عدد · هر کدام ' + fa(PTS.craftEach) + ' امتیاز، تا ' + fa(PTS.craftMax) + ' عدد') +
+  const partial = running && b.frac < 1;
+  const head = partial
+    ? '<div class="flex items-center justify-between gap-2 mb-1"><div class="font-extrabold">🌟 امتیاز تا امروز</div>' +
+      (b.possible ? '<div class="text-2xl font-extrabold text-emerald-700 num">' + fa(b.score) + '<span class="text-sm text-slate-400 font-normal"> از ' + fa(b.possible) + '</span></div>'
+                  : '<div class="chip bg-slate-100 text-slate-500">هنوز داده‌ای نیست</div>') + '</div>' +
+      '<p class="text-xs text-slate-500 mb-2 leading-6">ماه هنوز تمام نشده؛ این امتیاز فقط از کارهای همین چند روز حساب شده است. امتیاز نهایی <b>آخر ماه از ۱۰۰</b> بسته می‌شود' + (b.daysLeft > 0 ? ' · ' + fa(b.daysLeft) + ' روز مانده' : '') + '.</p>' +
+      '<div class="h-2 rounded-full bg-slate-100 mb-3 overflow-hidden"><div class="h-2 bg-emerald-500" style="width:' + (b.possible ? Math.min(100, Math.round(b.score / b.possible * 100)) : 0) + '%"></div></div>'
+    : '<div class="flex items-center justify-between gap-2 mb-2"><div class="font-extrabold">🌟 امتیاز ماه</div><div class="text-2xl font-extrabold text-emerald-700 num">' + fa(b.score) + '<span class="text-sm text-slate-400 font-normal"> از ۱۰۰</span></div></div>' +
+      '<div class="h-2 rounded-full bg-slate-100 mb-3 overflow-hidden"><div class="h-2 bg-emerald-500" style="width:' + Math.min(100, b.score) + '%"></div></div>';
+  const craftSub = fa(b.craftN) + ' عدد · هر کدام ' + fa(PTS.craftEach) + ' امتیاز، تا ' + fa(PTS.craftMax) + ' عدد'
+    + (partial ? ' (سقف تا آخر ماه ' + fa(b.craftFull) + ' امتیاز)' : '');
+  return '<div class="card p-4 mb-3 border-2 border-emerald-200">' + head +
+    row('پیگیری غیبت‌ها', b.fol, partial ? b.maxFollow : PTS.follow, b.gradedN ? fa(b.fast) + ' از ' + fa(b.gradedN) + ' غیبت تا ۴۸ ساعت پیگیری شده' + (b.waiting ? ' · ' + fa(b.waiting) + ' غیبت هنوز فرصت دارد' : '') : (b.waiting ? fa(b.waiting) + ' غیبت تازه، هنوز فرصت پیگیری دارید' : (partial && !b.maxFollow ? 'هنوز کلاسی ثبت نشده' : 'غیبتی نبوده'))) +
+    row('نظم حضور بچه‌ها', b.att, partial ? b.maxAttend : PTS.attend, b.maxAttend ? 'حضور ' + fa(b.attendPct) + '٪ (مرخصی با اطلاع، غیبت حساب نمی‌شود)' : 'هنوز حضوری ثبت نشده') +
+    row('کاردستی تأییدشده', b.craft, partial ? b.maxCraft : PTS.craftEach * PTS.craftMax, craftSub) +
     '<div class="mt-3 rounded-xl p-2 text-sm ' + (b.recMissing ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-slate-50 text-slate-700') + '"><b>حضور و غیاب (الزامی):</b> ' + fa(b.recDone) + ' از ' + fa(b.st.expected) + ' کلاس ثبت شده' + (b.recMissing ? ' · ' + fa(b.recMissing) + ' کلاس جا افتاده' : ' ✓') + '</div>' +
     '</div>';
 }
@@ -848,8 +877,8 @@ function statsCard(s, cc) {
   return '<div class="card p-4"><div class="flex items-center justify-between mb-3"><div class="font-extrabold">امتیاز ماه</div><div class="text-2xl">' + scoreChip(s.score) + '</div></div>' +
     row('جلسه‌های ثبت‌شده', scoreChip(s.coverage), fa(Math.min(s.sessCount, s.expected)) + ' از ' + fa(s.expected) + ' جلسه') +
     row('ثبت در همان روز', scoreChip(s.onTimePct), fa(s.onTime) + ' از ' + fa(s.sessCount) + ' جلسه') +
-    row('پیگیری غیبت‌ها', scoreChip(s.followPct), s.abs ? fa(s.followed) + ' از ' + fa(s.abs) + ' غیبت' : 'غیبتی نبوده') +
-    row('حضور بچه‌ها', scoreChip(s.attPct), fa(s.p) + ' حاضر · ' + fa(s.abs) + ' غایب · ' + fa(s.e) + ' مرخصی') +
+    row('پیگیری غیبت‌ها', scoreChip(s.followPct), s.abs ? fa(s.followed) + ' از ' + fa(s.abs) + ' غیبت' : (s.absAll ? fa(s.absAll) + ' غیبت تازه، هنوز فرصت پیگیری هست' : 'غیبتی نبوده')) +
+    row('حضور بچه‌ها', scoreChip(s.attPct), fa(s.p) + ' حاضر · ' + fa(s.absAll) + ' غایب · ' + fa(s.e) + ' مرخصی') +
     row('میانگین عملکرد بچه‌ها', '<span class="font-bold">' + ratingLabel(s.ratingAvg) + '</span>', fa(s.rated) + ' ارزیابی') +
     (cc ? row('کاردستی‌ها و وسایل آموزشی', '<span class="text-xl font-extrabold text-teal-800 num">' + fa(cc.approved) + '</span>', 'تأییدشده' + (cc.total > cc.approved ? ' · ' + fa(cc.total - cc.approved) + ' در انتظار تأیید' : '')) : '') + '</div>';
 }
