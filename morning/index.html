@@ -438,6 +438,7 @@ const TRAINER = {
 };
 
 function renderCrafts(list, r) {
+  craftCache = list;
   const cls = classesOfTrainer(me.id);
   const dayOpts = Array.from({ length: 14 }, (_, i) => addDays(todayISO(), -i)).map((d, i) => '<option value="' + d + '">' + (i === 0 ? 'امروز · ' : i === 1 ? 'دیروز · ' : '') + dateLabel(d) + '</option>').join('');
   const thisMonth = list.filter((c) => c.made_on >= r.start && c.made_on <= r.end);
@@ -449,7 +450,7 @@ function renderCrafts(list, r) {
     '<button type="submit" class="btn btn-main w-full" id="cf-save">ثبت کاردستی</button></form></div>';
   h += '<div class="card p-4"><div class="flex items-center justify-between mb-2"><h3 class="font-extrabold">کاردستی‌های ' + MONTHS[jOf(r.start).jm - 1] + '</h3><span class="chip bg-teal-50 text-teal-800">' + fa(thisMonth.length) + ' مورد</span></div>' +
     (list.length ? list.map((c) => { const k = c.class_id ? classById(c.class_id) : null; return '<div class="flex items-start justify-between gap-2 py-2 border-t border-slate-100"><div class="min-w-0"><div class="font-bold">' + esc(c.title) + '</div><div class="text-xs text-slate-500">' + dateLabel(c.made_on) + (k ? ' · ' + esc(classTitle(k)) + ' ' + slotLabel(k.slot) : '') + (c.note ? ' · ' + esc(c.note) : '') + '</div></div>' +
-      '<div class="flex flex-col items-end gap-1 shrink-0">' + (c.approved ? '<span class="chip bg-green-100 text-green-800">تأیید شد</span>' : '<span class="chip bg-amber-100 text-amber-800">در انتظار تأیید</span><button class="text-red-600 text-xs font-bold min-h-[32px]" data-act="cfdel" data-id="' + c.id + '">حذف</button>') + '</div></div>'; }).join('')
+      '<div class="flex flex-col items-end gap-1 shrink-0">' + (c.approved ? '<span class="chip bg-green-100 text-green-800">تأیید شد</span>' : '<span class="chip bg-amber-100 text-amber-800">در انتظار تأیید</span><span class="flex gap-2"><button class="text-teal-700 text-xs font-bold min-h-[32px]" data-act="cfedit" data-id="' + c.id + '">ویرایش</button><button class="text-red-600 text-xs font-bold min-h-[32px]" data-act="cfdel" data-id="' + c.id + '">حذف</button></span>') + '</div></div>'; }).join('')
       : '<p class="text-sm text-slate-400">هنوز کاردستی‌ای ثبت نکرده‌اید.</p>') + '</div>';
   $('view').innerHTML = h;
   $('cf-form').addEventListener('submit', async (ev) => {
@@ -461,6 +462,36 @@ function renderCrafts(list, r) {
       toast('کاردستی ثبت شد'); go('crafts');
     } catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'ثبت کاردستی'; }
   });
+}
+
+let craftCache = [];
+function openCraft(id) {
+  const c = craftCache.find((x) => x.id === id); if (!c) return;
+  const cls = classesOfTrainer(me.id);
+  const days = Array.from({ length: 30 }, (_, i) => addDays(todayISO(), -i));
+  if (c.made_on && !days.includes(c.made_on)) days.push(c.made_on);
+  openModal('<h3 class="font-extrabold text-lg mb-3">ویرایش کاردستی</h3>' +
+    '<label class="lbl" for="ce-title">چه چیزی ساختید؟</label><input id="ce-title" class="inp mb-3" maxlength="200" value="' + esc(c.title) + '">' +
+    '<label class="lbl" for="ce-date">تاریخ</label><select id="ce-date" class="inp mb-3">' + days.map((d, i) => '<option value="' + d + '"' + (d === c.made_on ? ' selected' : '') + '>' + (i === 0 ? 'امروز · ' : i === 1 ? 'دیروز · ' : '') + dateLabel(d) + '</option>').join('') + '</select>' +
+    '<label class="lbl" for="ce-class">برای کلاس</label><select id="ce-class" class="inp mb-3"><option value="">— همهٔ کلاس‌ها —</option>' + cls.map((k) => '<option value="' + k.id + '"' + (k.id === c.class_id ? ' selected' : '') + '>' + esc(classTitle(k)) + ' · ' + slotLabel(k.slot) + '</option>').join('') + '</select>' +
+    '<label class="lbl" for="ce-note">توضیح کوتاه</label><input id="ce-note" class="inp mb-4" maxlength="300" value="' + esc(c.note || '') + '">' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="ce-save">ذخیره</button><button class="btn" id="ce-close">انصراف</button></div>' +
+    '<button class="btn w-full mt-3 text-red-600 border-red-200" id="ce-del">حذف این کاردستی</button>');
+  $('ce-close').onclick = closeModal;
+  $('ce-save').onclick = async () => {
+    const t = $('ce-title').value.trim(); if (!t) { toast('بنویسید چه چیزی ساختید', false); return; }
+    try {
+      await api('/rest/v1/m_crafts?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
+        body: { title: t, made_on: $('ce-date').value, class_id: +$('ce-class').value || null, note: $('ce-note').value.trim() || null } });
+      closeModal(); toast('ذخیره شد'); go('crafts');
+    } catch (err) { toast(errText(err), false); }
+  };
+  $('ce-del').onclick = async (ev) => {
+    const b = ev.currentTarget;
+    if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'برای حذف دوباره بزنید'; return; }
+    try { await api('/rest/v1/m_crafts?id=eq.' + id, { method: 'DELETE' }); closeModal(); toast('حذف شد'); go('crafts'); }
+    catch (err) { toast(errText(err), false); }
+  };
 }
 
 const BONUS_NOTE = '<div class="card p-3 mb-3 bg-amber-50 border border-amber-200 text-sm text-amber-900 leading-7"><b>🌟 کارنامه و امتیاز ماهانه</b><br>ثبت حضور و غیاب همهٔ کلاس‌ها <b>الزامی</b> است.<br>پیگیری به‌موقع غیبت‌ها و ساخت کاردستی و وسایل آموزشی برای کلاس، امتیاز کارنامهٔ شما را بالا می‌برد.<br>همچنین مربی‌ای که بچه‌هایش <b>منظم و با علاقه</b> سر کلاس می‌آیند، نشان داده که کلاسش برای بچه‌ها جذاب است و با خانواده‌ها ارتباط خوبی دارد؛ به همین دلیل نظم حضور بچه‌های کلاس هم در امتیاز شما حساب می‌شود.<br>امتیاز کارنامه آخر هر ماه ملاک <b>پاداش</b> شما خواهد بود.</div>';
@@ -534,11 +565,16 @@ $('view').addEventListener('click', async (e) => {
   } else if (current === 'children') {
     if (act === 'newsingle') openSingle();
     else if (act === 'editkid') openKid(+b.dataset.id);
+    else if (act === 'editsingle') openEditSingle(+b.dataset.id);
     else if (act === 'delsingle') delSingle(+b.dataset.id, b);
+    else if (act === 'rosterof') { tClass = +b.dataset.id; openRoster(); }
   } else if (current === 'msg') {
     if (act === 'send') sendMsg(b);
+    else if (act === 'mgedit') openMsgEdit(+b.dataset.id);
+    else if (act === 'mgdel') delMsg(+b.dataset.id, b);
   } else if (current === 'crafts') {
-    if (act === 'cfdel') {
+    if (act === 'cfedit') openCraft(+b.dataset.id);
+    else if (act === 'cfdel') {
       if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'دوباره بزنید'; return; }
       try { await api('/rest/v1/m_crafts?id=eq.' + b.dataset.id, { method: 'DELETE' }); toast('حذف شد'); go('crafts'); } catch (err) { toast(errText(err), false); }
     }
@@ -583,23 +619,33 @@ function renderFollow() {
         '<button class="btn btn-main text-sm" data-fid="' + r.id + '">ثبت پیگیری</button></div>';
     }).join('') + '</div>' : '<p class="text-sm text-emerald-700">✓ همهٔ غیبت‌ها پیگیری شده‌اند. عالی!</p>') + '</div>';
   h += '<div class="card p-4"><div class="font-extrabold mb-2">پیگیری‌های انجام‌شده</div>' +
-    (done.length ? done.map((r) => { const k = childById(r.child_id); return '<div class="py-2 border-t border-slate-100"><div class="font-bold text-sm">' + esc(k ? k.name : '—') + ' <span class="text-xs text-slate-400 font-normal">· غیبت ' + shortDate(r.att_date) + '</span></div><div class="text-xs text-slate-600">' + esc(r.followup) + '</div></div>'; }).join('') : '<p class="text-sm text-slate-400">هنوز موردی نیست.</p>') + '</div>';
+    (done.length ? done.map((r) => { const k = childById(r.child_id); return '<div class="flex items-start justify-between gap-2 py-2 border-t border-slate-100"><div class="min-w-0"><div class="font-bold text-sm">' + esc(k ? k.name : '—') + ' <span class="text-xs text-slate-400 font-normal">· غیبت ' + shortDate(r.att_date) + '</span></div><div class="text-xs text-slate-600">' + esc(r.followup) + '</div></div><button class="btn text-sm shrink-0" data-fid="' + r.id + '">ویرایش</button></div>'; }).join('') : '<p class="text-sm text-slate-400">هنوز موردی نیست.</p>') + '</div>';
   $('view').innerHTML = h;
   $('view').querySelectorAll('[data-fid]').forEach((b) => b.onclick = () => openFollow(+b.dataset.fid));
 }
 
 function openFollow(id) {
   const r = tAtt.find((x) => x.id === id); if (!r) return; const k = childById(r.child_id);
-  openModal('<h3 class="font-extrabold text-lg mb-1">پیگیری غیبت ' + esc(k ? k.name : '') + '</h3><p class="text-sm text-slate-500 mb-3">' + dateLabel(r.att_date) + (k && k.parent_phone ? ' · تلفن والدین: <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</p>' +
+  const had = (r.followup || '').trim();
+  openModal('<h3 class="font-extrabold text-lg mb-1">' + (had ? 'ویرایش پیگیری ' : 'پیگیری غیبت ') + esc(k ? k.name : '') + '</h3><p class="text-sm text-slate-500 mb-3">' + dateLabel(r.att_date) + (k && k.parent_phone ? ' · تلفن والدین: <bdi dir="ltr">' + esc(k.parent_phone) + '</bdi>' : '') + '</p>' +
     '<div class="flex flex-wrap gap-1 mb-3">' + FOLLOW_CHIPS.map((f) => '<button type="button" class="chip bg-red-50 text-red-700 border border-red-100 py-1.5" data-fc="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div>' +
-    '<input id="fu-text" class="inp mb-3" placeholder="نتیجهٔ تماس">' +
-    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="fu-save">ثبت</button><button class="btn" id="fu-cancel">انصراف</button></div>');
+    '<input id="fu-text" class="inp mb-3" placeholder="نتیجهٔ تماس" value="' + esc(had) + '">' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="fu-save">ذخیره</button><button class="btn" id="fu-cancel">انصراف</button></div>' +
+    (had ? '<button class="btn w-full mt-3 text-red-600 border-red-200" id="fu-clear">پاک کردن این پیگیری</button><p class="text-xs text-slate-500 mt-2">با پاک کردن، این غیبت دوباره به فهرست «منتظر پیگیری» برمی‌گردد.</p>' : ''));
   $('modal-body').querySelectorAll('[data-fc]').forEach((x) => x.onclick = () => { $('fu-text').value = x.dataset.fc; });
   $('fu-cancel').onclick = closeModal;
-  $('fu-save').onclick = async () => {
-    const v = $('fu-text').value.trim(); if (!v) { toast('نتیجهٔ پیگیری را بنویسید', false); return; }
-    try { await api('/rest/v1/m_attendance?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { followup: v, followup_at: new Date().toISOString() } }); closeModal(); toast('پیگیری ثبت شد'); go(current || 'today'); }
+  const patch = async (body, msg) => {
+    try { await api('/rest/v1/m_attendance?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body }); closeModal(); toast(msg); go(current || 'today'); }
     catch (err) { toast(errText(err), false); }
+  };
+  $('fu-save').onclick = () => {
+    const v = $('fu-text').value.trim(); if (!v) { toast('نتیجهٔ پیگیری را بنویسید', false); return; }
+    patch({ followup: v, followup_at: (had && r.followup_at) || new Date().toISOString() }, had ? 'ویرایش شد' : 'پیگیری ثبت شد');
+  };
+  if (had) $('fu-clear').onclick = (ev) => {
+    const b = ev.currentTarget;
+    if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'برای پاک کردن دوباره بزنید'; return; }
+    patch({ followup: null, followup_at: null }, 'پاک شد');
   };
 }
 
@@ -623,7 +669,7 @@ function openRoster() {
     '<p id="rs-status" class="text-sm font-bold mb-2 hidden"></p>' +
     '<div class="grid grid-cols-2 gap-2"><button type="submit" class="btn btn-main" id="rs-add">افزودن به کلاس</button><button type="button" class="btn" id="rs-close">بستن</button></div></form>' +
     '<p class="text-xs text-slate-500 mt-3">ظرفیت بهزیستی: ' + fa(D.children.filter((k) => k.active).length) + ' از ' + fa(CAPACITY) + ' کودک ثبت شده</p>');
-  $('rs-close').onclick = () => { closeModal(); draft = {}; go('today'); };
+  $('rs-close').onclick = () => { closeModal(); draft = {}; go(current || 'today'); };
   $('rs-list').querySelectorAll('[data-ed]').forEach((x) => x.onclick = () => openKid(+x.dataset.ed));
   $('rs-list').querySelectorAll('[data-rm]').forEach((x) => x.onclick = async () => {
     try { await api('/rest/v1/m_enrollments?class_id=eq.' + c.id + '&child_id=eq.' + x.dataset.rm, { method: 'DELETE' }); await loadBase(); openRoster(); } catch (err) { toast(errText(err), false); }
@@ -657,7 +703,7 @@ function renderMyChildren() {
   h += cls.sort((a, b) => a.kind.localeCompare(b.kind) || String(a.day_group).localeCompare(String(b.day_group)) || a.slot.localeCompare(b.slot)).map((c) => {
     const kids = kidsOf(c.id);
     return '<div class="card p-3 mb-2"><div class="flex items-center justify-between gap-2 mb-2"><div><div class="font-bold">' + esc(classTitle(c)) + ' · ' + slotLabel(c.slot) + '</div><div class="text-xs text-slate-500">' + esc(classDays(c)) + '</div></div>' +
-      (c.kind === 'single' ? '<button class="text-red-600 text-sm font-bold min-h-[40px] px-2" data-act="delsingle" data-id="' + c.id + '">حذف کلاس تکی</button>' : '<span class="chip bg-teal-50 text-teal-800">' + fa(kids.length) + ' کودک</span>') + '</div>' +
+      (c.kind === 'single' ? '<span class="flex gap-2 shrink-0"><button class="text-teal-700 text-sm font-bold min-h-[40px] px-2" data-act="editsingle" data-id="' + c.id + '">ویرایش</button><button class="text-red-600 text-sm font-bold min-h-[40px] px-2" data-act="delsingle" data-id="' + c.id + '">حذف</button></span>' : '<span class="flex items-center gap-2 shrink-0"><button class="btn text-sm" data-act="rosterof" data-id="' + c.id + '">مدیریت بچه‌ها</button><span class="chip bg-teal-50 text-teal-800">' + fa(kids.length) + ' کودک</span></span>') + '</div>' +
       (kids.length ? '<div class="flex flex-wrap gap-1">' + kids.map((k) => '<button class="chip bg-slate-100 text-slate-700 py-1.5" data-act="editkid" data-id="' + k.id + '">' + esc(k.name) + (k.parent_phone ? ' ☎' : '') + '</button>').join('') + '</div>' : '<div class="text-sm text-slate-400">بدون کودک</div>') + '</div>';
   }).join('');
   $('view').innerHTML = h;
@@ -707,6 +753,23 @@ async function deleteChild(id, btn) {
   try { await api('/rest/v1/m_children?id=eq.' + id, { method: 'DELETE' }); closeModal(); draft = {}; toast('کودک حذف شد'); go(current); }
   catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'حذف کامل کودک'; btn.dataset.armed = ''; }
 }
+function openEditSingle(id) {
+  const c = classById(id); if (!c) return;
+  const cur = new Set((c.weekdays || []).map(Number));
+  openModal('<h3 class="font-extrabold text-lg mb-1">ویرایش کلاس تکی</h3><p class="text-sm text-slate-500 mb-3">' + esc(classTitle(c)) + '</p>' +
+    '<div class="lbl">روزها</div><div class="flex flex-wrap gap-2 mb-3" id="es-days">' + DAYS.slice(0, 6).map((d, i) => '<button type="button" class="tab' + (cur.has(i) ? ' on' : '') + '" data-d="' + i + '">' + d + '</button>').join('') + '</div>' +
+    '<label class="lbl" for="es-slot">ساعت</label><select id="es-slot" class="inp mb-4">' + ['08-10','10-12','08-09','09-10','10-11','11-12'].map((s) => '<option value="' + s + '"' + (s === c.slot ? ' selected' : '') + '>' + slotLabel(s) + '</option>').join('') + '</select>' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="es-save">ذخیره</button><button class="btn" id="es-close">انصراف</button></div>');
+  $('es-days').querySelectorAll('[data-d]').forEach((x) => x.onclick = () => { const d = +x.dataset.d; cur.has(d) ? cur.delete(d) : cur.add(d); x.classList.toggle('on', cur.has(d)); });
+  $('es-close').onclick = closeModal;
+  $('es-save').onclick = async () => {
+    if (!cur.size) { toast('دست‌کم یک روز انتخاب کنید', false); return; }
+    try {
+      await api('/rest/v1/m_classes?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { weekdays: [...cur].sort((a, b) => a - b), slot: $('es-slot').value } });
+      await loadBase(); closeModal(); toast('ذخیره شد'); go('children');
+    } catch (err) { toast(errText(err), false); }
+  };
+}
 async function delSingle(id, btn) {
   if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'برای حذف دوباره بزنید'; return; }
   try { await api('/rest/v1/m_classes?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { active: false } }); toast('کلاس تکی حذف شد'); go('children'); }
@@ -714,21 +777,70 @@ async function delSingle(id, btn) {
 }
 
 /* ---- پیام محرمانه ---- */
+/* پیام‌ها فقط برای مدیریت خوانده می‌شوند. برای اینکه خودِ مربی بتواند پیامش را
+   اصلاح یا پس بگیرد، شناسه و «کلید» هر پیام روی همین گوشی ذخیره می‌شود. */
+const MSG_KEY = () => 'm_sent_' + me.id;
+function sentMsgs() { try { return JSON.parse(localStorage.getItem(MSG_KEY()) || '[]'); } catch (e) { return []; } }
+function saveSent(list) { try { localStorage.setItem(MSG_KEY(), JSON.stringify(list.slice(-40))); } catch (e) {} }
+function newToken() {
+  const a = new Uint8Array(16); (crypto.getRandomValues ? crypto : window.msCrypto).getRandomValues(a);
+  return Array.from(a, (x) => x.toString(16).padStart(2, '0')).join('');
+}
+function dropSent(id) { saveSent(sentMsgs().filter((m) => m.id !== id)); }
+
 function renderMsg() {
   const kids = [...new Set(classesOfTrainer(me.id).flatMap((c) => kidsOf(c.id)))];
-  $('view').innerHTML = '<div class="card p-4"><h2 class="font-extrabold text-teal-900 mb-1">پیام محرمانه به مدیریت</h2>' +
-    '<p class="text-sm text-slate-500 mb-4">این پیام فقط برای مدیریت فرستاده می‌شود. هیچ‌کس دیگری، حتی خودتان بعد از ارسال، آن را نمی‌بیند.</p>' +
+  const mine = sentMsgs().slice().reverse();
+  let h = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">پیام محرمانه به مدیریت</h2>' +
+    '<p class="text-sm text-slate-500 mb-4">این پیام فقط برای مدیریت فرستاده می‌شود و هیچ مربی دیگری آن را نمی‌بیند. تا وقتی مدیریت نخوانده، می‌توانید ویرایش یا پاکش کنید.</p>' +
     '<label class="lbl" for="mg-kid">دربارهٔ کودک (اختیاری)</label><select id="mg-kid" class="inp mb-3"><option value="">— موضوع کلی —</option>' + kids.map((k) => '<option value="' + k.id + '">' + esc(k.name) + '</option>').join('') + '</select>' +
     '<label class="lbl" for="mg-body">متن پیام</label><textarea id="mg-body" class="inp mb-4" rows="6" maxlength="4000" placeholder="پیام خود را بنویسید"></textarea>' +
     '<button class="btn btn-main w-full" data-act="send">ارسال برای مدیریت</button></div>';
+  h += '<div class="card p-4"><div class="font-extrabold mb-2">پیام‌های فرستادهٔ شما</div>' +
+    (mine.length ? mine.map((m) => {
+      const k = m.child_id ? childById(m.child_id) : null;
+      return '<div class="py-2 border-t border-slate-100"><div class="text-xs text-slate-500 mb-1">' + dateLabel(m.at.slice(0, 10)) + (k ? ' · دربارهٔ ' + esc(k.name) : '') + '</div>' +
+        '<div class="text-sm whitespace-pre-wrap">' + esc(m.body) + '</div>' +
+        '<div class="flex gap-3 mt-1"><button class="text-teal-700 text-xs font-bold min-h-[32px]" data-act="mgedit" data-id="' + m.id + '">ویرایش</button>' +
+        '<button class="text-red-600 text-xs font-bold min-h-[32px]" data-act="mgdel" data-id="' + m.id + '">پس گرفتن</button></div></div>';
+    }).join('') : '<p class="text-sm text-slate-400">هنوز پیامی نفرستاده‌اید. پیام‌هایی که از این گوشی بفرستید اینجا می‌مانند.</p>') + '</div>';
+  $('view').innerHTML = h;
 }
 async function sendMsg(btn) {
   const body = $('mg-body').value.trim(); if (!body) { toast('متن پیام خالی است', false); return; }
   btn.disabled = true; btn.textContent = 'در حال ارسال...';
+  const token = newToken(), child = +$('mg-kid').value || null;
   try {
-    await api('/rest/v1/m_messages', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: { trainer_id: me.id, child_id: +$('mg-kid').value || null, body } });
+    const id = await api('/rest/v1/rpc/m_msg_send', { method: 'POST', body: { p_trainer: me.id, p_child: child, p_body: body, p_token: token } });
+    saveSent(sentMsgs().concat([{ id, token, body, child_id: child, at: new Date().toISOString() }]));
     toast('پیام برای مدیریت فرستاده شد'); renderMsg();
   } catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'ارسال برای مدیریت'; }
+}
+function openMsgEdit(id) {
+  const m = sentMsgs().find((x) => x.id === id); if (!m) return;
+  openModal('<h3 class="font-extrabold text-lg mb-3">ویرایش پیام</h3>' +
+    '<textarea id="me-body" class="inp mb-4" rows="7" maxlength="4000">' + esc(m.body) + '</textarea>' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="me-save">ذخیره</button><button class="btn" id="me-close">انصراف</button></div>');
+  $('me-close').onclick = closeModal;
+  $('me-save').onclick = async () => {
+    const v = $('me-body').value.trim(); if (!v) { toast('متن پیام خالی است', false); return; }
+    try {
+      const ok = await api('/rest/v1/rpc/m_msg_save', { method: 'POST', body: { p_id: id, p_token: m.token, p_body: v } });
+      if (ok !== true) { dropSent(id); closeModal(); toast('مدیریت این پیام را خوانده و دیگر قابل تغییر نیست', false); renderMsg(); return; }
+      saveSent(sentMsgs().map((x) => (x.id === id ? Object.assign({}, x, { body: v }) : x)));
+      closeModal(); toast('ویرایش شد'); renderMsg();
+    } catch (err) { toast(errText(err), false); }
+  };
+}
+async function delMsg(id, btn) {
+  const m = sentMsgs().find((x) => x.id === id); if (!m) return;
+  if (btn.dataset.armed !== '1') { btn.dataset.armed = '1'; btn.textContent = 'دوباره بزنید'; return; }
+  try {
+    const ok = await api('/rest/v1/rpc/m_msg_remove', { method: 'POST', body: { p_id: id, p_token: m.token } });
+    dropSent(id);
+    toast(ok === true ? 'پیام پس گرفته شد' : 'مدیریت این پیام را خوانده و دیگر پاک نمی‌شود', ok === true);
+    renderMsg();
+  } catch (err) { toast(errText(err), false); }
 }
 
 function statsCard(s, cc) {
