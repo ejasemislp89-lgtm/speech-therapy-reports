@@ -286,8 +286,18 @@ function trainerStats(tid, rows, fromIso, toIso) {
 }
 /* ---------------- امتیاز ماهانه (از ۱۰۰) ---------------- */
 // حضور و غیاب الزامی است و امتیاز ندارد. امتیاز: پیگیری غیبت ۴۰ + نظم حضور بچه‌ها ۳۰ + کاردستی ۳۰
-const PTS = { follow: 40, attend: 30, craftEach: 6, craftMax: 5 };
-function bonusCalc(tid, rows, crafts, fromIso, toIso) {
+const PTS = { follow: 35, attend: 25, craftEach: 4, craftMax: 5, refer: 20 };
+// امتیاز هر ارجاع بر اساس نتیجه؛ هرچه جلوتر برود امتیاز بیشتر
+const REF_PTS = { suggested: 2, declined: 2, interested: 4, booked: 6, started: 10 };
+const REF_ST = { suggested: 'پیشنهاد داده شد', interested: 'علاقه نشان داد', booked: 'نوبت گرفت', started: 'شروع کرد', declined: 'نخواست' };
+const AFFORD = { yes: 'توان مالی دارد', maybe: 'شاید', no: 'ندارد', unknown: 'نمی‌دانم' };
+function referScore(list) {
+  const pts = list.reduce((s, r) => s + (REF_PTS[r.status] || 0), 0);
+  return { pts: Math.min(PTS.refer, pts), raw: pts, n: list.length,
+    started: list.filter((r) => r.status === 'started').length,
+    warm: list.filter((r) => r.status === 'interested' || r.status === 'booked').length };
+}
+function bonusCalc(tid, rows, crafts, fromIso, toIso, refs) {
   const st = trainerStats(tid, rows, fromIso, toIso);
   const mine = rows.filter((r) => { const c = classById(r.class_id); return (c && c.trainer_id === tid) || r.trainer_id === tid; });
   const recDone = Math.min(st.sessCount, st.expected), recMissing = Math.max(0, st.expected - st.sessCount);
@@ -303,7 +313,9 @@ function bonusCalc(tid, rows, crafts, fromIso, toIso) {
   const attendPct = p + abs.length ? Math.round(p / (p + abs.length) * 100) : 0;
   const att = Math.round(PTS.attend * attendPct / 100);
   const cc = craftCounts(crafts, tid); const craftN = Math.min(cc.approved, PTS.craftMax); const craft = craftN * PTS.craftEach;
-  const score = fol + att + craft;
+  const rl = (refs || []).filter((x) => x.trainer_id === tid && x.suggested_on >= fromIso && x.suggested_on <= toIso);
+  const ref = referScore(rl);
+  const score = fol + att + craft + ref.pts;
   // سهم ماه که تا امروز گذشته است؛ تا ماه تمام نشده، سقف امتیاز هم کامل نیست
   const dayNo = (iso) => Math.round(new Date(iso + 'T12:00:00Z') / 86400000);
   const total = dayNo(toIso) - dayNo(fromIso) + 1;
@@ -314,10 +326,11 @@ function bonusCalc(tid, rows, crafts, fromIso, toIso) {
   const maxFollow = mine.length ? PTS.follow : 0;
   const maxAttend = (p + abs.length) ? PTS.attend : 0;
   const maxCraft = Math.round(craftFull * frac);
-  const possible = maxFollow + maxAttend + maxCraft;
+  const maxRefer = Math.round(PTS.refer * frac);
+  const possible = maxFollow + maxAttend + maxCraft + maxRefer;
   const pct = possible ? Math.round(score / possible * 100) : null;
   return { score, fol, followPct, fast, absN: abs.length, gradedN: graded.length, waiting, att, attendPct, craft, craftN, recDone, recMissing, st,
-           possible, pct, maxFollow, maxAttend, maxCraft, craftFull, frac, daysLeft: total - passed };
+           ref, possible, pct, maxFollow, maxAttend, maxCraft, maxRefer, craftFull, frac, daysLeft: total - passed };
 }
 function bonusCard(b, running) {
   const row = (label, pts, max, sub) => '<div class="flex items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"><div><div class="font-bold text-sm">' + label + '</div>' + (sub ? '<div class="text-xs text-slate-500">' + sub + '</div>' : '') + '</div><div class="num font-extrabold text-teal-800 whitespace-nowrap">' + fa(pts) + ' <span class="text-xs text-slate-400 font-normal">از ' + fa(max) + '</span></div></div>';
@@ -336,6 +349,9 @@ function bonusCard(b, running) {
     row('پیگیری غیبت‌ها', b.fol, partial ? b.maxFollow : PTS.follow, b.gradedN ? fa(b.fast) + ' از ' + fa(b.gradedN) + ' غیبت تا ۴۸ ساعت پیگیری شده' + (b.waiting ? ' · ' + fa(b.waiting) + ' غیبت هنوز فرصت دارد' : '') : (b.waiting ? fa(b.waiting) + ' غیبت تازه، هنوز فرصت پیگیری دارید' : (partial && !b.maxFollow ? 'هنوز کلاسی ثبت نشده' : 'غیبتی نبوده'))) +
     row('نظم حضور بچه‌ها', b.att, partial ? b.maxAttend : PTS.attend, b.maxAttend ? 'حضور ' + fa(b.attendPct) + '٪ (مرخصی با اطلاع، غیبت حساب نمی‌شود)' : 'هنوز حضوری ثبت نشده') +
     row('کاردستی تأییدشده', b.craft, partial ? b.maxCraft : PTS.craftEach * PTS.craftMax, craftSub) +
+    row('🔑 پیشنهاد کلاس عصر', b.ref.pts, partial ? b.maxRefer : PTS.refer,
+        b.ref.n ? fa(b.ref.n) + ' پیشنهاد · ' + fa(b.ref.started) + ' شروع کرده' + (b.ref.warm ? ' · ' + fa(b.ref.warm) + ' در جریان' : '')
+                : 'هنوز پیشنهادی ثبت نکرده‌اید') +
     '<div class="mt-3 rounded-xl p-2 text-sm ' + (b.recMissing ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-slate-50 text-slate-700') + '"><b>حضور و غیاب (الزامی):</b> ' + fa(b.recDone) + ' از ' + fa(b.st.expected) + ' کلاس ثبت شده' + (b.recMissing ? ' · ' + fa(b.recMissing) + ' کلاس جا افتاده' : ' ✓') + '</div>' +
     '</div>';
 }
@@ -422,7 +438,7 @@ function go(tab) {
 let tDate = todayISO(), tClass = null, draft = {}, tAtt = [];
 function startTrainer() {
   tDate = todayISO(); tClass = null;
-  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['follow', '📞 پیگیری غیبت'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
+  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['follow', '📞 پیگیری غیبت'], ['refer', '🔑 کلاس عصر'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
   go('today');
 }
 async function refreshTrainerAtt() {
@@ -449,13 +465,14 @@ const TRAINER = {
     renderToday();
   },
   async follow() { await loadBase(); await refreshTrainerAtt(); renderFollow(); },
+  async refer() { await loadBase(); refCache = await loadRefs(me.id); renderRefer(); },
   async children() { await loadBase(); renderMyChildren(); },
   async msg() { renderMsg(); },
   async card() {
     await loadBase();
     const tj = jOf(todayISO()); const r = monthRange(tj.jy, tj.jm);
-    const [rows, crafts] = await Promise.all([loadAtt(r.start, r.end, classesOfTrainer(me.id).map((c) => c.id)), loadCrafts(r.start, r.end, me.id)]);
-    const bc = bonusCalc(me.id, rows, crafts, r.start, r.end);
+    const [rows, crafts, refs] = await Promise.all([loadAtt(r.start, r.end, classesOfTrainer(me.id).map((c) => c.id)), loadCrafts(r.start, r.end, me.id), loadRefs(me.id)]);
+    const bc = bonusCalc(me.id, rows, crafts, r.start, r.end, refs);
     $('view').innerHTML = '<div class="card p-4 mb-3"><h2 class="font-extrabold text-teal-900 mb-1">کارنامه ' + MONTHS[tj.jm - 1] + ' ' + faStr(tj.jy) + '</h2><p class="text-sm text-slate-500">ثبت به‌موقع حضور، پیگیری غیبت‌ها و کاردستی‌هایی که برای کلاس می‌سازید در کارنامهٔ شما می‌آید.</p></div>' + BONUS_NOTE + bonusCard(bc, true) + statsCard(trainerStats(me.id, rows, r.start, r.end), craftCounts(crafts, me.id));
   },
   async crafts() {
@@ -491,6 +508,99 @@ function renderCrafts(list, r) {
       toast('کاردستی ثبت شد'); go('crafts');
     } catch (err) { toast(errText(err), false); btn.disabled = false; btn.textContent = 'ثبت کاردستی'; }
   });
+}
+
+/* ---- پیشنهاد کلاس خصوصی عصر ---- */
+let refCache = [];
+async function loadRefs(tid) {
+  return api('/rest/v1/m_referrals?select=*' + (tid ? '&trainer_id=eq.' + tid : '') + '&order=updated_at.desc');
+}
+const REFER_NOTE = '<div class="card p-3 mb-3 bg-indigo-50 border-2 border-indigo-300 text-sm text-indigo-900 leading-7">' +
+  '<b>🔑 این بخش از همه مهم‌تر است</b><br>' +
+  'بعضی از بچه‌های صبح با یک جلسهٔ خصوصی در عصر خیلی سریع‌تر پیشرفت می‌کنند. شما که هر هفته کنارشان هستید، بهتر از هرکسی می‌دانید کدام کودک به جلسهٔ تکی نیاز دارد.<br>' +
+  'اگر خانواده‌ای توان مالی‌اش را دارد، پیشنهاد کلاس عصر را بدهید و همین‌جا ثبتش کنید.<br>' +
+  '<b>هرچه پیشنهاد شما جلوتر برود، امتیاز بیشتری می‌گیرید:</b> ثبت پیشنهاد ۲ امتیاز، علاقه نشان دادن ۴، گرفتن نوبت ۶، و شروع کلاس ۱۰ امتیاز. تا سقف ' + '۲۰' + ' امتیاز در ماه.<br>' +
+  'اگر خانواده نپذیرفت، باز هم امتیاز ثبت پیشنهادتان می‌ماند؛ پس بدون نگرانی صادقانه ثبت کنید و به کسی فشار نیاورید.</div>';
+
+function renderRefer() {
+  const kids = [...new Set(classesOfTrainer(me.id).flatMap((c) => kidsOf(c.id)))];
+  const byKid = new Map(refCache.map((r) => [r.child_id, r]));
+  const tj = jOf(todayISO()); const r = monthRange(tj.jy, tj.jm);
+  const month = refCache.filter((x) => x.suggested_on >= r.start && x.suggested_on <= r.end);
+  const sc = referScore(month);
+  let h = REFER_NOTE;
+  h += '<div class="card p-4 mb-3"><div class="flex items-center justify-between gap-2"><div><div class="font-extrabold text-indigo-900">امتیاز این ماه شما</div>' +
+    '<div class="text-xs text-slate-500">' + fa(sc.n) + ' پیشنهاد · ' + fa(sc.started) + ' شروع کرده' + (sc.warm ? ' · ' + fa(sc.warm) + ' در جریان' : '') + '</div></div>' +
+    '<div class="text-2xl font-extrabold text-indigo-700 num">' + fa(sc.pts) + '<span class="text-sm text-slate-400 font-normal"> از ' + fa(PTS.refer) + '</span></div></div></div>';
+  const open = refCache.filter((x) => x.status !== 'started' && x.status !== 'declined');
+  const closed = refCache.filter((x) => x.status === 'started' || x.status === 'declined');
+  const card = (x) => {
+    const k = childById(x.child_id);
+    const cls = x.status === 'started' ? 'border-green-300 bg-green-50' : x.status === 'declined' ? 'border-slate-200' : 'border-indigo-200';
+    return '<div class="rounded-xl border p-3 mb-2 ' + cls + '"><div class="flex items-start justify-between gap-2"><div class="min-w-0">' +
+      '<div class="font-bold">' + esc(k ? k.name : '—') + '</div>' +
+      '<div class="text-xs text-slate-500">' + (x.suggested_on ? dateLabel(x.suggested_on) + ' · ' : '') + esc(AFFORD[x.afford] || '') + '</div></div>' +
+      '<span class="chip ' + (x.status === 'started' ? 'bg-green-600 text-white' : x.status === 'declined' ? 'bg-slate-200 text-slate-600' : 'bg-indigo-100 text-indigo-800') + '">' + REF_ST[x.status] + ' · ' + fa(REF_PTS[x.status] || 0) + ' امتیاز</span></div>' +
+      '<div class="text-sm text-slate-700 mt-1">' + esc(x.need) + '</div>' +
+      (x.decline_reason ? '<div class="text-xs text-slate-500 mt-1">علت: ' + esc(x.decline_reason) + '</div>' : '') +
+      (x.note ? '<div class="text-xs text-slate-500 mt-1">' + esc(x.note) + '</div>' : '') +
+      '<button class="btn text-sm mt-2" data-act="refedit" data-id="' + x.id + '">ویرایش / تغییر وضعیت</button></div>';
+  };
+  const without = kids.filter((k) => !byKid.has(k.id));
+  h += '<div class="card p-4 mb-3"><div class="font-extrabold mb-2">پیشنهاد جدید</div>' +
+    (without.length ? '<p class="text-sm text-slate-500 mb-2">بچه‌هایی که هنوز برایشان پیشنهادی ثبت نکرده‌اید:</p><div class="flex flex-wrap gap-1">' +
+      without.map((k) => '<button class="chip bg-indigo-50 text-indigo-800 border border-indigo-200 py-1.5" data-act="refnew" data-id="' + k.id + '">＋ ' + esc(k.name) + '</button>').join('') + '</div>'
+      : '<p class="text-sm text-slate-400">برای همهٔ بچه‌های شما پیشنهاد ثبت شده است 👌</p>') + '</div>';
+  h += '<div class="card p-4 mb-3"><div class="font-extrabold mb-2">در جریان (' + fa(open.length) + ')</div>' +
+    (open.length ? open.map(card).join('') : '<p class="text-sm text-slate-400">موردی در جریان نیست.</p>') + '</div>';
+  h += '<div class="card p-4"><div class="font-extrabold mb-2">نتیجه‌گرفته‌ها (' + fa(closed.length) + ')</div>' +
+    (closed.length ? closed.map(card).join('') : '<p class="text-sm text-slate-400">هنوز موردی نیست.</p>') + '</div>';
+  $('view').innerHTML = h;
+}
+function openRefer(childId, id) {
+  const x = id ? refCache.find((z) => z.id === id) : null;
+  const k = childById(x ? x.child_id : childId); if (!k) return;
+  const st = x ? x.status : 'suggested';
+  openModal('<h3 class="font-extrabold text-lg mb-1">' + esc(k.name) + '</h3><p class="text-sm text-slate-500 mb-3">پیشنهاد کلاس خصوصی عصر</p>' +
+    '<label class="lbl" for="rf-need">چرا این کودک به جلسهٔ خصوصی نیاز دارد؟ *</label>' +
+    '<textarea id="rf-need" class="inp mb-1" rows="3" maxlength="400" placeholder="مثلاً: در گروه کم‌حرف است و با توجه فردی خیلی بهتر جواب می‌دهد">' + esc(x ? x.need : '') + '</textarea>' +
+    '<p class="text-xs text-slate-500 mb-3">این دلیل برای مدیریت و درمانگر عصر نوشته می‌شود، پس دلیل درمانی بنویسید.</p>' +
+    '<label class="lbl" for="rf-afford">توان مالی خانواده (برای اولویت‌بندی)</label>' +
+    '<select id="rf-afford" class="inp mb-3">' + Object.keys(AFFORD).map((a) => '<option value="' + a + '"' + ((x ? x.afford : 'unknown') === a ? ' selected' : '') + '>' + AFFORD[a] + '</option>').join('') + '</select>' +
+    '<div class="lbl">نتیجه تا الان</div><div class="flex flex-wrap gap-2 mb-3" id="rf-st">' +
+      Object.keys(REF_ST).map((s) => '<button type="button" class="tab' + (s === st ? ' on' : '') + '" data-s="' + s + '">' + REF_ST[s] + ' · ' + fa(REF_PTS[s]) + '</button>').join('') + '</div>' +
+    '<div id="rf-dec" class="' + (st === 'declined' ? '' : 'hidden') + ' mb-3"><label class="lbl" for="rf-why">چرا نپذیرفتند؟</label>' +
+      '<select id="rf-why" class="inp"><option>هزینه</option><option>وقت ندارند</option><option>دوری مسیر</option><option>فعلاً راضی‌اند</option><option>جای دیگری می‌روند</option><option>سایر</option></select></div>' +
+    '<label class="lbl" for="rf-note">یادداشت</label><input id="rf-note" class="inp mb-4" maxlength="300" value="' + esc(x ? (x.note || '') : '') + '">' +
+    '<div class="grid grid-cols-2 gap-2"><button class="btn btn-main" id="rf-save">ذخیره</button><button class="btn" id="rf-close">انصراف</button></div>' +
+    (x ? '<button class="btn w-full mt-3 text-red-600 border-red-200" id="rf-del">حذف این پیشنهاد</button>' : ''));
+  let cur = st;
+  if (x && x.decline_reason) $('rf-why').value = x.decline_reason;
+  $('rf-st').querySelectorAll('[data-s]').forEach((el) => el.onclick = () => {
+    cur = el.dataset.s;
+    $('rf-st').querySelectorAll('[data-s]').forEach((y) => y.classList.toggle('on', y.dataset.s === cur));
+    $('rf-dec').classList.toggle('hidden', cur !== 'declined');
+  });
+  $('rf-close').onclick = closeModal;
+  $('rf-save').onclick = async () => {
+    const need = $('rf-need').value.trim();
+    if (!need) { toast('دلیل نیاز کودک را بنویسید', false); return; }
+    const body = { trainer_id: me.id, child_id: k.id, need, afford: $('rf-afford').value, status: cur,
+      decline_reason: cur === 'declined' ? $('rf-why').value : null, note: $('rf-note').value.trim() || null };
+    if (!x) body.suggested_on = todayISO();
+    if (!x || x.status !== cur) body.log = ((x && x.log) || []).concat([{ at: new Date().toISOString(), st: cur }]);
+    try {
+      if (x) await api('/rest/v1/m_referrals?id=eq.' + x.id, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body });
+      else await api('/rest/v1/m_referrals', { method: 'POST', headers: { Prefer: 'return=minimal' }, body });
+      closeModal(); toast('ذخیره شد'); go('refer');
+    } catch (err) { toast(errText(err), false); }
+  };
+  if (x) $('rf-del').onclick = async (ev) => {
+    const b = ev.currentTarget;
+    if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = 'برای حذف دوباره بزنید'; return; }
+    try { await api('/rest/v1/m_referrals?id=eq.' + x.id, { method: 'DELETE' }); closeModal(); toast('حذف شد'); go('refer'); }
+    catch (err) { toast(errText(err), false); }
+  };
 }
 
 let craftCache = [];
@@ -597,6 +707,9 @@ $('view').addEventListener('click', async (e) => {
     else if (act === 'editsingle') openEditSingle(+b.dataset.id);
     else if (act === 'delsingle') delSingle(+b.dataset.id, b);
     else if (act === 'rosterof') { tClass = +b.dataset.id; openRoster(); }
+  } else if (current === 'refer') {
+    if (act === 'refnew') openRefer(+b.dataset.id, null);
+    else if (act === 'refedit') openRefer(null, +b.dataset.id);
   } else if (current === 'msg') {
     if (act === 'send') sendMsg(b);
     else if (act === 'mgedit') openMsgEdit(+b.dataset.id);
@@ -892,7 +1005,7 @@ async function startAdmin() {
   if (ok !== true) { clearSession(); throw new Error('این ایمیل دسترسی مدیریت سیستم صبح را ندارد.'); }
   isAdmin = true; await loadBase();
   const tj = jOf(todayISO()); aMonth = { jy: tj.jy, jm: tj.jm }; aDate = todayISO();
-  showApp('پنل مدیریت نوبت صبح', session.email, [['day', 'امروز'], ['follow', 'پیگیری‌ها'], ['msgs', 'پیام‌ها'], ['score', 'کارنامهٔ مربی‌ها'], ['crafts', 'کاردستی‌ها'], ['month', 'آمار ماهانه'], ['kids', 'کودکان']]);
+  showApp('پنل مدیریت نوبت صبح', session.email, [['day', 'امروز'], ['follow', 'پیگیری‌ها'], ['refs', '🔑 کلاس عصر'], ['msgs', 'پیام‌ها'], ['score', 'کارنامهٔ مربی‌ها'], ['crafts', 'کاردستی‌ها'], ['month', 'آمار ماهانه'], ['kids', 'کودکان']]);
   go('day'); refreshUnread();
 }
 async function refreshUnread() {
@@ -965,13 +1078,33 @@ const ADMIN = {
   },
   async score() {
     await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm);
-    const [rows, crafts] = await Promise.all([loadAtt(r.start, r.end), loadCrafts(r.start, r.end)]);
+    const [rows, crafts, refs] = await Promise.all([loadAtt(r.start, r.end), loadCrafts(r.start, r.end), loadRefs(null)]);
     const running = r.end >= todayISO();
-    const stats = D.trainers.map((t) => ({ t, s: trainerStats(t.id, rows, r.start, r.end), cc: craftCounts(crafts, t.id), b: bonusCalc(t.id, rows, crafts, r.start, r.end) }));
-    const summary = '<div class="card overflow-x-auto mb-3"><table class="t"><thead><tr><th>مربی</th><th>امتیاز ماه</th><th>کاردستی</th><th>حضور بچه‌ها</th></tr></thead><tbody>' +
-      stats.map((x) => '<tr><td class="font-bold">' + esc(x.t.name) + '</td><td class="num font-extrabold text-emerald-700 whitespace-nowrap">' + fa(x.b.score) + ' <span class="text-xs text-slate-400 font-normal">از ۱۰۰</span></td><td class="num font-bold">' + fa(x.cc.approved) + (x.cc.total > x.cc.approved ? ' <span class="text-xs text-amber-700 font-normal">(+' + fa(x.cc.total - x.cc.approved) + ')</span>' : '') + '</td><td>' + scoreChip(x.s.attPct) + '</td></tr>').join('') + '</tbody></table></div>';
+    const stats = D.trainers.map((t) => ({ t, s: trainerStats(t.id, rows, r.start, r.end), cc: craftCounts(crafts, t.id), b: bonusCalc(t.id, rows, crafts, r.start, r.end, refs) }))
+      .sort((a, b2) => b2.b.score - a.b.score);
+    const summary = '<div class="card overflow-x-auto mb-3"><table class="t"><thead><tr><th>رتبه</th><th>مربی</th><th>امتیاز' + (running ? ' تا امروز' : ' ماه') + '</th><th>کلاس عصر</th><th>کاردستی</th><th>حضور بچه‌ها</th></tr></thead><tbody>' +
+      stats.map((x, i) => '<tr><td class="num font-extrabold">' + ['🥇','🥈','🥉'][i] + (['🥇','🥈','🥉'][i] ? '' : fa(i + 1)) + '</td><td class="font-bold">' + esc(x.t.name) + '</td><td class="num font-extrabold text-emerald-700 whitespace-nowrap">' + fa(x.b.score) + ' <span class="text-xs text-slate-400 font-normal">از ' + fa(running ? x.b.possible : 100) + '</span></td><td class="num font-bold">' + fa(x.b.ref.pts) + (x.b.ref.started ? ' <span class="text-xs text-green-700 font-normal">(' + fa(x.b.ref.started) + ' شروع)</span>' : '') + '</td><td class="num font-bold">' + fa(x.cc.approved) + (x.cc.total > x.cc.approved ? ' <span class="text-xs text-amber-700 font-normal">(+' + fa(x.cc.total - x.cc.approved) + ')</span>' : '') + '</td><td>' + scoreChip(x.s.attPct) + '</td></tr>').join('') + '</tbody></table></div>';
     $('view').innerHTML = monthNav() + summary + stats.map((x) => '<div class="mb-3"><div class="font-extrabold text-teal-900 mb-1 px-1">' + esc(x.t.name) + ' · سطح ' + fa(x.t.level) + '</div>' + bonusCard(x.b, running) + statsCard(x.s, x.cc) + '</div>').join('') +
-      '<p class="text-xs text-slate-500 px-1">امتیاز ماه از ۱۰۰: پیگیری غیبت‌ها تا ۴۸ ساعت (۴۰)، نظم حضور بچه‌ها (۳۰)، کاردستی تأییدشده (۳۰). حضور و غیاب الزامی است و جداگانه نمایش داده می‌شود.</p>';
+      '<p class="text-xs text-slate-500 px-1">امتیاز ماه از ۱۰۰: پیگیری غیبت‌ها تا ۴۸ ساعت (۳۵)، نظم حضور بچه‌ها (۲۵)، کاردستی تأییدشده (۲۰)، پیشنهاد کلاس عصر (۲۰). حضور و غیاب الزامی است و جداگانه نمایش داده می‌شود. تا ماه تمام نشود امتیاز از سقفِ همان چند روز حساب می‌شود.</p>';
+  },
+  async refs() {
+    await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const all = await loadRefs(null);
+    const month = all.filter((x) => x.suggested_on >= r.start && x.suggested_on <= r.end);
+    const started = month.filter((x) => x.status === 'started').length;
+    const tot = '<div class="card p-3 mb-3 text-sm text-slate-700">پیشنهادهای کلاس خصوصی عصر که مربی‌ها به خانواده‌ها داده‌اند. وضعیت را می‌توانید اینجا اصلاح کنید؛ همین وضعیت در امتیاز مربی حساب می‌شود.<div class="mt-2 flex gap-2 flex-wrap"><span class="chip bg-indigo-100 text-indigo-800">' + fa(month.length) + ' پیشنهاد این ماه</span><span class="chip bg-green-100 text-green-800">' + fa(started) + ' شروع کرده</span></div></div>';
+    $('view').innerHTML = monthNav() + tot + D.trainers.map((t) => {
+      const mine = month.filter((x) => x.trainer_id === t.id);
+      const sc = referScore(mine);
+      return '<div class="card p-4 mb-3"><div class="flex items-center justify-between mb-2"><div class="font-extrabold text-teal-900">' + esc(t.name) + '</div><span class="chip bg-indigo-50 text-indigo-800">' + fa(sc.pts) + ' از ' + fa(PTS.refer) + ' امتیاز</span></div>' +
+        (mine.length ? mine.map((x) => { const k = childById(x.child_id);
+          return '<div class="py-2 border-t border-slate-100"><div class="flex items-start justify-between gap-2"><div class="min-w-0"><div class="font-bold">' + esc(k ? k.name : '—') + '</div><div class="text-xs text-slate-500">' + (x.suggested_on ? dateLabel(x.suggested_on) + ' · ' : '') + esc(AFFORD[x.afford] || '') + '</div></div>' +
+          '<select class="inp" style="width:auto" data-rs="' + x.id + '">' + Object.keys(REF_ST).map((s2) => '<option value="' + s2 + '"' + (s2 === x.status ? ' selected' : '') + '>' + REF_ST[s2] + '</option>').join('') + '</select></div>' +
+          '<div class="text-sm text-slate-700 mt-1">' + esc(x.need) + '</div>' + (x.note ? '<div class="text-xs text-slate-500">' + esc(x.note) + '</div>' : '') + '</div>'; }).join('')
+          : '<p class="text-sm text-slate-400">در این ماه پیشنهادی ثبت نکرده است.</p>') + '</div>'; }).join('');
+    $('view').querySelectorAll('[data-rs]').forEach((el) => el.onchange = async () => {
+      try { await api('/rest/v1/m_referrals?id=eq.' + el.dataset.rs, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { status: el.value } }); toast('ثبت شد'); go('refs'); }
+      catch (err) { toast(errText(err), false); }
+    });
   },
   async crafts() {
     await loadBase(); const r = monthRange(aMonth.jy, aMonth.jm); const crafts = await loadCrafts(r.start, r.end);
