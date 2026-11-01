@@ -102,7 +102,7 @@ function dayBlock(iso){
     + '<span class="num font-extrabold text-slate-700 text-sm">'+toFa(SLOTS[r.slot_index-1])+'</span>'
     + (r.status ? '<span class="pill">'+esc(r.status)+'</span>' : '') + '</div>'
     + '<div class="font-extrabold text-teal-900 mt-1">'+esc(r.client_name || '—')+'</div>'
-    + ([r.service, r.payment].filter(Boolean).map(esc).join(' · ') ? '<div class="text-xs text-gray-500">'+[r.service,r.payment].filter(Boolean).map(esc).join(' · ')+'</div>' : '')
+    + (r.service ? '<div class="text-xs text-gray-500">'+esc(r.service)+'</div>' : '')
     + (r.note ? '<div class="text-xs text-amber-700 mt-0.5">'+esc(r.note)+'</div>' : '') + '</div>').join('');
   return '<div class="mb-5">'+head+'<div class="space-y-2">'+items+'</div></div>';
 }

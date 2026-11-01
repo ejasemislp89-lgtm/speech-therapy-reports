@@ -129,9 +129,6 @@
           <select id="sf-service" class="inp"><option value="">—</option><option>گفتاردرمانی</option><option>کاردرمانی</option><option>روانشناسی</option><option>ارزیابی</option></select></div>
         <div><label class="lbl">وضعیت نوبت</label>
           <select id="sf-status" class="inp"><option value="">—</option><option>قطعی</option><option>نیازمند تأیید</option><option>انجام شد</option><option>کنسلی</option><option>استراحت</option></select></div>
-        <div><label class="lbl">شماره تماس</label><input id="sf-phone" class="inp num" dir="ltr" inputmode="tel" autocomplete="off"></div>
-        <div><label class="lbl">وضعیت پرداخت</label>
-          <select id="sf-payment" class="inp"><option value="">—</option><option>پرداخت شد</option><option>بدهکار</option><option>کارت به کارت</option><option>رایگان</option></select></div>
       </div>
       <div><label class="lbl">توضیحات منشی</label><input id="sf-note" class="inp" autocomplete="off"></div>
       <div class="flex gap-2 pt-1">
@@ -311,7 +308,7 @@ function counters(rows){
 }
 function cellHTML(tid, i, r){
   if(!r || (!r.client_name && !r.status)) return '<button class="cellbtn no-print" data-t="'+tid+'" data-i="'+i+'">＋ خالی</button>';
-  const bits = [r.service, r.payment].filter(Boolean).map(esc).join(' · ');
+  const bits = [r.service].filter(Boolean).map(esc).join(' · ');
   return '<button class="w-full text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'">'
     + '<div class="font-extrabold text-slate-800 text-sm">'+esc(r.client_name || '—')+(r.status?' <span class="pill">'+esc(r.status)+'</span>':'')+'</div>'
     + (bits ? '<div class="text-xs text-gray-500">'+bits+'</div>' : '')
@@ -377,8 +374,7 @@ function openSlot(tid, i, dateISO){
   $('sf-slot').innerHTML = SLOTS.map((s, k) => '<option value="'+(k+1)+'"'+(k+1 === i ? ' selected' : '')+'>'+toFa(s)+'</option>').join('');
   $('sm-title').textContent = (tid && i) ? ('ویرایش نوبت · ' + fullLabel(d)) : ('ثبت نوبت · ' + fullLabel(d));
   $('sf-name').value = r.client_name || ''; $('sf-service').value = r.service || '';
-  $('sf-status').value = r.status || ''; $('sf-phone').value = r.phone || '';
-  $('sf-payment').value = r.payment || ''; $('sf-note').value = r.note || '';
+  $('sf-status').value = r.status || ''; $('sf-note').value = r.note || '';
   $('sf-clear').classList.toggle('hidden', !r.id);
   $('slot-modal').classList.remove('hidden'); setTimeout(() => $('sf-name').focus(), 50);
 }
@@ -407,8 +403,7 @@ $('slot-form').addEventListener('submit', async (e) => {
   }
   const body = { therapist_id: tid, appt_date: editing.date, slot_index: slot,
     client_name: name || null, service: $('sf-service').value || null,
-    status: $('sf-status').value || null, phone: normDigits($('sf-phone').value).trim() || null,
-    payment: $('sf-payment').value || null, note: $('sf-note').value.trim() || null };
+    status: $('sf-status').value || null, note: $('sf-note').value.trim() || null };
   const btn = $('sf-save'); btn.disabled = true;
   try {
     await api('/rest/v1/sch_appointments?on_conflict=therapist_id,appt_date,slot_index',
@@ -436,7 +431,7 @@ $('b-copy').addEventListener('click', async () => {
     const taken = new Set(dayRows.filter(r => r.client_name || r.status).map(r => r.therapist_id+'|'+r.slot_index));
     const rows = prev.filter(r => (r.client_name || r.status) && r.status !== 'کنسلی' && !taken.has(r.therapist_id+'|'+r.slot_index))
       .map(r => ({ therapist_id:r.therapist_id, appt_date:curDate, slot_index:r.slot_index, client_name:r.client_name,
-                   service:r.service, status:(r.status === 'انجام شد' ? 'قطعی' : r.status), phone:r.phone, payment:null, note:null }));
+                   service:r.service, status:(r.status === 'انجام شد' ? 'قطعی' : r.status), note:null }));
     if(!rows.length) return toast('چیزی برای کپی نبود', false);
     await api('/rest/v1/sch_appointments?on_conflict=therapist_id,appt_date,slot_index',
       { method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body: rows });
@@ -449,7 +444,7 @@ function linkFor(t){ return location.origin + location.pathname.replace(/[^/]*$/
 function renderLinks(){
   if(role !== 'admin'){ $('links-out').innerHTML = ''; return; }
   $('links-out').innerHTML = '<div class="card p-4">'
-    + '<p class="text-sm text-gray-600 mb-3">هر درمانگر یک لینک ثابت دارد. فقط برنامه‌ی خودش را می‌بیند، چیزی را نمی‌تواند تغییر دهد و شماره تماس مراجع در آن نمایش داده نمی‌شود. یک بار بفرستید، همیشه کار می‌کند.</p>'
+    + '<p class="text-sm text-gray-600 mb-3">هر درمانگر یک لینک ثابت دارد. فقط برنامه‌ی خودش را می‌بیند، چیزی را نمی‌تواند تغییر دهد . یک بار بفرستید، همیشه کار می‌کند.</p>'
     + '<div class="space-y-2">' + therapists.map(t =>
         '<div class="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">'
         + '<div class="font-extrabold text-teal-800 min-w-32">'+esc(t.name)+'</div>'

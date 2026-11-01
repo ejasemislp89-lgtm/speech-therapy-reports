@@ -26,8 +26,6 @@ create table if not exists public.sch_appointments (
   client_name  text,
   service      text,
   status       text,
-  phone        text,
-  payment      text,
   note         text,
   updated_at   timestamptz not null default now(),
   created_by   text default (auth.jwt() ->> 'email'),
@@ -64,7 +62,6 @@ grant select, insert, update, delete on public.sch_therapists   to authenticated
 grant select, insert, update, delete on public.sch_appointments to authenticated;
 
 -- 4) لینک اختصاصی درمانگر: بدون ورود، فقط خواندنی، فقط برنامه‌ی خودش
---    شماره تماس مراجع عمداً برگردانده نمی‌شود.
 create or replace function public.sch_public_schedule(p_token text, p_from date, p_to date)
 returns table (
   therapist_name text,
@@ -73,7 +70,6 @@ returns table (
   client_name    text,
   service        text,
   status         text,
-  payment        text,
   note           text
 )
 language sql
@@ -81,7 +77,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select t.name, a.appt_date, a.slot_index, a.client_name, a.service, a.status, a.payment, a.note
+  select t.name, a.appt_date, a.slot_index, a.client_name, a.service, a.status, a.note
   from public.sch_therapists t
   left join public.sch_appointments a
     on a.therapist_id = t.id
