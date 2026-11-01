@@ -462,7 +462,78 @@
         // -- VOICE TO TEXT LOGIC --
         let activeRecognition = null;
         let dictationWanted = false;
-        function startDictation(elementId, btnElement) {
+        /* ---------- ضبط صدا و تبدیل به متن (روی سرور؛ روی آیفون و اندروید کار می‌کند) ---------- */
+        let rec = null;   // { mr, chunks, stream, btn, el, timer, t0 }
+        function pickMime() {
+            const c = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+            for (const m of c) { try { if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; } catch (e) {} }
+            return '';
+        }
+        function recUi(btn, state, label) {
+            btn.classList.toggle('recording', state === 'rec');
+            btn.style.backgroundColor = state === 'rec' ? '#ffc107' : '';
+            btn.disabled = state === 'busy';
+            btn.innerText = state === 'rec' ? '⏹' : (state === 'busy' ? '⏳' : '🎤');
+            btn.title = label || 'ضبط صدا و تبدیل به متن';
+        }
+        async function startDictation(elementId, btnElement) {
+            const el = document.getElementById(elementId);
+            if (rec) {                       // دومین ضربه = توقف و تبدیل
+                if (rec.btn !== btnElement) return;
+                try { rec.mr.stop(); } catch (e) {}
+                return;
+            }
+            if (!navigator.mediaDevices || !window.MediaRecorder) { return startDictationLegacy(elementId, btnElement); }
+            let stream;
+            try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+            catch (e) { alert('❌ دسترسی به میکروفون داده نشد. در تنظیمات گوشی (سافاری/کروم) اجازه‌ی میکروفون را برای این سایت روشن کنید.'); return; }
+            const mime = pickMime();
+            const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+            const chunks = [];
+            mr.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+            const t0 = Date.now();
+            const timer = setInterval(() => {
+                const sec = Math.floor((Date.now() - t0) / 1000);
+                el.placeholder = '🔴 در حال ضبط… ' + Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0') + ' (برای پایان دوباره دکمه را بزنید)';
+                if (sec >= 240) { try { mr.stop(); } catch (e) {} }   // سقف ۴ دقیقه
+            }, 500);
+            rec = { mr, chunks, stream, btn: btnElement, el, timer };
+            mr.onstop = async () => {
+                clearInterval(timer);
+                stream.getTracks().forEach(t => t.stop());
+                const r = rec; rec = null;
+                el.placeholder = '';
+                const type = (mr.mimeType || mime || 'audio/mp4').split(';')[0];
+                const blob = new Blob(chunks, { type });
+                if (blob.size < 1500) { recUi(btnElement, 'idle'); alert('صدایی ضبط نشد. دوباره تلاش کنید.'); return; }
+                recUi(btnElement, 'busy', 'در حال تبدیل به متن…');
+                el.placeholder = '⏳ در حال تبدیل صدا به متن…';
+                try {
+                    const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+                    const resp = await fetch(SUPABASE_URL + '/functions/v1/transcribe', {
+                        method: 'POST',
+                        headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ audio: b64, mime: type })
+                    });
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || !data.text) {
+                        if (data.error === 'no_key') throw new Error('سرویس تبدیل صدا هنوز فعال نشده است.');
+                        if (data.error === 'too_long') throw new Error('ضبط بیش از حد طولانی بود. کوتاه‌تر ضبط کنید.');
+                        throw new Error('تبدیل انجام نشد' + (data.status ? ' (' + data.status + ')' : '') + '.');
+                    }
+                    el.value += (el.value.length > 0 && !/\s$/.test(el.value) ? ' ' : '') + data.text;
+                } catch (e) {
+                    alert('❌ ' + (e.message || 'تبدیل صدا به متن انجام نشد. اینترنت را بررسی کنید و دوباره تلاش کنید.'));
+                } finally {
+                    el.placeholder = '';
+                    recUi(btnElement, 'idle');
+                }
+            };
+            mr.start(1000);
+            recUi(btnElement, 'rec', 'پایان ضبط');
+        }
+
+        function startDictationLegacy(elementId, btnElement) {
             const inputEl = document.getElementById(elementId);
             if (activeRecognition) {
                 dictationWanted = false;
