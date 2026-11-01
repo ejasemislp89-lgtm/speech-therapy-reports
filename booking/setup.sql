@@ -17,12 +17,12 @@ create table if not exists public.sch_therapists (
 );
 
 -- 2) نوبت‌ها: هر ردیف = یک سانس نیم‌ساعته از یک روز برای یک درمانگر
---    slot_index از ۱ تا ۱۴ یعنی ۱۴:۰۰ تا ۲۱:۰۰ (شیفت عصر)
+--    slot_index از ۱ تا ۱۶ یعنی ۱۴:۰۰ تا ۲۲:۰۰ (شیفت عصر)
 create table if not exists public.sch_appointments (
   id           bigint generated always as identity primary key,
   therapist_id bigint not null references public.sch_therapists(id) on delete cascade,
   appt_date    date not null,
-  slot_index   int  not null check (slot_index between 1 and 14),
+  slot_index   int  not null check (slot_index between 1 and 16),
   client_name  text,
   service      text,
   status       text,

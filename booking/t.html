@@ -54,7 +54,7 @@ const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({'&':'
 const toFa = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 const WEEKDAYS = ['یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه','شنبه'];
-const SLOTS = Array.from({length:14}, (_,i) => { const m = 14*60 + i*30, p = (x) => String(x).padStart(2,'0');
+const SLOTS = Array.from({length:16}, (_,i) => { const m = 14*60 + i*30, p = (x) => String(x).padStart(2,'0');
   return p(Math.floor(m/60))+':'+p(m%60)+' - '+p(Math.floor((m+30)/60))+':'+p((m+30)%60); });
 const stClass = (s) => s ? ('st-' + String(s).split(' ')[0].replace('شد','')) : '';
 

@@ -87,7 +87,7 @@
   <nav id="tabs" class="no-print flex gap-2 overflow-x-auto pb-2 mb-3">
     <button class="tabbtn on" data-tab="day">برنامه‌ی روز</button>
     <button class="tabbtn" data-tab="week">هفته‌ی یک درمانگر</button>
-    <button class="tabbtn admin-only" data-tab="links">لینک درمانگرها</button>
+    <button class="tabbtn" data-tab="links">لینک درمانگرها</button>
   </nav>
 
   <!-- date bar -->
@@ -153,7 +153,7 @@ const toFa = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const normDigits = (s) => String(s == null ? '' : s).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
 const MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
 const WEEKDAYS = ['یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه','شنبه'];
-const SLOTS = Array.from({length:14}, (_,i) => { const m = 14*60 + i*30; const p = (x) => String(x).padStart(2,'0');
+const SLOTS = Array.from({length:16}, (_,i) => { const m = 14*60 + i*30; const p = (x) => String(x).padStart(2,'0');
   return p(Math.floor(m/60))+':'+p(m%60)+' - '+p(Math.floor((m+30)/60))+':'+p((m+30)%60); });
 const stClass = (s) => s ? ('st-' + String(s).split(' ')[0].replace('شد','')) : '';
 
@@ -442,21 +442,38 @@ $('b-copy').addEventListener('click', async () => {
 /* ---------------- لینک درمانگرها (مدیر) ---------------- */
 function linkFor(t){ return location.origin + location.pathname.replace(/[^/]*$/, '') + 't.html?k=' + t.token; }
 function renderLinks(){
-  if(role !== 'admin'){ $('links-out').innerHTML = ''; return; }
+  if(role !== 'admin' && role !== 'secretary'){ $('links-out').innerHTML = ''; return; }
   $('links-out').innerHTML = '<div class="card p-4">'
-    + '<p class="text-sm text-gray-600 mb-3">هر درمانگر یک لینک ثابت دارد. فقط برنامه‌ی خودش را می‌بیند، چیزی را نمی‌تواند تغییر دهد . یک بار بفرستید، همیشه کار می‌کند.</p>'
+    + '<p class="text-sm text-gray-600 mb-3">هر درمانگر یک لینک ثابت دارد. فقط برنامه‌ی خودش را می‌بیند و چیزی را نمی‌تواند تغییر دهد. با دکمه «ارسال» لینک را از هر برنامه‌ای (پیامک، بله، واتس‌اپ) بفرستید. یک بار بفرستید، همیشه کار می‌کند.</p>'
     + '<div class="space-y-2">' + therapists.map(t =>
         '<div class="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">'
         + '<div class="font-extrabold text-teal-800 min-w-32">'+esc(t.name)+'</div>'
         + '<input class="inp num grow" dir="ltr" readonly value="'+esc(linkFor(t))+'">'
+        + '<button class="tabbtn" data-share="'+esc(linkFor(t))+'" data-name="'+esc(t.name)+'">ارسال</button>'
         + '<button class="tabbtn" data-copy="'+esc(linkFor(t))+'">کپی</button>'
         + '<a class="tabbtn" target="_blank" rel="noopener" href="'+esc(linkFor(t))+'">باز کردن</a></div>').join('')
     + '</div></div>';
 }
+async function copyLink(url, row){
+  try { await navigator.clipboard.writeText(url); toast('لینک کپی شد'); return; } catch(err){}
+  const inp = row && row.querySelector('input');
+  if(inp){ inp.focus(); inp.select(); inp.setSelectionRange(0, 9999);
+    try { if(document.execCommand('copy')){ toast('لینک کپی شد'); return; } } catch(err){} }
+  toast('لینک انتخاب شد؛ نگه دارید و «Copy» را بزنید', false);
+}
 $('links-out').addEventListener('click', async (e) => {
+  const s = e.target.closest('button[data-share]');
+  if(s){
+    const url = s.dataset.share, name = s.dataset.name;
+    if(navigator.share){
+      try { await navigator.share({ title: 'برنامه‌ی نوبت‌های ' + name, text: 'برنامه‌ی نوبت‌های ' + name + ' - کلینیک ترنم', url }); }
+      catch(err){ /* بسته شد */ }
+      return;
+    }
+    return copyLink(url, s.parentElement);
+  }
   const b = e.target.closest('button[data-copy]'); if(!b) return;
-  try { await navigator.clipboard.writeText(b.dataset.copy); toast('لینک کپی شد'); }
-  catch(err){ toast('کپی نشد، دستی انتخابش کنید', false); }
+  copyLink(b.dataset.copy, b.parentElement);
 });
 
 /* ---------------- شروع ---------------- */
