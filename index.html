@@ -488,7 +488,10 @@
             try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
             catch (e) { alert('❌ دسترسی به میکروفون داده نشد. در تنظیمات گوشی (سافاری/کروم) اجازه‌ی میکروفون را برای این سایت روشن کنید.'); return; }
             const mime = pickMime();
-            const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+            const opts = mime ? { mimeType: mime } : {};
+            opts.audioBitsPerSecond = 24000;   // صدای سبک‌تر = آپلود سریع‌تر روی اینترنت موبایل (برای گفتار کافی است)
+            let mr;
+            try { mr = new MediaRecorder(stream, opts); } catch (e) { mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
             const chunks = [];
             mr.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
             const t0 = Date.now();
