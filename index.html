@@ -167,6 +167,7 @@
         </div>
 
         <form id="report-form" class="space-y-6">
+            <div id="recent-entries" class="hidden no-print bg-emerald-50 border-2 border-emerald-200 rounded-xl p-3"></div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- NEW EVALUATION TOGGLE -->
                 <div id="new-eval-container" class="hidden md:col-span-2 bg-purple-50 border-2 border-purple-200 p-4 rounded-xl mb-2 flex items-center justify-between">
@@ -180,6 +181,7 @@
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">نام و نام خانوادگی مراجع (کودک):</label>
                     <input type="text" id="f_patient" list="my-patient-names" autocomplete="off" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" required>
+                    <div id="patient-hint" class="hidden no-print mt-2 text-sm bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 leading-relaxed"></div>
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">تاریخ مراجعه:</label>
@@ -435,6 +437,7 @@
                 <button onclick="closeModal('patient-history-modal')" class="text-gray-400 hover:text-red-500 font-bold text-4xl leading-none">&times;</button>
             </div>
             
+            <div id="history-next-plan" class="shrink-0"></div>
             <!-- Timeline Container -->
             <div id="history-timeline" class="overflow-y-auto pr-2 space-y-6 flex-1">
                 <!-- Timeline items injected via JS -->
@@ -1009,7 +1012,68 @@ ${finalEvaluation}`;
         function fillPatientSuggestions() {
             const dl = document.getElementById('my-patient-names');
             dl.innerHTML = groupMyPatients().map(g => `<option value="${escapeHtml(g.name)}"></option>`).join('');
+            renderRecentEntries();
+            updatePatientHint();
         }
+
+        // آخرین گزارشی که برای این مراجع «هدف جلسه آینده» دارد (از هر درمانگری)
+        function latestPlanFor(name) {
+            const key = normalizeName(name);
+            if (!key) return null;
+            let best = null;
+            therapistReports.forEach(r => {
+                if (normalizeName(r.patient_name) !== key || !(r.next_session || '').trim()) return;
+                if (!best || r.created_at > best.created_at) best = r;
+            });
+            return best;
+        }
+        function faDate(iso) { try { return new Date(iso).toLocaleDateString('fa-IR'); } catch (e) { return ''; } }
+
+        // وقتی نام مراجع در فرم نوشته می‌شود، برنامهٔ جلسهٔ قبل را نشان بده
+        function updatePatientHint() {
+            const box = document.getElementById('patient-hint');
+            if (!box) return;
+            const v = document.getElementById('f_patient').value;
+            const r = latestPlanFor(v);
+            if (!r) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+            box.innerHTML = '🎯 <b>برنامهٔ این جلسه (از گزارش قبلی ' + escapeHtml(r.therapist_name || '') + '، ' + escapeHtml(r.session_date || faDate(r.created_at)) + '):</b><br><span class="whitespace-pre-wrap">' + escapeHtml(r.next_session) + '</span>';
+            box.classList.remove('hidden');
+        }
+
+        // مراجع‌هایی که همین درمانگر امروز (یا اخیراً) ثبت کرده، تا یادش بماند
+        function renderRecentEntries() {
+            const box = document.getElementById('recent-entries');
+            if (!box) return;
+            const mine = therapistReports.filter(r => r.therapist_name === currentTherapist)
+                .slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
+            if (!mine.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+            const todayStr = new Date().toDateString();
+            const isToday = r => new Date(r.created_at).toDateString() === todayStr;
+            const pick = (rows, max) => {
+                const seen = new Set(), out = [];
+                rows.forEach(r => { const k = normalizeName(r.patient_name); if (k && !seen.has(k) && out.length < max) { seen.add(k); out.push(r); } });
+                return out;
+            };
+            const today = pick(mine.filter(isToday), 40);
+            const chip = (r, done) => '<button type="button" onclick="pickRecentPatient(this.dataset.n)" data-n="' + escapeHtml((r.patient_name || '').trim()) + '" class="text-sm font-bold px-3 py-1.5 rounded-full border transition ' + (done ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100') + '">' + (done ? '✓ ' : '') + escapeHtml((r.patient_name || '').trim()) + '</button>';
+            let html;
+            if (today.length) {
+                html = '<div class="text-emerald-900 font-bold text-sm mb-2">✅ امروز ثبت کرده‌اید (' + today.length.toLocaleString('fa-IR') + ' مراجع) — آخرین: ' + escapeHtml((today[0].patient_name || '').trim()) + '</div>' +
+                    '<div class="flex flex-wrap gap-2">' + today.map(r => chip(r, true)).join('') + '</div>';
+            } else {
+                const last = pick(mine, 6);
+                html = '<div class="text-gray-700 font-bold text-sm mb-2">امروز هنوز گزارشی ثبت نکرده‌اید. آخرین مراجع‌های شما:</div>' +
+                    '<div class="flex flex-wrap gap-2">' + last.map(r => chip(r, false)).join('') + '</div>';
+            }
+            box.innerHTML = html;
+            box.classList.remove('hidden');
+        }
+        function pickRecentPatient(n) {
+            const el = document.getElementById('f_patient');
+            el.value = n; updatePatientHint();
+        }
+        document.getElementById('f_patient').addEventListener('input', updatePatientHint);
+        document.getElementById('f_patient').addEventListener('change', updatePatientHint);
 
         function renderMyPatients() {
             const list = document.getElementById('my-patients-list');
@@ -1062,9 +1126,27 @@ ${finalEvaluation}`;
                 }).join('') : '';
                 filterEl.querySelectorAll('button').forEach(b => b.onclick = () => { active = b.dataset.n; draw(); });
                 renderHistoryTimeline(active === 'all' ? sorted : sorted.filter(r => (r.therapist_name || 'نامشخص') === active), sorted, opts);
+                renderNextPlanBanner(sorted);
             };
             draw();
             document.getElementById('patient-history-modal').classList.remove('hidden');
+        }
+
+        function renderNextPlanBanner(sorted) {
+            const el = document.getElementById('history-next-plan');
+            if (!el) return;
+            let r = null;
+            sorted.forEach(x => { if ((x.next_session || '').trim()) r = x; });   // آخرین گزارشِ دارای هدف
+            const lastRow = sorted[sorted.length - 1];
+            if (!r) {
+                el.innerHTML = '<div class="mb-3 text-sm bg-gray-100 text-gray-600 rounded-xl p-3">🎯 هنوز برای جلسهٔ بعد هدفی ثبت نشده است.</div>';
+                return;
+            }
+            const stale = lastRow && lastRow !== r ? '<div class="text-xs text-amber-700 mt-1">توجه: گزارش‌های بعدی هدف جلسهٔ بعد نداشته‌اند.</div>' : '';
+            el.innerHTML = '<div class="mb-3 bg-amber-50 border-2 border-amber-300 rounded-xl p-4">' +
+                '<div class="flex flex-wrap items-center justify-between gap-2 mb-1"><span class="font-extrabold text-amber-900">🎯 برنامهٔ جلسهٔ بعد</span>' +
+                '<span class="text-xs text-amber-800">نوشتهٔ ' + escapeHtml(r.therapist_name || 'نامشخص') + ' · ' + escapeHtml(r.session_date || faDate(r.created_at)) + '</span></div>' +
+                '<p class="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">' + escapeHtml(r.next_session) + '</p>' + stale + '</div>';
         }
 
         function renderHistoryTimeline(rows, allSorted, opts) {
