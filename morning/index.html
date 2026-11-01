@@ -259,6 +259,84 @@ function craftCounts(crafts, tid) {
   return { total: mine.length, approved: mine.filter((c) => c.approved).length };
 }
 
+/* ---------------- گفتاردرمانی هفتگی ---------------- */
+// هدف: هر کودک دست‌کم ۱ جلسه گفتاردرمانی در هفته (هفته از شنبه تا جمعه)
+const SPEECH_MIN = 1;
+const weekStartOf = (iso) => addDays(iso, -dowOf(iso));
+const byName = (a, b) => a.name.localeCompare(b.name, 'fa');
+let spWeek = weekStartOf(todayISO()), spRows = [], spBusy = false;
+async function loadSpeech(week) { return api('/rest/v1/m_speech?select=*&week_start=eq.' + week); }
+function weekLabel(w) { return 'شنبه ' + shortDate(w) + ' تا جمعه ' + shortDate(addDays(w, 6)); }
+function myKidsAll(tid) {
+  const m = new Map(); classesOfTrainer(tid).forEach((c) => kidsOf(c.id).forEach((k) => m.set(k.id, k)));
+  return [...m.values()].sort(byName);
+}
+function trainersOfChild(cid) {
+  const ids = new Set(); D.enroll.filter((e) => e.child_id === cid).forEach((e) => { const c = classById(e.class_id); if (c) ids.add(c.trainer_id); });
+  return [...ids].map((id) => (trainerById(id) || {}).name).filter(Boolean).join('، ');
+}
+const spValue = (cid) => { const r = spRows.find((x) => x.child_id === cid); return r ? r.sessions : null; };
+function spSummary(kids) {
+  const v = kids.map((k) => spValue(k.id)), cnt = (n) => v.filter((x) => x === n).length;
+  return { n: kids.length, none: v.filter((x) => x === null).length, zero: cnt(0), one: cnt(1), two: cnt(2), ok: v.filter((x) => x !== null && x >= SPEECH_MIN).length };
+}
+function spCard(k, showTrainer) {
+  const v = spValue(k.id), ok = v !== null && v >= SPEECH_MIN;
+  const btn = (n) => '<button type="button" data-spk="' + k.id + '" data-spv="' + n + '" class="' + (v === n ? (n === 0 ? 'on-a' : 'on-p') : '') + '">' + fa(n) + ' جلسه</button>';
+  const chip = v === null ? '<span class="chip bg-amber-100 text-amber-800">ثبت نشده</span>' : ok ? '<span class="chip bg-green-100 text-green-800">هدف انجام شد</span>' : '<span class="chip bg-red-100 text-red-700">گفتاردرمانی نداشته</span>';
+  return '<div class="card p-3' + (ok ? '' : ' border-red-200') + '"><div class="flex items-center justify-between gap-2 mb-2"><div class="min-w-0"><div class="font-bold text-lg truncate">' + esc(k.name) + '</div>' +
+    (showTrainer ? '<div class="text-xs text-slate-500 truncate">' + esc(trainersOfChild(k.id) || 'بدون مربی') + '</div>' : '') + '</div>' + chip + '</div>' +
+    '<div class="seg grid-cols-3">' + btn(0) + btn(1) + btn(2) + '</div></div>';
+}
+function renderSpeech() {
+  const kids = isAdmin ? D.children.filter((k) => k.active).sort(byName) : myKidsAll(me.id);
+  const s = spSummary(kids), pct = s.n ? Math.round(s.ok / s.n * 100) : 0;
+  const nowWeek = weekStartOf(todayISO()), isNow = spWeek === nowWeek;
+  let h = '<div class="card p-3 mb-3 flex items-center justify-between gap-2"><button class="btn" data-spw="-1" aria-label="هفتهٔ قبل">›</button>' +
+    '<div class="text-center"><div class="font-extrabold text-sm">' + weekLabel(spWeek) + '</div><div class="text-xs text-slate-500">' + (isNow ? 'هفتهٔ جاری' : '<button class="text-teal-700 font-bold" data-spw="0">برگشت به هفتهٔ جاری</button>') + '</div></div>' +
+    '<button class="btn" data-spw="1" aria-label="هفتهٔ بعد"' + (isNow ? ' disabled style="opacity:.4"' : '') + '>‹</button></div>';
+  h += '<div class="card p-4 mb-3"><div class="font-extrabold text-teal-900 mb-1">🗣️ گفتاردرمانی این هفته</div>' +
+    '<p class="text-sm text-slate-600 leading-7 mb-3">هدف: هر کودک <b>دست‌کم ' + fa(SPEECH_MIN) + ' جلسه</b> گفتاردرمانی در هفته. برای هر کودک بزنید چند جلسه گفتاردرمانی داشته است. برای پاک‌کردن، دوباره روی همان گزینه بزنید.</p>' +
+    '<div class="flex items-center justify-between mb-1"><span class="font-bold text-sm">کودکانی که به هدف رسیده‌اند</span><span class="font-extrabold num ' + (pct === 100 ? 'text-green-700' : 'text-slate-800') + '">' + fa(s.ok) + ' از ' + fa(s.n) + ' · ' + fa(pct) + '٪</span></div>' +
+    '<div class="h-2 bg-slate-100 rounded-full overflow-hidden mb-3"><div class="h-full ' + (pct === 100 ? 'bg-green-600' : 'bg-teal-600') + '" style="width:' + pct + '%"></div></div>' +
+    '<div class="flex flex-wrap gap-1"><span class="chip bg-red-100 text-red-700">۰ جلسه: ' + fa(s.zero) + '</span><span class="chip bg-green-100 text-green-800">۱ جلسه: ' + fa(s.one) + '</span><span class="chip bg-green-100 text-green-800">۲ جلسه: ' + fa(s.two) + '</span><span class="chip bg-amber-100 text-amber-800">ثبت‌نشده: ' + fa(s.none) + '</span></div></div>';
+  if (isAdmin && D.trainers.length) {
+    h += '<div class="card overflow-x-auto mb-3"><table class="t"><thead><tr><th>مربی</th><th>کودکان</th><th>به هدف رسیده</th><th>درصد</th></tr></thead><tbody>' +
+      D.trainers.map((t) => { const ks = myKidsAll(t.id), ss = spSummary(ks), p = ks.length ? Math.round(ss.ok / ks.length * 100) : null; return '<tr><td class="font-bold">' + esc(t.name) + '</td><td class="num">' + fa(ks.length) + '</td><td class="num">' + fa(ss.ok) + '</td><td>' + scoreChip(p) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  }
+  if (!kids.length) { h += '<div class="card p-8 text-center text-slate-400">هنوز کودکی ثبت نشده است.</div>'; $('view').innerHTML = h; return; }
+  const below = kids.filter((k) => { const v = spValue(k.id); return v === null || v < SPEECH_MIN; }), done = kids.filter((k) => !below.includes(k));
+  if (below.length) h += '<h3 class="font-extrabold text-red-700 px-1 mb-2">هنوز گفتاردرمانی نداشته‌اند (' + fa(below.length) + ')</h3><div class="space-y-2 mb-4">' + below.map((k) => spCard(k, isAdmin)).join('') + '</div>';
+  if (done.length) h += '<h3 class="font-extrabold text-green-700 px-1 mb-2">به هدف رسیده‌اند (' + fa(done.length) + ')</h3><div class="space-y-2">' + done.map((k) => spCard(k, isAdmin)).join('') + '</div>';
+  $('view').innerHTML = h;
+}
+async function setSpeech(childId, v) {
+  if (spBusy) return; spBusy = true;
+  const wk = spWeek, cur = spValue(childId), clear = cur === v;
+  try {
+    if (clear) {
+      await api('/rest/v1/m_speech?child_id=eq.' + childId + '&week_start=eq.' + wk, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+      spRows = spRows.filter((r) => r.child_id !== childId);
+    } else {
+      const row = { child_id: childId, week_start: wk, sessions: v, updated_at: new Date().toISOString() };
+      if (!isAdmin) row.trainer_id = me.id;
+      await api('/rest/v1/m_speech?on_conflict=child_id,week_start', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: row });
+      spRows = spRows.filter((r) => r.child_id !== childId).concat([row]);
+    }
+    if (spWeek === wk && current === 'speech') renderSpeech();
+  } catch (err) { console.error(err); toast(errText(err), false); }
+  spBusy = false;
+}
+async function spLoadWeek() {
+  try { spRows = await loadSpeech(spWeek); if (current === 'speech') renderSpeech(); } catch (err) { toast(errText(err), false); }
+}
+$('view').addEventListener('click', (e) => {
+  if (current !== 'speech') return;
+  const w = e.target.closest('[data-spw]');
+  if (w) { const d = +w.dataset.spw, cur = weekStartOf(todayISO()), nw = d === 0 ? cur : addDays(spWeek, d * 7); if (nw > cur) return; spWeek = nw; spLoadWeek(); return; }
+  const b = e.target.closest('[data-spk]'); if (b) setSpeech(+b.dataset.spk, +b.dataset.spv);
+});
+
 /* ---------------- آمار ---------------- */
 function trainerStats(tid, rows, fromIso, toIso) {
   const mine = rows.filter((r) => { const c = classById(r.class_id); return (c && c.trainer_id === tid) || r.trainer_id === tid; });
@@ -438,7 +516,7 @@ function go(tab) {
 let tDate = todayISO(), tClass = null, draft = {}, tAtt = [];
 function startTrainer() {
   tDate = todayISO(); tClass = null;
-  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['follow', '📞 پیگیری غیبت'], ['refer', '🔑 کلاس عصر'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
+  showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['speech', '🗣️ گفتاردرمانی'], ['follow', '📞 پیگیری غیبت'], ['refer', '🔑 کلاس عصر'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
   go('today');
 }
 async function refreshTrainerAtt() {
@@ -464,6 +542,7 @@ const TRAINER = {
     }
     renderToday();
   },
+  async speech() { await loadBase(); spWeek = weekStartOf(todayISO()); spRows = await loadSpeech(spWeek); renderSpeech(); },
   async follow() { await loadBase(); await refreshTrainerAtt(); renderFollow(); },
   async refer() { await loadBase(); refCache = await loadRefs(me.id); renderRefer(); },
   async children() { await loadBase(); renderMyChildren(); },
@@ -1005,7 +1084,7 @@ async function startAdmin() {
   if (ok !== true) { clearSession(); throw new Error('این ایمیل دسترسی مدیریت سیستم صبح را ندارد.'); }
   isAdmin = true; await loadBase();
   const tj = jOf(todayISO()); aMonth = { jy: tj.jy, jm: tj.jm }; aDate = todayISO();
-  showApp('پنل مدیریت نوبت صبح', session.email, [['day', 'امروز'], ['follow', 'پیگیری‌ها'], ['refs', '🔑 کلاس عصر'], ['msgs', 'پیام‌ها'], ['score', 'کارنامهٔ مربی‌ها'], ['crafts', 'کاردستی‌ها'], ['month', 'آمار ماهانه'], ['kids', 'کودکان']]);
+  showApp('پنل مدیریت نوبت صبح', session.email, [['day', 'امروز'], ['speech', '🗣️ گفتاردرمانی'], ['follow', 'پیگیری‌ها'], ['refs', '🔑 کلاس عصر'], ['msgs', 'پیام‌ها'], ['score', 'کارنامهٔ مربی‌ها'], ['crafts', 'کاردستی‌ها'], ['month', 'آمار ماهانه'], ['kids', 'کودکان']]);
   go('day'); refreshUnread();
 }
 async function refreshUnread() {
@@ -1059,6 +1138,7 @@ const ADMIN = {
       catch (e) { openModal('<h3 class="font-extrabold mb-2">متن آمار</h3><p class="text-sm text-slate-500 mb-2">متن را انتخاب و کپی کنید.</p><textarea class="inp" rows="10" id="day-text" readonly></textarea><button class="btn w-full mt-3" onclick="closeModal()">بستن</button>'); $('day-text').value = text; $('day-text').select(); }
     };
   },
+  async speech() { await loadBase(); spWeek = weekStartOf(todayISO()); spRows = await loadSpeech(spWeek); renderSpeech(); },
   async follow() {
     await loadBase(); const rows = await loadAtt(addDays(todayISO(), -60), todayISO());
     const pend = pendingFollowups(rows);
