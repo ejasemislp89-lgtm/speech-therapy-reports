@@ -461,9 +461,11 @@
 
         // -- VOICE TO TEXT LOGIC --
         let activeRecognition = null;
+        let dictationWanted = false;
         function startDictation(elementId, btnElement) {
             const inputEl = document.getElementById(elementId);
             if (activeRecognition) {
+                dictationWanted = false;
                 try { activeRecognition.stop(); } catch(e){}
                 activeRecognition = null;
                 btnElement.classList.remove('recording');
@@ -479,8 +481,10 @@
                 }
                 const recognition = new SpeechRecognition();
                 recognition.lang = 'fa-IR';
-                recognition.continuous = false; 
-                recognition.interimResults = false;
+                // پیوسته: تا وقتی دوباره دکمه را نزده‌اید گوش می‌دهد و با مکث قطع نمی‌شود
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                dictationWanted = true;
 
                 recognition.onstart = function() {
                     btnElement.classList.add('recording');
@@ -490,11 +494,17 @@
                 };
 
                 recognition.onresult = function(event) {
-                    const text = event.results[0][0].transcript;
-                    inputEl.value += (inputEl.value.length > 0 ? ' ' : '') + text;
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (!event.results[i].isFinal) continue;
+                        const text = (event.results[i][0].transcript || '').trim();
+                        if (!text) continue;
+                        inputEl.value += (inputEl.value.length > 0 && !/\s$/.test(inputEl.value) ? ' ' : '') + text;
+                    }
                 };
 
                 recognition.onerror = function(event) {
+                    if (event.error === 'no-speech' || event.error === 'aborted') return;   // onend دوباره شروع می‌کند
+                    dictationWanted = false;
                     btnElement.classList.remove('recording');
                     btnElement.style.backgroundColor = '';
                     inputEl.placeholder = "";
@@ -511,10 +521,14 @@
                 };
 
                 recognition.onend = function() {
+                    // مرورگر گاهی خودش بعد از چند ثانیه قطع می‌کند؛ اگر کاربر هنوز توقف نزده، دوباره شروع کن
+                    if (dictationWanted && activeRecognition === recognition) {
+                        try { setTimeout(() => { if (dictationWanted && activeRecognition === recognition) { try { recognition.start(); } catch (e) {} } }, 250); return; } catch (e) {}
+                    }
                     btnElement.classList.remove('recording');
                     btnElement.style.backgroundColor = '';
                     inputEl.placeholder = "";
-                    activeRecognition = null;
+                    if (activeRecognition === recognition) activeRecognition = null;
                 };
 
                 recognition.start();
