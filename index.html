@@ -517,13 +517,18 @@
                     });
                     const data = await resp.json().catch(() => ({}));
                     if (!resp.ok || !data.text) {
-                        if (data.error === 'no_key') throw new Error('سرویس تبدیل صدا هنوز فعال نشده است.');
+                        if (data.error === 'no_key') { const e0 = new Error('NOKEY'); throw e0; }
                         if (data.error === 'too_long') throw new Error('ضبط بیش از حد طولانی بود. کوتاه‌تر ضبط کنید.');
                         throw new Error('تبدیل انجام نشد' + (data.status ? ' (' + data.status + ')' : '') + '.');
                     }
                     el.value += (el.value.length > 0 && !/\s$/.test(el.value) ? ' ' : '') + data.text;
                 } catch (e) {
-                    alert('❌ ' + (e.message || 'تبدیل صدا به متن انجام نشد. اینترنت را بررسی کنید و دوباره تلاش کنید.'));
+                    if (e && e.message === 'NOKEY') {
+                        alert('سرویس تبدیل صدا هنوز فعال نشده است؛ فعلاً از تایپ صوتی قدیمی استفاده می‌شود.');
+                        setTimeout(() => startDictationLegacy(elementId, btnElement), 100);
+                    } else {
+                        alert('❌ ' + (e.message || 'تبدیل صدا به متن انجام نشد. اینترنت را بررسی کنید و دوباره تلاش کنید.'));
+                    }
                 } finally {
                     el.placeholder = '';
                     recUi(btnElement, 'idle');
