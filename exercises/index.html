@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="تمرینات">
+<title>کتابچه تمرینات</title>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+<style>
+:root{
+  --bg:#f1f5f4; --surface:#ffffff; --ink:#16302d; --muted:#5f7672; --line:#dbe5e3;
+  --accent:#0f766e; --accent-ink:#ffffff; --accent-soft:#dff1ee; --star:#d98e04;
+  --bad:#b42318; --bad-soft:#fbe3df; --field:#f6f9f8;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1b19; --surface:#172623; --ink:#e6f0ed; --muted:#9ab1ab; --line:#29403b;
+    --accent:#4fc0b4; --accent-ink:#06201d; --accent-soft:#1c3a36; --star:#f2b84b;
+    --bad:#ff8f84; --bad-soft:#44201c; --field:#10201d; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1b19; --surface:#172623; --ink:#e6f0ed; --muted:#9ab1ab; --line:#29403b;
+  --accent:#4fc0b4; --accent-ink:#06201d; --accent-soft:#1c3a36; --star:#f2b84b;
+  --bad:#ff8f84; --bad-soft:#44201c; --field:#10201d; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Vazirmatn',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.7;
+  padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(92px + env(safe-area-inset-bottom,0px));-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+.wrap{max-width:680px;margin:0 auto}
+input,select,textarea{width:100%;border:1.5px solid var(--line);background:var(--field);border-radius:10px;padding:10px 12px;min-height:44px}
+textarea{min-height:84px;resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+label{display:block;font-size:13px;font-weight:700;color:var(--accent);margin:12px 0 4px}
+.btn{border:0;border-radius:11px;padding:11px 16px;font-weight:700;background:var(--accent);color:var(--accent-ink);min-height:46px}
+.btn.ghost{background:var(--accent-soft);color:var(--accent)}
+.btn.danger{background:var(--bad-soft);color:var(--bad)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+/* login */
+.login{margin-top:14vh;padding:24px 20px}
+.login h1{margin:0 0 4px;font-size:21px;color:var(--accent)}
+.login p{margin:0 0 14px;color:var(--muted);font-size:13.5px}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:9px 12px;margin:10px 0;font-size:13.5px}
+/* top */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0 8px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.bar h1{margin:0;font-size:18px;color:var(--accent)}
+.link{background:none;border:0;color:var(--muted);font-size:13px;padding:6px 2px}
+.tools{display:flex;gap:8px}
+.tools input{flex:1}
+.chip{flex:none;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:10px;padding:0 12px;font-weight:700;min-height:44px}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.crumbs{display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center;font-size:13.5px;padding:10px 2px 4px;color:var(--muted)}
+.crumbs button{background:none;border:0;color:var(--accent);font-weight:700;padding:2px 2px}
+.crumbs span.cur{font-weight:700;color:var(--ink)}
+/* list */
+.list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.row{display:flex;align-items:center;gap:10px;width:100%;text-align:right;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 12px}
+.row .ic{font-size:22px;flex:none}
+.row .main{flex:1;min-width:0}
+.row .t{font-weight:700;overflow-wrap:anywhere}
+.row .s{font-size:12.5px;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.row.ex{border-right:4px solid var(--accent)}
+.ib{flex:none;background:none;border:0;width:40px;height:40px;border-radius:9px;font-size:19px;color:var(--muted);display:grid;place-items:center}
+.ib.on{color:var(--star)}
+.empty{text-align:center;color:var(--muted);padding:34px 14px}
+/* bottom actions */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:linear-gradient(transparent,var(--bg) 40%);
+  padding:14px max(14px,env(safe-area-inset-left,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-right,0px))}
+.dock .in{max-width:680px;margin:0 auto;display:flex;gap:8px}
+.dock .btn{flex:1;box-shadow:0 5px 16px rgba(0,0,0,.18)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(5,15,13,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:93vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px))}
+.sheet h2{margin:0;font-size:18px;overflow-wrap:anywhere}
+.path{font-size:12.5px;color:var(--muted);margin:2px 0 6px;overflow-wrap:anywhere}
+.sec{margin-top:12px}
+.sec h3{margin:0 0 2px;font-size:13px;color:var(--accent)}
+.sec p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.acts{display:flex;gap:8px;margin-top:16px}
+.acts .btn{flex:1}
+.check{display:flex;align-items:center;gap:10px;margin-top:12px}
+.check input{width:20px;height:20px;min-height:0}
+.check label{margin:0;color:var(--ink);font-size:14px}
+.toast{position:fixed;right:50%;transform:translateX(50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;z-index:30;font-size:13.5px}
+#install-card{margin-top:14px;padding:14px;font-size:13.5px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .16s ease-out}@keyframes up{from{transform:translateY(22px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+</head>
+<body>
+
+<div id="login-view" class="wrap">
+  <form id="login-form" class="card login">
+    <h1>کتابچه تمرینات</h1>
+    <p>فقط برای استفاده شخصی. با ایمیل و رمز مدیر وارد شوید.</p>
+    <p id="login-error" class="err hidden"></p>
+    <label for="l-email">ایمیل</label><input id="l-email" type="email" dir="ltr" autocomplete="username" required>
+    <label for="l-pass">رمز عبور</label><input id="l-pass" type="password" dir="ltr" autocomplete="current-password" required>
+    <button id="login-btn" class="btn" style="width:100%;margin-top:16px">ورود</button>
+  </form>
+  <div id="install-card" class="card hidden">
+    برای نصب روی گوشی: در <b>Safari</b> دکمه اشتراک‌گذاری را بزنید، بعد <b>Add to Home Screen</b>. در Chrome از منوی سه‌نقطه، <b>Add to Home screen</b>.
+  </div>
+</div>
+
+<div id="app-view" class="wrap hidden">
+  <header class="top">
+    <div class="bar"><h1>کتابچه تمرینات</h1><button class="link" id="logout-btn">خروج</button></div>
+    <div class="tools">
+      <input id="q" type="search" placeholder="جستجو در همه تمرین‌ها" autocomplete="off">
+      <button class="chip" id="star-filter" aria-pressed="false" aria-label="فقط ستاره‌دارها">★</button>
+    </div>
+    <nav class="crumbs" id="crumbs" aria-label="مسیر"></nav>
+  </header>
+  <main class="list" id="list"></main>
+  <div class="dock"><div class="in">
+    <button class="btn ghost" id="add-folder">+ پوشه</button>
+    <button class="btn" id="add-ex">+ تمرین</button>
+  </div></div>
+</div>
+
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script>
+const SUPABASE_URL = 'https://gtjqzwdgmilcdgqlqhik.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uzoljC3RKdT8tBe7WyGH_A_E7wthbmV';
+
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toFa = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
+/* ---------- نشست و ارتباط با پایگاه داده ---------- */
+let session = null;
+const saveSession = () => { try { localStorage.setItem('ex_session', JSON.stringify(session)); } catch(e){} };
+const loadSession = () => { try { const s = localStorage.getItem('ex_session'); return s ? JSON.parse(s) : null; } catch(e){ return null; } };
+const clearSession = () => { session = null; try { localStorage.removeItem('ex_session'); } catch(e){} };
+
+async function authCall(grant, body){
+  const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=' + grant, {
+    method:'POST', headers:{apikey:SUPABASE_KEY, 'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data.error_description || data.msg || 'خطا در ورود');
+  session = { access_token:data.access_token, refresh_token:data.refresh_token, email:(data.user && data.user.email) || (session && session.email) || '' };
+  saveSession(); return session;
+}
+async function refreshSession(){
+  if(!session || !session.refresh_token) return false;
+  try { await authCall('refresh_token', {refresh_token:session.refresh_token}); return true; } catch(e){ return false; }
+}
+async function api(path, opts = {}){
+  const { method='GET', body, headers={}, retry=true } = opts;
+  const res = await fetch(SUPABASE_URL + path, { method,
+    headers: Object.assign({apikey:SUPABASE_KEY, Authorization:'Bearer ' + (session ? session.access_token : SUPABASE_KEY), 'Content-Type':'application/json'}, headers),
+    body: body === undefined ? undefined : JSON.stringify(body) });
+  if(res.status === 401 && retry && session){
+    if(await refreshSession()) return api(path, Object.assign({}, opts, {retry:false}));
+    logout(); throw new Error('نشست شما تمام شد. دوباره وارد شوید.'); }
+  if(!res.ok){ const t = await res.text(); throw new Error(t || ('خطا ' + res.status)); }
+  if(res.status === 204) return null;
+  const txt = await res.text(); return txt ? JSON.parse(txt) : null;
+}
+
+/* ---------- درخت ---------- */
+let nodes = [], by = new Map(), kids = new Map();
+let cur = null, query = '', onlyStar = false, sheet = null;
+
+function indexNodes(){
+  by = new Map(); kids = new Map();
+  nodes.forEach((n) => { by.set(n.id, n); const k = n.parent_id || 0; if(!kids.has(k)) kids.set(k, []); kids.get(k).push(n); });
+}
+const children = (id) => kids.get(id || 0) || [];
+function descendants(id){
+  const out = [];
+  (function walk(i){ children(i).forEach((c) => { out.push(c); if(c.kind === 'folder') walk(c.id); }); })(id);
+  return out;
+}
+function pathOf(id){
+  const p = []; let n = by.get(id), guard = 0;
+  while(n && guard++ < 50){ p.unshift(n); n = n.parent_id ? by.get(n.parent_id) : null; }
+  return p;
+}
+const exCount = (id) => descendants(id).filter((n) => n.kind === 'exercise').length;
+function folderOptions(excludeId){
+  const out = [];
+  (function walk(parent, depth){
+    children(parent).filter((n) => n.kind === 'folder' && n.id !== excludeId).forEach((f) => {
+      out.push({id:f.id, label:'— '.repeat(depth) + f.title}); walk(f.id, depth + 1); });
+  })(null, 0);
+  return out;
+}
+async function loadNodes(){
+  nodes = await api('/rest/v1/ex_nodes?select=*&order=sort.asc,id.asc');
+  indexNodes();
+  if(cur && !by.has(cur)) cur = null;
+}
+const matches = (n, q) => [n.title, n.goal, n.steps, n.tools, n.levels, n.note].some((v) => v && v.toLowerCase().includes(q));
+
+/* ---------- نمایش ---------- */
+function toast(t){
+  $('toast-root').innerHTML = '<div class="toast" role="status">' + esc(t) + '</div>';
+  clearTimeout(toast._t); toast._t = setTimeout(() => { $('toast-root').innerHTML = ''; }, 2200);
+}
+function renderCrumbs(){
+  const showing = query || onlyStar;
+  if(showing){
+    $('crumbs').innerHTML = '<span class="cur">' + (query ? 'نتیجه جستجو' : 'تمرین‌های ستاره‌دار') + '</span>';
+    return;
+  }
+  const p = pathOf(cur);
+  $('crumbs').innerHTML = (p.length ? '<button data-go="0">کتابچه</button>' : '<span class="cur">کتابچه</span>')
+    + p.map((n, i) => ' ‹ ' + (i === p.length - 1 ? '<span class="cur">' + esc(n.title) + '</span>' : '<button data-go="' + n.id + '">' + esc(n.title) + '</button>')).join('');
+}
+function folderRow(n){
+  const c = exCount(n.id), sub = children(n.id).filter((x) => x.kind === 'folder').length;
+  const info = [sub ? toFa(sub) + ' پوشه' : '', c ? toFa(c) + ' تمرین' : ''].filter(Boolean).join(' · ') || 'خالی';
+  return '<div class="row" style="padding:0"><button class="row" style="border:0;background:none" data-open="' + n.id + '">'
+    + '<span class="ic">📁</span><span class="main"><span class="t">' + esc(n.title) + '</span><span class="s" style="display:block">' + info + '</span></span></button>'
+    + '<button class="ib" data-edit="' + n.id + '" aria-label="ویرایش پوشه">⋯</button></div>';
+}
+function exRow(n, showPath){
+  const p = showPath ? pathOf(n.parent_id).map((x) => x.title).join(' ‹ ') : '';
+  const sub = p || (n.goal || '');
+  return '<div class="row ex" style="padding:0"><button class="row" style="border:0;background:none" data-view="' + n.id + '">'
+    + '<span class="main"><span class="t">' + esc(n.title) + '</span>' + (sub ? '<span class="s" style="display:block">' + esc(sub) + '</span>' : '') + '</span></button>'
+    + '<button class="ib' + (n.starred ? ' on' : '') + '" data-star="' + n.id + '" aria-label="ستاره">' + (n.starred ? '★' : '☆') + '</button></div>';
+}
+function render(){
+  renderCrumbs();
+  const q = query.trim().toLowerCase();
+  let html = '';
+  if(q || onlyStar){
+    const found = nodes.filter((n) => n.kind === 'exercise' && (!onlyStar || n.starred) && (!q || matches(n, q)));
+    const folders = q ? nodes.filter((n) => n.kind === 'folder' && n.title.toLowerCase().includes(q)) : [];
+    html = folders.map(folderRow).join('') + found.map((n) => exRow(n, true)).join('');
+    if(!html) html = '<div class="empty">چیزی پیدا نشد.</div>';
+  } else {
+    const items = children(cur);
+    const f = items.filter((n) => n.kind === 'folder'), e = items.filter((n) => n.kind === 'exercise');
+    html = f.map(folderRow).join('') + e.map((n) => exRow(n, false)).join('');
+    if(!html) html = '<div class="empty">' + (cur ? 'این پوشه خالی است. با «+ تمرین» اولین تمرین را اضافه کنید.' : 'کتابچه خالی است. با «+ پوشه» شروع کنید.') + '</div>';
+  }
+  $('list').innerHTML = html;
+}
+
+/* ---------- برگه (مشاهده / ویرایش) ---------- */
+const FIELDS = [['goal','هدف تمرین'], ['steps','روش اجرا'], ['tools','ابزار لازم'], ['levels','سطح‌ها (آسان‌تر و سخت‌تر)'], ['note','یادداشت من']];
+
+function openSheet(s){ sheet = s; renderSheet(); }
+function closeSheet(){ sheet = null; $('sheet-root').innerHTML = ''; }
+
+function renderSheet(){
+  if(!sheet){ $('sheet-root').innerHTML = ''; return; }
+  const n = sheet.id ? by.get(sheet.id) : null;
+  let body = '';
+  if(sheet.mode === 'view' && n){
+    const path = pathOf(n.parent_id).map((x) => esc(x.title)).join(' ‹ ');
+    body = '<h2>' + esc(n.title) + '</h2><div class="path">' + (path || 'کتابچه') + '</div>'
+      + FIELDS.map(([k, label]) => n[k] ? '<div class="sec"><h3>' + label + '</h3><p>' + esc(n[k]) + '</p></div>' : '').join('')
+      + (FIELDS.every(([k]) => !n[k]) ? '<p class="path" style="margin-top:14px">هنوز جزئیاتی نوشته نشده. با «ویرایش» اضافه کنید.</p>' : '')
+      + '<div class="acts"><button class="btn" data-sheet="edit">ویرایش</button><button class="btn ghost" data-sheet="close">بستن</button></div>';
+  } else {
+    const kind = sheet.kind || (n && n.kind) || 'exercise';
+    const v = n || { title:'', parent_id:sheet.parent || null, goal:'', steps:'', tools:'', levels:'', note:'', starred:false };
+    const opts = folderOptions(n && n.kind === 'folder' ? n.id : null);
+    const bad = n && n.kind === 'folder' ? new Set(descendants(n.id).map((x) => x.id)) : new Set();
+    body = '<h2>' + (n ? (kind === 'folder' ? 'ویرایش پوشه' : 'ویرایش تمرین') : (kind === 'folder' ? 'پوشه جدید' : 'تمرین جدید')) + '</h2>'
+      + (sheet.err ? '<p class="err">' + esc(sheet.err) + '</p>' : '')
+      + '<form id="sheet-form">'
+      + '<label for="f-title">' + (kind === 'folder' ? 'نام پوشه' : 'عنوان تمرین') + '</label><input id="f-title" value="' + esc(v.title) + '" autocomplete="off">'
+      + '<label for="f-parent">محل</label><select id="f-parent"><option value="">کتابچه (بالاترین سطح)</option>'
+      + opts.filter((o) => !bad.has(o.id)).map((o) => '<option value="' + o.id + '"' + (o.id === v.parent_id ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select>'
+      + (kind === 'exercise' ? FIELDS.map(([k, label]) => '<label for="f-' + k + '">' + label + '</label><textarea id="f-' + k + '">' + esc(v[k] || '') + '</textarea>').join('')
+        + '<div class="check"><input type="checkbox" id="f-star"' + (v.starred ? ' checked' : '') + '><label for="f-star">ستاره‌دار (پرکاربرد)</label></div>' : '')
+      + '<div class="acts"><button class="btn" type="submit">ذخیره</button><button class="btn ghost" type="button" data-sheet="cancel">بستن</button>'
+      + (n ? '<button class="btn danger" type="button" data-sheet="delete">' + (sheet.confirmDel ? 'حذف قطعی' : 'حذف') + '</button>' : '') + '</div>'
+      + (sheet.confirmDel && n ? '<p class="err" style="margin-top:10px">' + (n.kind === 'folder' ? 'این پوشه با همه محتوایش (' + toFa(descendants(n.id).length) + ' مورد) پاک می‌شود. برای تأیید دوباره «حذف قطعی» را بزنید.' : 'این تمرین پاک می‌شود. برای تأیید دوباره «حذف قطعی» را بزنید.') + '</p>' : '')
+      + '</form>';
+  }
+  $('sheet-root').innerHTML = '<div class="scrim" id="scrim"><div class="sheet" role="dialog" aria-modal="true">' + body + '</div></div>';
+  const form = $('sheet-form');
+  if(form) form.addEventListener('submit', saveSheet);
+  if(!sheet.id && form) setTimeout(() => $('f-title').focus(), 40);
+}
+
+async function saveSheet(e){
+  e.preventDefault();
+  const n = sheet.id ? by.get(sheet.id) : null;
+  const kind = (n && n.kind) || sheet.kind || 'exercise';
+  const title = $('f-title').value.trim();
+  if(!title){ sheet.err = 'عنوان را بنویسید.'; keepForm(); return; }
+  const parent = $('f-parent').value ? Number($('f-parent').value) : null;
+  const body = { title, parent_id: parent, kind };
+  if(kind === 'exercise'){
+    FIELDS.forEach(([k]) => { body[k] = $('f-' + k).value.trim() || null; });
+    body.starred = $('f-star').checked;
+  }
+  try {
+    if(n){
+      await api('/rest/v1/ex_nodes?id=eq.' + n.id, { method:'PATCH', headers:{Prefer:'return=minimal'}, body });
+    } else {
+      body.sort = children(parent).reduce((m, x) => Math.max(m, x.sort || 0), 0) + 1;
+      await api('/rest/v1/ex_nodes', { method:'POST', headers:{Prefer:'return=minimal'}, body });
+    }
+    await loadNodes(); closeSheet(); render(); toast('ذخیره شد');
+  } catch(err){ sheet.err = 'ذخیره نشد: ' + err.message; keepForm(); }
+}
+function keepForm(){
+  // متن‌های نوشته‌شده حفظ شوند و فقط پیام خطا اضافه شود
+  const keep = {};
+  ['f-title','f-parent','f-goal','f-steps','f-tools','f-levels','f-note'].forEach((id) => { const el = $(id); if(el) keep[id] = el.value; });
+  const star = $('f-star') ? $('f-star').checked : null;
+  renderSheet();
+  Object.keys(keep).forEach((id) => { const el = $(id); if(el) el.value = keep[id]; });
+  if(star !== null && $('f-star')) $('f-star').checked = star;
+}
+
+/* ---------- رویدادها ---------- */
+$('list').addEventListener('click', async (e) => {
+  const open = e.target.closest('[data-open]');
+  if(open){ query = ''; $('q').value = ''; onlyStar = false; $('star-filter').setAttribute('aria-pressed', 'false'); cur = Number(open.dataset.open); render(); window.scrollTo(0, 0); return; }
+  const view = e.target.closest('[data-view]'); if(view){ openSheet({mode:'view', id:Number(view.dataset.view)}); return; }
+  const edit = e.target.closest('[data-edit]'); if(edit){ openSheet({mode:'edit', id:Number(edit.dataset.edit)}); return; }
+  const star = e.target.closest('[data-star]');
+  if(star){
+    const n = by.get(Number(star.dataset.star)); if(!n) return;
+    try { await api('/rest/v1/ex_nodes?id=eq.' + n.id, { method:'PATCH', headers:{Prefer:'return=minimal'}, body:{starred:!n.starred} }); n.starred = !n.starred; render(); }
+    catch(err){ toast('ذخیره نشد'); }
+  }
+});
+$('crumbs').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if(!b) return; const id = Number(b.dataset.go); cur = id || null; render(); });
+$('q').addEventListener('input', (e) => { query = e.target.value; render(); });
+$('star-filter').addEventListener('click', () => { onlyStar = !onlyStar; $('star-filter').setAttribute('aria-pressed', String(onlyStar)); render(); });
+$('add-folder').addEventListener('click', () => openSheet({mode:'edit', kind:'folder', parent:cur}));
+$('add-ex').addEventListener('click', () => openSheet({mode:'edit', kind:'exercise', parent:cur}));
+$('sheet-root').addEventListener('click', async (e) => {
+  if(e.target.id === 'scrim'){ closeSheet(); return; }
+  const b = e.target.closest('[data-sheet]'); if(!b) return;
+  const act = b.dataset.sheet;
+  if(act === 'close' || act === 'cancel') closeSheet();
+  else if(act === 'edit'){ sheet.mode = 'edit'; renderSheet(); }
+  else if(act === 'delete'){
+    if(!sheet.confirmDel){ sheet.confirmDel = true; keepForm(); return; }
+    try { await api('/rest/v1/ex_nodes?id=eq.' + sheet.id, { method:'DELETE' }); await loadNodes(); closeSheet(); render(); toast('حذف شد'); }
+    catch(err){ sheet.err = 'حذف نشد: ' + err.message; keepForm(); }
+  }
+});
+
+/* ---------- ورود ---------- */
+function showApp(on){ $('login-view').classList.toggle('hidden', on); $('app-view').classList.toggle('hidden', !on); $('app-view').closest('body'); }
+function logout(){ clearSession(); nodes = []; closeSheet(); showApp(false); $('l-pass').value = ''; }
+async function startApp(){
+  const role = await api('/rest/v1/rpc/acc_my_role', {method:'POST', body:{}});
+  if(role !== 'admin'){
+    clearSession(); showApp(false);
+    $('login-error').textContent = 'این ایمیل دسترسی ندارد.'; $('login-error').classList.remove('hidden'); return; }
+  showApp(true);
+  try { await loadNodes(); render(); }
+  catch(err){ $('list').innerHTML = '<div class="err">خطا در بارگذاری: ' + esc(err.message) + '</div>'; }
+}
+$('login-form').addEventListener('submit', async (e) => {
+  e.preventDefault(); const btn = $('login-btn'); btn.disabled = true; btn.textContent = 'در حال ورود...';
+  $('login-error').classList.add('hidden');
+  try { await authCall('password', {email:$('l-email').value.trim(), password:$('l-pass').value}); await startApp(); }
+  catch(err){ $('login-error').textContent = /Invalid login/i.test(err.message) ? 'ایمیل یا رمز عبور اشتباه است.' : 'ورود ناموفق: ' + err.message; $('login-error').classList.remove('hidden'); }
+  finally { btn.disabled = false; btn.textContent = 'ورود'; }
+});
+$('logout-btn').addEventListener('click', logout);
+
+(async function boot(){
+  session = loadSession(); if(!session) return;
+  try { if(!(await refreshSession())){ clearSession(); return; } await startApp(); }
+  catch(e){ clearSession(); showApp(false); }
+})();
+
+(function setupInstall(){
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', {scope:'./'}).catch(() => {});
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if(!standalone) $('install-card').classList.remove('hidden');
+})();
+</script>
+</body>
+</html>
