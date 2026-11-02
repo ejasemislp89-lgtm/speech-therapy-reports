@@ -85,6 +85,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .scrim{position:fixed;inset:0;background:rgba(5,15,13,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--surface);width:100%;max-width:640px;max-height:93vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0px))}
 .sheet h2{margin:0;font-size:18px;overflow-wrap:anywhere}
+.sheet button.back{background:var(--accent-soft);color:var(--accent);border:0;border-radius:9px;padding:6px 12px;min-height:36px;font-weight:700;margin-bottom:10px}
 .path{font-size:12.5px;color:var(--muted);margin:2px 0 6px;overflow-wrap:anywhere}
 .sec{margin-top:12px}
 .sec h3{margin:0 0 2px;font-size:13px;color:var(--accent)}
@@ -259,8 +260,22 @@ function render(){
 /* ---------- برگه (مشاهده / ویرایش) ---------- */
 const FIELDS = [['goal','هدف تمرین'], ['steps','روش اجرا'], ['tools','ابزار لازم'], ['levels','سطح‌ها (آسان‌تر و سخت‌تر)'], ['note','یادداشت من']];
 
-function openSheet(s){ sheet = s; renderSheet(); }
-function closeSheet(){ sheet = null; $('sheet-root').innerHTML = ''; }
+let sheetPushed = false;
+function openSheet(s){
+  sheet = s;
+  if(!sheetPushed){ try { history.pushState({sheet:1}, ''); sheetPushed = true; } catch(e){} }  // برگشت گوشی فقط برگه را می‌بندد
+  renderSheet();
+}
+function closeSheet(){
+  sheet = null; $('sheet-root').innerHTML = '';
+  if(sheetPushed){ sheetPushed = false; try { history.back(); } catch(e){} }
+}
+function sheetBack(){
+  const n = sheet && sheet.id ? by.get(sheet.id) : null;
+  if(sheet && sheet.mode === 'edit' && sheet.fromView && n){ sheet.mode = 'view'; sheet.err = ''; sheet.confirmDel = false; renderSheet(); return; }
+  closeSheet();
+}
+window.addEventListener('popstate', () => { if(sheet){ sheetPushed = false; sheet = null; $('sheet-root').innerHTML = ''; } });
 
 function renderSheet(){
   if(!sheet){ $('sheet-root').innerHTML = ''; return; }
@@ -268,16 +283,16 @@ function renderSheet(){
   let body = '';
   if(sheet.mode === 'view' && n){
     const path = pathOf(n.parent_id).map((x) => esc(x.title)).join(' ‹ ');
-    body = '<h2>' + esc(n.title) + '</h2><div class="path">' + (path || 'کتابچه') + '</div>'
+    body = '<button class="back" data-sheet="back">→ برگشت</button><h2>' + esc(n.title) + '</h2><div class="path">' + (path || 'کتابچه') + '</div>'
       + FIELDS.map(([k, label]) => n[k] ? '<div class="sec"><h3>' + label + '</h3><p>' + esc(n[k]) + '</p></div>' : '').join('')
       + (FIELDS.every(([k]) => !n[k]) ? '<p class="path" style="margin-top:14px">هنوز جزئیاتی نوشته نشده. با «ویرایش» اضافه کنید.</p>' : '')
-      + '<div class="acts"><button class="btn" data-sheet="edit">ویرایش</button><button class="btn ghost" data-sheet="close">بستن</button></div>';
+      + '<div class="acts"><button class="btn" data-sheet="edit">ویرایش</button><button class="btn ghost" data-sheet="back">برگشت</button></div>';
   } else {
     const kind = sheet.kind || (n && n.kind) || 'exercise';
     const v = n || { title:'', parent_id:sheet.parent || null, goal:'', steps:'', tools:'', levels:'', note:'', starred:false };
     const opts = folderOptions(n && n.kind === 'folder' ? n.id : null);
     const bad = n && n.kind === 'folder' ? new Set(descendants(n.id).map((x) => x.id)) : new Set();
-    body = '<h2>' + (n ? (kind === 'folder' ? 'ویرایش پوشه' : 'ویرایش تمرین') : (kind === 'folder' ? 'پوشه جدید' : 'تمرین جدید')) + '</h2>'
+    body = '<button class="back" data-sheet="back">→ برگشت</button><h2>' + (n ? (kind === 'folder' ? 'ویرایش پوشه' : 'ویرایش تمرین') : (kind === 'folder' ? 'پوشه جدید' : 'تمرین جدید')) + '</h2>'
       + (sheet.err ? '<p class="err">' + esc(sheet.err) + '</p>' : '')
       + '<form id="sheet-form">'
       + '<label for="f-title">' + (kind === 'folder' ? 'نام پوشه' : 'عنوان تمرین') + '</label><input id="f-title" value="' + esc(v.title) + '" autocomplete="off">'
@@ -285,7 +300,7 @@ function renderSheet(){
       + opts.filter((o) => !bad.has(o.id)).map((o) => '<option value="' + o.id + '"' + (o.id === v.parent_id ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select>'
       + (kind === 'exercise' ? FIELDS.map(([k, label]) => '<label for="f-' + k + '">' + label + '</label><textarea id="f-' + k + '">' + esc(v[k] || '') + '</textarea>').join('')
         + '<div class="check"><input type="checkbox" id="f-star"' + (v.starred ? ' checked' : '') + '><label for="f-star">ستاره‌دار (پرکاربرد)</label></div>' : '')
-      + '<div class="acts"><button class="btn" type="submit">ذخیره</button><button class="btn ghost" type="button" data-sheet="cancel">بستن</button>'
+      + '<div class="acts"><button class="btn" type="submit">ذخیره</button><button class="btn ghost" type="button" data-sheet="back">برگشت</button>'
       + (n ? '<button class="btn danger" type="button" data-sheet="delete">' + (sheet.confirmDel ? 'حذف قطعی' : 'حذف') + '</button>' : '') + '</div>'
       + (sheet.confirmDel && n ? '<p class="err" style="margin-top:10px">' + (n.kind === 'folder' ? 'این پوشه با همه محتوایش (' + toFa(descendants(n.id).length) + ' مورد) پاک می‌شود. برای تأیید دوباره «حذف قطعی» را بزنید.' : 'این تمرین پاک می‌شود. برای تأیید دوباره «حذف قطعی» را بزنید.') + '</p>' : '')
       + '</form>';
@@ -366,8 +381,8 @@ $('sheet-root').addEventListener('click', async (e) => {
   if(e.target.id === 'scrim'){ closeSheet(); return; }
   const b = e.target.closest('[data-sheet]'); if(!b) return;
   const act = b.dataset.sheet;
-  if(act === 'close' || act === 'cancel') closeSheet();
-  else if(act === 'edit'){ sheet.mode = 'edit'; renderSheet(); }
+  if(act === 'close' || act === 'cancel' || act === 'back') sheetBack();
+  else if(act === 'edit'){ sheet.mode = 'edit'; sheet.fromView = true; renderSheet(); }
   else if(act === 'delete'){
     if(!sheet.confirmDel){ sheet.confirmDel = true; keepForm(); return; }
     try { await api('/rest/v1/ex_nodes?id=eq.' + sheet.id, { method:'DELETE' }); await loadNodes(); closeSheet(); render(); toast('حذف شد'); }
