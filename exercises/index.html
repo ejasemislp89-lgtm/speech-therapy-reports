@@ -64,6 +64,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .crumbs{display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center;font-size:13.5px;padding:10px 2px 4px;color:var(--muted)}
 .crumbs button{background:none;border:0;color:var(--accent);font-weight:700;padding:2px 2px}
 .crumbs span.cur{font-weight:700;color:var(--ink)}
+.crumbs button.back{background:var(--accent-soft);color:var(--accent);border-radius:9px;padding:6px 12px;min-height:36px;margin-inline-end:6px}
 /* list */
 .list{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .row{display:flex;align-items:center;gap:10px;width:100%;text-align:right;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 12px}
@@ -214,12 +215,13 @@ function toast(t){
 }
 function renderCrumbs(){
   const showing = query || onlyStar;
+  const back = '<button class="back" data-back="1">→ برگشت</button>';
   if(showing){
-    $('crumbs').innerHTML = '<span class="cur">' + (query ? 'نتیجه جستجو' : 'تمرین‌های ستاره‌دار') + '</span>';
+    $('crumbs').innerHTML = back + '<span class="cur">' + (query ? 'نتیجه جستجو' : 'تمرین‌های ستاره‌دار') + '</span>';
     return;
   }
   const p = pathOf(cur);
-  $('crumbs').innerHTML = (p.length ? '<button data-go="0">کتابچه</button>' : '<span class="cur">کتابچه</span>')
+  $('crumbs').innerHTML = (p.length ? back : '') + (p.length ? '<button data-go="0">کتابچه</button>' : '<span class="cur">کتابچه</span>')
     + p.map((n, i) => ' ‹ ' + (i === p.length - 1 ? '<span class="cur">' + esc(n.title) + '</span>' : '<button data-go="' + n.id + '">' + esc(n.title) + '</button>')).join('');
 }
 function folderRow(n){
@@ -329,7 +331,7 @@ function keepForm(){
 /* ---------- رویدادها ---------- */
 $('list').addEventListener('click', async (e) => {
   const open = e.target.closest('[data-open]');
-  if(open){ query = ''; $('q').value = ''; onlyStar = false; $('star-filter').setAttribute('aria-pressed', 'false'); cur = Number(open.dataset.open); render(); window.scrollTo(0, 0); return; }
+  if(open){ clearFilters(); goTo(Number(open.dataset.open)); window.scrollTo(0, 0); return; }
   const view = e.target.closest('[data-view]'); if(view){ openSheet({mode:'view', id:Number(view.dataset.view)}); return; }
   const edit = e.target.closest('[data-edit]'); if(edit){ openSheet({mode:'edit', id:Number(edit.dataset.edit)}); return; }
   const star = e.target.closest('[data-star]');
@@ -339,7 +341,23 @@ $('list').addEventListener('click', async (e) => {
     catch(err){ toast('ذخیره نشد'); }
   }
 });
-$('crumbs').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if(!b) return; const id = Number(b.dataset.go); cur = id || null; render(); });
+/* ---------- ناوبری و برگشت (دکمه برگشت خود گوشی هم کار می‌کند) ---------- */
+function hashId(){ const m = location.hash.match(/^#f(\d+)$/); const id = m ? Number(m[1]) : null; return id && by.has(id) ? id : null; }
+function goTo(id){
+  const next = id ? '#f' + id : '';
+  if((location.hash || '') === next){ cur = id || null; render(); return; }
+  location.hash = next;            // رویداد hashchange نمایش را به‌روز می‌کند
+}
+function clearFilters(){ query = ''; $('q').value = ''; onlyStar = false; $('star-filter').setAttribute('aria-pressed', 'false'); }
+window.addEventListener('hashchange', () => { if(!nodes.length && !by.size) return; cur = hashId(); closeSheet(); render(); });
+$('crumbs').addEventListener('click', (e) => {
+  if(e.target.closest('[data-back]')){
+    if(query || onlyStar){ clearFilters(); render(); return; }
+    const p = pathOf(cur); goTo(p.length > 1 ? p[p.length - 2].id : null); return;
+  }
+  const b = e.target.closest('[data-go]'); if(!b) return;
+  clearFilters(); goTo(Number(b.dataset.go) || null);
+});
 $('q').addEventListener('input', (e) => { query = e.target.value; render(); });
 $('star-filter').addEventListener('click', () => { onlyStar = !onlyStar; $('star-filter').setAttribute('aria-pressed', String(onlyStar)); render(); });
 $('add-folder').addEventListener('click', () => openSheet({mode:'edit', kind:'folder', parent:cur}));
@@ -366,7 +384,7 @@ async function startApp(){
     clearSession(); showApp(false);
     $('login-error').textContent = 'این ایمیل دسترسی ندارد.'; $('login-error').classList.remove('hidden'); return; }
   showApp(true);
-  try { await loadNodes(); render(); }
+  try { await loadNodes(); cur = hashId(); render(); }
   catch(err){ $('list').innerHTML = '<div class="err">خطا در بارگذاری: ' + esc(err.message) + '</div>'; }
 }
 $('login-form').addEventListener('submit', async (e) => {
