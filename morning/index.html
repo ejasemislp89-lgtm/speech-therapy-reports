@@ -31,6 +31,18 @@
   .seg button.on-a { background: #dc2626; border-color: #dc2626; color: #fff; }
   .seg button.on-e { background: #2563eb; border-color: #2563eb; color: #fff; }
   .seg button.on-r { background: #0f766e; border-color: #0f766e; color: #fff; }
+  .card.st-p { background: #f0fdf4; border-color: #86efac; }
+  .card.st-a { background: #fef2f2; border-color: #fca5a5; }
+  .card.st-e { background: #eff6ff; border-color: #93c5fd; }
+  .sumbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; }
+  .sumbar button { min-height: 56px; border-radius: .75rem; border: 2px solid transparent; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.25; }
+  .sumbar button b { font-size: 1.35rem; font-weight: 800; }
+  .sumbar button span { font-size: .72rem; }
+  .sumbar .s-p { background: #dcfce7; color: #166534; }
+  .sumbar .s-a { background: #fee2e2; color: #991b1b; }
+  .sumbar .s-e { background: #dbeafe; color: #1e40af; }
+  .sumbar .s-n { background: #f1f5f9; color: #475569; }
+  .sumbar button.on { border-color: #0f172a; box-shadow: 0 0 0 2px #fff inset; }
   .chip { display: inline-flex; align-items: center; gap: .25rem; border-radius: 999px; padding: .1rem .6rem; font-size: .75rem; font-weight: 700; white-space: nowrap; }
   .num { font-variant-numeric: tabular-nums; }
   table.t { width: 100%; border-collapse: collapse; font-size: .875rem; }
@@ -513,7 +525,7 @@ function go(tab) {
 /* ===================================================================
    صفحه مربی
    =================================================================== */
-let tDate = todayISO(), tClass = null, draft = {}, tAtt = [], guests = {};
+let tDate = todayISO(), tClass = null, draft = {}, tAtt = [], guests = {}, tFilter = null;
 // کودکانی که در این کلاس ثبت‌نام نیستند ولی امروز آمده‌اند (جبرانی / به‌جای روز دیگر)
 function classKids(c, iso) {
   const base = kidsOf(c.id), ids = new Set(base.map((k) => k.id)), extra = [];
@@ -524,7 +536,7 @@ function classKids(c, iso) {
   return { base, extra, all: base.concat(extra) };
 }
 function startTrainer() {
-  tDate = todayISO(); tClass = null;
+  tDate = todayISO(); tClass = null; tFilter = null;
   showApp(me.name, 'مربی سطح ' + fa(me.level) + ' · ' + dateLabel(todayISO()), [['today', 'کلاس امروز'], ['speech', '🗣️ گفتاردرمانی'], ['follow', '📞 پیگیری غیبت'], ['refer', '🔑 کلاس عصر'], ['children', 'بچه‌های من'], ['crafts', 'کاردستی‌ها'], ['msg', 'پیام محرمانه'], ['card', 'کارنامه من']]);
   go('today');
 }
@@ -751,16 +763,25 @@ function renderToday() {
     kids.forEach((k) => { const s = saved[k.id]; draft[k.id] = s ? { status: s.status, rating: s.rating, followup: s.followup || '' } : { status: gset.has(k.id) ? 'p' : null, rating: null, followup: '' }; });
   }
   const filled = kids.filter((k) => draft[k.id] && draft[k.id].status).length;
+  const cnt = { p: 0, a: 0, e: 0, n: 0 };
+  kids.forEach((k) => { cnt[(draft[k.id] && draft[k.id].status) || 'n']++; });
+  const showKid = (k) => !tFilter || ((draft[k.id] && draft[k.id].status) || 'n') === tFilter;
   h += '<div class="card p-3 mb-3"><div class="flex items-start justify-between gap-2 flex-wrap"><div><div class="font-extrabold text-teal-900">' + esc(classTitle(c)) + ' · ' + slotLabel(c.slot) + '</div><div class="text-xs text-slate-500">' + esc(classDays(c)) + ' · ' + fa(kids.length) + ' کودک</div></div>' +
     '<div class="flex gap-2"><button class="btn text-sm" data-act="roster">مدیریت بچه‌ها</button><button class="btn text-sm" data-act="guest">➕ کودک جبرانی</button>' + (kids.length ? '<button class="btn text-sm" data-act="allp">همه حاضر</button>' : '') + '</div></div></div>';
   if (!kids.length) {
     h += '<div class="card p-8 text-center text-slate-500"><div class="font-bold text-slate-700 mb-1">هنوز کودکی در این کلاس نیست</div>با «مدیریت بچه‌ها» کودکان کلاس را اضافه کنید.</div>';
   } else {
+    const sbtn = (v, n, label) => '<button type="button" class="s-' + v + (tFilter === v ? ' on' : '') + '" data-act="flt" data-v="' + v + '" aria-pressed="' + (tFilter === v) + '"><b>' + fa(n) + '</b><span>' + label + '</span></button>';
+    h += '<div class="sticky top-2 z-20 mb-3"><div class="card p-2 shadow-md"><div class="sumbar" role="group" aria-label="خلاصهٔ حضور و غیاب">' +
+      sbtn('p', cnt.p, 'حاضر') + sbtn('a', cnt.a, 'غایب') + sbtn('e', cnt.e, 'مرخصی') + sbtn('n', cnt.n, 'نشده') + '</div>' +
+      (tFilter ? '<div class="text-xs text-slate-500 text-center mt-1">فقط «' + ({ p: 'حاضر', a: 'غایب', e: 'مرخصی', n: 'نشده' })[tFilter] + '»ها نمایش داده می‌شود · برای دیدن همه، دوباره روی همان عدد بزنید</div>' : '') + '</div></div>';
+    if (!kids.some(showKid)) h += '<div class="card p-6 text-center text-slate-500">کودکی با این وضعیت نیست. <button type="button" class="text-teal-700 font-bold" data-act="flt" data-v="' + tFilter + '">نمایش همه</button></div>';
     h += '<div class="space-y-2">' + kids.map((k) => {
+      if (!showKid(k)) return '';
       const d = draft[k.id]; const streak = absenceStreak(tAtt, c.id, k.id, tDate);
       const seg = (v) => '<button type="button" data-act="st" data-k="' + k.id + '" data-v="' + v + '" class="' + (d.status === v ? 'on-' + v : '') + '">' + STATUS[v] + '</button>';
       const rseg = (v) => '<button type="button" data-act="rt" data-k="' + k.id + '" data-v="' + v + '" class="' + (d.rating === v ? 'on-r' : '') + '">' + RATING[v] + '</button>';
-      return '<div class="card p-3"><div class="flex items-center justify-between gap-2 mb-2"><div class="min-w-0"><div class="font-bold text-lg truncate">' + esc(k.name) + '</div>' + (gset.has(k.id) ? '<div class="flex items-center gap-2"><span class="chip bg-violet-100 text-violet-800">جبرانی · روز دیگر آمده</span>' + (!saved[k.id] ? '<button type="button" class="text-red-600 text-xs font-bold min-h-[32px]" data-act="gdel" data-k="' + k.id + '">حذف</button>' : '') + '</div>' : '') + '</div>' +
+      return '<div class="card p-3' + (d.status ? ' st-' + d.status : '') + '"><div class="flex items-center justify-between gap-2 mb-2"><div class="min-w-0"><div class="font-bold text-lg truncate">' + esc(k.name) + '</div>' + (gset.has(k.id) ? '<div class="flex items-center gap-2"><span class="chip bg-violet-100 text-violet-800">جبرانی · روز دیگر آمده</span>' + (!saved[k.id] ? '<button type="button" class="text-red-600 text-xs font-bold min-h-[32px]" data-act="gdel" data-k="' + k.id + '">حذف</button>' : '') + '</div>' : '') + '</div>' +
         (streak >= 2 ? '<span class="chip bg-red-100 text-red-700">' + fa(streak) + ' غیبت پشت سر هم</span>' : streak === 1 ? '<span class="chip bg-amber-100 text-amber-800">جلسهٔ قبل غایب</span>' : '') + '</div>' +
         '<div class="seg grid-cols-3">' + seg('p') + seg('a') + seg('e') + '</div>' +
         (d.status === 'p' ? '<div class="text-xs text-slate-500 mt-3 mb-1 font-bold">عملکرد امروز</div><div class="seg grid-cols-4">' + rseg('vg') + rseg('g') + rseg('m') + rseg('w') + '</div>' : '') +
@@ -769,7 +790,9 @@ function renderToday() {
           '<input class="inp" data-act="ftext" data-k="' + k.id + '" placeholder="یا نتیجهٔ تماس را بنویسید (اختیاری)" value="' + esc(FOLLOW_CHIPS.includes(d.followup) ? '' : d.followup) + '">' : '') +
         '</div>';
     }).join('') + '</div>' +
-    '<div class="sticky bottom-3 mt-3"><button class="btn btn-main w-full shadow-lg" data-act="save">ذخیرهٔ حضور و غیاب (' + fa(filled) + ' از ' + fa(kids.length) + ')</button></div>';
+    '<div class="sticky bottom-3 mt-3"><button class="btn btn-main w-full shadow-lg py-2" data-act="save"><span class="block">ذخیرهٔ حضور و غیاب</span><span class="block text-xs font-normal opacity-90">' +
+      (filled ? [cnt.p ? fa(cnt.p) + ' حاضر' : '', cnt.a ? fa(cnt.a) + ' غایب' : '', cnt.e ? fa(cnt.e) + ' مرخصی' : '', cnt.n ? fa(cnt.n) + ' نشده' : ''].filter(Boolean).join(' · ') : fa(kids.length) + ' کودک · هنوز وضعیتی زده نشده') +
+      '</span></button></div>';
   }
   $('view').innerHTML = h;
 }
@@ -778,14 +801,23 @@ $('view').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-act]'); if (!b || isAdmin) return;
   const act = b.dataset.act, k = +b.dataset.k;
   if (current === 'today') {
-    if (act === 'day') { tDate = addDays(tDate, +b.dataset.d); tClass = null; draft = {}; go('today'); }
-    else if (act === 'today') { tDate = todayISO(); tClass = null; draft = {}; go('today'); }
-    else if (act === 'cls') { tClass = +b.dataset.id; draft = {}; renderToday(); }
+    if (act === 'day') { tDate = addDays(tDate, +b.dataset.d); tClass = null; draft = {}; tFilter = null; go('today'); }
+    else if (act === 'today') { tDate = todayISO(); tClass = null; draft = {}; tFilter = null; go('today'); }
+    else if (act === 'cls') { tClass = +b.dataset.id; draft = {}; tFilter = null; renderToday(); }
+    else if (act === 'flt') { tFilter = tFilter === b.dataset.v ? null : b.dataset.v; renderToday(); }
     else if (act === 'st') { const d = draft[k]; d.status = d.status === b.dataset.v ? null : b.dataset.v; if (d.status !== 'p') d.rating = null; if (d.status !== 'a') d.followup = ''; renderToday(); }
     else if (act === 'rt') { const d = draft[k]; d.rating = d.rating === b.dataset.v ? null : b.dataset.v; renderToday(); }
     else if (act === 'fchip') { const d = draft[k]; d.followup = d.followup === b.dataset.v ? '' : b.dataset.v; renderToday(); }
     else if (act === 'allp') { classKids(classById(tClass), tDate).all.forEach((x) => { if (draft[x.id] && !draft[x.id].status) draft[x.id].status = 'p'; }); renderToday(); }
-    else if (act === 'save') saveAttendance(b);
+    else if (act === 'save') {
+      const un = classKids(classById(tClass), tDate).all.filter((x) => draft[x.id] && !draft[x.id].status).length;
+      if (un && un < classKids(classById(tClass), tDate).all.length && b.dataset.armed !== '1') {
+        b.dataset.armed = '1';
+        b.innerHTML = '<span class="block">' + fa(un) + ' نفر هنوز مشخص نشده‌اند</span><span class="block text-xs font-normal opacity-90">برای ذخیرهٔ همین‌طوری، دوباره بزنید</span>';
+        return;
+      }
+      saveAttendance(b);
+    }
     else if (act === 'roster') openRoster();
     else if (act === 'guest') openGuest();
     else if (act === 'gdel') { const key = tClass + '|' + tDate; guests[key] = (guests[key] || []).filter((x) => x !== k); delete draft[k]; renderToday(); }
@@ -854,8 +886,8 @@ async function saveAttendance(btn) {
   try {
     if (up.length) await api('/rest/v1/m_attendance?on_conflict=class_id,child_id,att_date', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: up });
     if (del.length) await api('/rest/v1/m_attendance?id=in.(' + del.join(',') + ')', { method: 'DELETE' });
-    toast('حضور و غیاب ذخیره شد'); delete guests[c.id + '|' + tDate]; draft = {}; go('today');
-  } catch (err) { console.error(err); toast(errText(err), false); btn.disabled = false; btn.textContent = 'ذخیرهٔ حضور و غیاب'; }
+    toast('حضور و غیاب ذخیره شد'); delete guests[c.id + '|' + tDate]; draft = {}; tFilter = null; go('today');
+  } catch (err) { console.error(err); toast(errText(err), false); renderToday(); }
 }
 
 function renderFollow() {
