@@ -996,7 +996,8 @@ function leadCard(l, kind) {
     cls = d > 0 ? 'late' : (d === 0 ? 'due' : '');
     info = !l.next_followup ? '⏰ تاریخ پیگیری ندارد' : d > 0 ? '⏰ ' + toFa(d) + ' روز عقب افتاده' : d === 0 ? '⏰ پیگیری امروز' : '📆 پیگیری: ' + weekdayOf(l.next_followup) + ' ' + jalaliLabel(l.next_followup);
     if (l.followup_count) info += ' · ' + toFa(l.followup_count) + ' بار پیگیری شده';
-    btns = '<button class="qbtn" data-act="fu" data-id="' + l.id + '">ثبت نتیجه‌ی پیگیری</button>';
+    btns = '<button class="qbtn" data-act="fu" data-id="' + l.id + '">ثبت نتیجه‌ی پیگیری</button>' +
+      '<button class="qbtn" style="' + ((l.followup_count || 0) >= 3 ? 'background:#fde68a;' : '') + '" data-act="closefu" data-id="' + l.id + '">🗂 پیگیری تموم شد، ببند</button>';
   } else if (l.status === 'booked') {
     cls = kind === 'result' ? 'late' : 'ok';
     info = '📅 ارزیابی: ' + (l.appt_date ? weekdayOf(l.appt_date) + ' ' + jalaliLabel(l.appt_date) : 'تاریخ ندارد') + (l.appt_time ? ' ساعت ' + toFa(esc(l.appt_time)) : '') +
@@ -1189,6 +1190,7 @@ $('intake-out').addEventListener('click', (e) => {
   const l = leads.find((x) => x.id === +b.dataset.id); if (!l) return;
   const a = b.dataset.act;
   if (a === 'fu') openLead(l, { countCall: true });
+  else if (a === 'closefu') openLead(l, { status: 'lost', lost: 'جواب تماس را نداد', note: 'بعد از ' + toFa(l.followup_count || 0) + ' بار پیگیری بسته شد' });
   else if (a === 'assessed') openLead(l, { status: 'active' });
   else if (a === 'noshow') openLead(l, { status: 'followup', note: 'به نوبت ارزیابی نیامد' });
   else if (a === 'lostafter') openLead(l, { status: 'lost', lost: 'بعد از ارزیابی ادامه نداد' });
