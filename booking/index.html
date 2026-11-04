@@ -519,7 +519,7 @@ $('sf-clear').addEventListener('click', async () => {
   if(!editing || !editing.id) return closeSlot();
   const ed = editing;
   try {
-    let pull = false, run = [];
+    let pull = false, push = false, run = [];
     const fresh = await fetchTherapistDay(ed.tid, ed.date);
     const cur = fresh.find(r => r.slot_index === ed.i);
     if(cur && cur.id === ed.id){
@@ -527,22 +527,28 @@ $('sf-clear').addEventListener('click', async () => {
       if(run.length){
         const last = run[run.length-1].slot_index;
         const c = await askChoice('این ساعت خالی شود؟',
-          'بعد از این ساعت ' + toFa(run.length) + ' نوبت پشت‌سرهم هست (تا ساعت ' + slotStart(last) + '). بعد از خالی شدن، بقیه هرکدام یک سانس (نیم‌ساعت) بیایند جلو؟',
-          [ { label:'خالی شود و بقیه بیایند جلو', value:'pull', cls:'bg-teal-700 text-white' },
+          'بعد از این ساعت ' + toFa(run.length) + ' نوبت پشت‌سرهم هست (تا ساعت ' + slotStart(last) + '). با بقیه‌ی آن‌ها چه شود؟',
+          [ { label:'خالی شود و بقیه یک سانس بیایند جلو', value:'pull', cls:'bg-teal-700 text-white' },
+            { label:'خالی شود و بقیه یک سانس بروند عقب', value:'push', cls:'bg-amber-500 text-white' },
             { label:'فقط همین ساعت خالی شود', value:'single', cls:'bg-red-50 text-red-600' },
             { label:'انصراف', value:'cancel' } ]);
-        if(c !== 'pull' && c !== 'single') return;
-        pull = c === 'pull';
+        if(c !== 'pull' && c !== 'push' && c !== 'single') return;
+        if(c === 'push' && last >= 16) return toast('بعد از این ساعت جای خالی نیست؛ نوبت‌های آخر شیفت جا نمی‌شوند', false);
+        pull = c === 'pull'; push = c === 'push';
       }
     }
     if(pull){
       /* نوبت‌ها یک سانس بالا می‌آیند (یک درخواست یکجا)، سپس سانس آخرِ بلوک خالی می‌شود */
       await upsertRows(run.map(r => asRow(r, ed.tid, ed.date, r.slot_index - 1)));
       await api('/rest/v1/sch_appointments?id=eq.' + run[run.length-1].id, {method:'DELETE'});
+    } else if(push){
+      /* نوبت‌های بعدی یک سانس می‌روند عقب (یک درخواست یکجا)؛ سپس این ساعت و ساعت بعدی‌اش که مانده‌اند خالی می‌شوند */
+      await upsertRows(run.map(r => asRow(r, ed.tid, ed.date, r.slot_index + 1)));
+      await api('/rest/v1/sch_appointments?id=in.(' + ed.id + ',' + run[0].id + ')', {method:'DELETE'});
     } else {
       await api('/rest/v1/sch_appointments?id=eq.'+ed.id, {method:'DELETE'});
     }
-    closeSlot(); toast(pull ? '✔ خالی شد و بقیه آمدند جلو' : 'خالی شد'); reload();
+    closeSlot(); toast(pull ? '✔ خالی شد و بقیه آمدند جلو' : push ? '✔ خالی شد و بقیه رفتند عقب' : 'خالی شد'); reload();
   } catch(err){ toast('حذف نشد: '+err.message, false); }
 });
 function refreshClientList(){ $('client-list').innerHTML = [...clientNames].sort().map(n => '<option value="'+esc(n)+'">').join(''); }
