@@ -323,7 +323,8 @@ function counters(rows){
   return {filled, sure, cancel};
 }
 function cellHTML(tid, i, r){
-  if(!r || (!r.client_name && !r.status)) return '<button class="cellbtn no-print" data-t="'+tid+'" data-i="'+i+'">＋ خالی</button>';
+  if(!r || (!r.client_name && !r.status)) return '<div class="flex items-stretch gap-1 no-print"><button class="cellbtn" style="flex:1;min-width:0;width:auto" data-t="'+tid+'" data-i="'+i+'">＋ خالی</button>'
+    + '<button type="button" class="insbtn" data-ins="1" data-t="'+tid+'" data-i="'+i+'" title="گزینه‌های این ساعت" aria-label="گزینه‌های این ساعت">⋯</button></div>';
   const bits = [r.service].filter(Boolean).map(esc).join(' · ');
   return '<div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'">'
     + '<div class="font-extrabold text-slate-800 text-sm">'+esc(r.client_name || '—')+(r.status?' <span class="pill">'+esc(r.status)+'</span>':'')+'</div>'
@@ -381,7 +382,8 @@ function renderWeek(){
   const body = SLOTS.map((s, idx) => { const i = idx+1;
     return '<tr><td class="num text-xs text-gray-600 whitespace-nowrap font-bold">'+toFa(s)+'</td>'
       + days.map(d => { const r = byKey.get(d+'|'+i);
-          if(!r || (!r.client_name && !r.status)) return '<td><button class="cellbtn no-print" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">＋</button></td>';
+          if(!r || (!r.client_name && !r.status)) return '<td><div class="flex items-stretch gap-1 no-print"><button class="cellbtn" style="flex:1;min-width:0;width:auto" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">＋</button>'
+            + '<button type="button" class="insbtn" data-ins="1" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'" title="گزینه‌های این ساعت" aria-label="گزینه‌های این ساعت">⋯</button></div></td>';
           return '<td><div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
             + '<div class="font-bold text-slate-800 text-xs">'+esc(r.client_name||'—')+'</div>'
             + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button>'
@@ -412,7 +414,7 @@ function openSlot(tid, i, dateISO){
   $('sf-th').innerHTML = therapists.filter(t => t.active || t.id === tid)
     .map(t => '<option value="'+t.id+'"'+(t.id === tid ? ' selected' : '')+'>'+esc(t.name)+'</option>').join('');
   $('sf-slot').innerHTML = SLOTS.map((s, k) => '<option value="'+(k+1)+'"'+(k+1 === i ? ' selected' : '')+'>'+toFa(s)+'</option>').join('');
-  $('sm-title').textContent = (tid && i) ? ('ویرایش نوبت · ' + fullLabel(d)) : ('ثبت نوبت · ' + fullLabel(d));
+  $('sm-title').textContent = r.id ? ('ویرایش نوبت · ' + fullLabel(d)) : ('ثبت نوبت · ' + (i ? slotStart(i) + ' · ' : '') + fullLabel(d));
   $('sf-name').value = r.client_name || ''; $('sf-service').value = r.service || '';
   $('sf-status').value = r.status || ''; $('sf-note').value = r.note || '';
   $('sf-clear').classList.toggle('hidden', !r.id);
@@ -571,10 +573,39 @@ async function moveOne(tid, i, date, dir){
     reload();
   } catch(err){ toast('جابه‌جا نشد: ' + err.message, false); }
 }
+/* ساعت خالی: بقیه‌ی نوبت‌های پشت‌سرهم بعد از آن را جلو بیاور (جای خالی بسته شود) یا عقب ببر */
+async function gapShift(tid, i, date, dir){
+  try {
+    const fresh = await fetchTherapistDay(tid, date);
+    if(isFilled(fresh.find(r => r.slot_index === i))) return toast('این ساعت الان پر شده؛ صفحه را تازه کنید', false);
+    const run = runFrom(fresh, i + 1);
+    if(!run.length) return toast('بعد از این ساعت نوبتی پشت‌سرهم نیست', false);
+    if(dir > 0 && run[run.length-1].slot_index >= 16) return toast('بعد از این ساعت جای خالی نیست؛ نوبت‌های آخر شیفت جا نمی‌شوند', false);
+    await upsertRows(run.map(r => asRow(r, tid, date, r.slot_index + dir)));
+    await api('/rest/v1/sch_appointments?id=eq.' + (dir < 0 ? run[run.length-1].id : run[0].id), {method:'DELETE'});
+    toast(dir < 0 ? '✔ نوبت‌های بعدی آمدند جلو' : '✔ نوبت‌های بعدی رفتند عقب'); reload();
+  } catch(err){ toast('جابه‌جا نشد: ' + err.message, false); }
+}
+async function openEmptyMenu(tid, i, date){
+  const rows = (tab === 'week' ? weekRows : dayRows).filter(x => x.therapist_id === tid && x.appt_date === date);
+  const run = runFrom(rows, i + 1);
+  const btns = [ { label:'＋ ثبت نوبت جدید در این ساعت', value:'add', cls:'bg-teal-700 text-white' } ];
+  let txt = thName(tid) + ' · ' + fullLabel(date);
+  if(run.length){
+    txt += ' — بعد از این ساعت ' + toFa(run.length) + ' نوبت پشت‌سرهم هست (تا ' + slotStart(run[run.length-1].slot_index) + ')';
+    btns.push({ label:'⬆ نوبت‌های بعدی یک سانس بیایند جلو (جای خالی بسته شود)', value:'pull', cls:'bg-sky-50 text-sky-800 border border-sky-200' });
+    btns.push({ label:'⬇ نوبت‌های بعدی یک سانس بروند عقب (جای خالی بزرگ‌تر شود)', value:'push', cls:'bg-sky-50 text-sky-800 border border-sky-200' });
+  } else txt += ' — بعد از این ساعت نوبتِ پشت‌سرهمی نیست';
+  btns.push({ label:'بستن', value:'cancel' });
+  const c = await askChoice('ساعت خالی · ' + slotStart(i), txt, btns);
+  if(c === 'add') openSlot(tid, i, date);
+  else if(c === 'pull') gapShift(tid, i, date, -1);
+  else if(c === 'push') gapShift(tid, i, date, +1);
+}
 async function openMenu(tid, i, date){
   const rows = tab === 'week' ? weekRows : dayRows;
   const r = rows.find(x => x.therapist_id === tid && x.slot_index === i && x.appt_date === date);
-  if(!r) return;
+  if(!isFilled(r)) return openEmptyMenu(tid, i, date);
   const btns = [ { label:'＋ اضافه کردن نوبت جدید اینجا (بقیه یک سانس عقب‌تر)', value:'add', cls:'bg-teal-700 text-white' } ];
   if(i > 1)  btns.push({ label:'⬆ این نوبت بیاید جلوتر (' + slotStart(i-1) + ')', value:'up', cls:'bg-sky-50 text-sky-800 border border-sky-200' });
   if(i < 16) btns.push({ label:'⬇ این نوبت برود عقب‌تر (' + slotStart(i+1) + ')', value:'down', cls:'bg-sky-50 text-sky-800 border border-sky-200' });
@@ -646,7 +677,7 @@ $('links-out').addEventListener('click', async (e) => {
 });
 
 /* ---------------- شروع ---------------- */
-const BUILD = 'v5 · 2026-11-04';
+const BUILD = 'v6 · 2026-11-04';
 $('ver').textContent = BUILD;
 (async function boot(){
   session = loadSession(); if(!session) return;
