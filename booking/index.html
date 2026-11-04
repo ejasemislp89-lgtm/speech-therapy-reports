@@ -37,7 +37,7 @@
   .cellbtn { width:100%; text-align:right; padding:.5rem .6rem; border-radius:.5rem; border:1px dashed #cbd5e1; color:#94a3b8; font-size:.85rem; }
   .cellbtn:hover { background:#f0fdfa; border-color:#0d9488; color:#0f766e }
   .wk { min-width: 120px; }
-  .insbtn { flex:none; width:1.7rem; border-radius:.5rem; border:1px dashed #5eead4; color:#0f766e; background:#f0fdfa; font-weight:800; font-size:1rem; line-height:1 }
+  .insbtn { flex:none; width:1.7rem; letter-spacing:-.05em; border-radius:.5rem; border:1px dashed #5eead4; color:#0f766e; background:#f0fdfa; font-weight:800; font-size:1rem; line-height:1 }
   .insbtn:hover { background:#ccfbf1; border-color:#0d9488 }
   #datebar select { width: auto; min-width: 5.5rem; }
   #th-pick { min-width: 10rem; }
@@ -329,7 +329,7 @@ function cellHTML(tid, i, r){
     + '<div class="font-extrabold text-slate-800 text-sm">'+esc(r.client_name || '—')+(r.status?' <span class="pill">'+esc(r.status)+'</span>':'')+'</div>'
     + (bits ? '<div class="text-xs text-gray-500">'+bits+'</div>' : '')
     + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + '</button>'
-    + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" title="اضافه کردن نوبت جدید در این ساعت (بقیه یک سانس عقب‌تر)" aria-label="اضافه کردن نوبت جدید در این ساعت">＋</button></div>';
+    + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" title="گزینه‌های این نوبت" aria-label="گزینه‌های این نوبت">⋯</button></div>';
 }
 /* جای اسکرول (افقی و عمودی) را نگه می‌دارد تا بعد از هر ذخیره، صفحه به اول برنگردد */
 function setKeepingScroll(box, html){
@@ -385,7 +385,7 @@ function renderWeek(){
           return '<td><div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
             + '<div class="font-bold text-slate-800 text-xs">'+esc(r.client_name||'—')+'</div>'
             + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button>'
-            + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'" title="اضافه کردن نوبت جدید در این ساعت (بقیه یک سانس عقب‌تر)" aria-label="اضافه کردن نوبت جدید در این ساعت">＋</button></div></td>'; }).join('') + '</tr>'; }).join('');
+            + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'" title="گزینه‌های این نوبت" aria-label="گزینه‌های این نوبت">⋯</button></div></td>'; }).join('') + '</tr>'; }).join('');
   setKeepingScroll($('week-out'), '<div class="card p-2 overflow-x-auto"><table class="t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>');
 }
 async function loadWeek(){
@@ -428,11 +428,11 @@ $('b-add').addEventListener('click', () => {
     : ((therapists.find(t => t.active && t.id === lastTid) || therapists.find(t => t.active) || therapists[0]).id);
   openSlot(tid, 0, d);
 });
-/* دکمه‌ی ＋ کنار هر نوبت: مستقیم فرم «نوبت جدید در همین ساعت» را باز می‌کند (بقیه یک سانس عقب می‌روند) */
+/* دکمه‌ی ⋯ کنار هر نوبت: منوی کارهای آن نوبت (اضافه، جلو، عقب، خالی کردن، ویرایش) */
 function onCellClick(e, withDate){
   const b = e.target.closest('button[data-t]'); if(!b) return;
+  if(b.dataset.ins) return openMenu(+b.dataset.t, +b.dataset.i, withDate ? b.dataset.d : curDate);
   openSlot(+b.dataset.t, +b.dataset.i, withDate ? b.dataset.d : undefined);
-  if(b.dataset.ins) $('sf-insert').click();
 }
 $('day-out').addEventListener('click', (e) => onCellClick(e, false));
 $('week-out').addEventListener('click', (e) => onCellClick(e, true));
@@ -515,9 +515,8 @@ $('slot-form').addEventListener('submit', async (e) => {
   } catch(err){ toast('ذخیره نشد: '+err.message, false); }
   finally { btn.disabled = false; }
 });
-$('sf-clear').addEventListener('click', async () => {
-  if(!editing || !editing.id) return closeSlot();
-  const ed = editing;
+$('sf-clear').addEventListener('click', () => { if(!editing || !editing.id) return closeSlot(); clearFlow(editing); });
+async function clearFlow(ed){
   try {
     let pull = false, push = false, run = [];
     const fresh = await fetchTherapistDay(ed.tid, ed.date);
@@ -550,7 +549,45 @@ $('sf-clear').addEventListener('click', async () => {
     }
     closeSlot(); toast(pull ? '✔ خالی شد و بقیه آمدند جلو' : push ? '✔ خالی شد و بقیه رفتند عقب' : 'خالی شد'); reload();
   } catch(err){ toast('حذف نشد: '+err.message, false); }
-});
+}
+
+/* ---------- منوی «⋯» کنار هر نوبت: یک جا همه‌ی کارها ---------- */
+async function moveOne(tid, i, date, dir){
+  try {
+    const fresh = await fetchTherapistDay(tid, date);
+    const cur = fresh.find(r => r.slot_index === i), j = i + dir;
+    if(!isFilled(cur)) return toast('این نوبت دیگر وجود ندارد', false);
+    if(j < 1 || j > 16) return toast('ساعت بعدی خارج از شیفت است', false);
+    const other = fresh.find(r => r.slot_index === j);
+    if(isFilled(other)){
+      /* جای دو نوبت با هم عوض می‌شود (یک درخواست یکجا) */
+      await upsertRows([asRow(cur, tid, date, j), asRow(other, tid, date, i)]);
+      toast('✔ جابه‌جا شد؛ جای دو نوبت عوض شد');
+    } else {
+      await upsertRows([asRow(cur, tid, date, j)]);
+      await api('/rest/v1/sch_appointments?id=eq.' + cur.id, {method:'DELETE'});
+      toast(dir < 0 ? '✔ یک سانس آمد جلو' : '✔ یک سانس رفت عقب');
+    }
+    reload();
+  } catch(err){ toast('جابه‌جا نشد: ' + err.message, false); }
+}
+async function openMenu(tid, i, date){
+  const rows = tab === 'week' ? weekRows : dayRows;
+  const r = rows.find(x => x.therapist_id === tid && x.slot_index === i && x.appt_date === date);
+  if(!r) return;
+  const btns = [ { label:'＋ اضافه کردن نوبت جدید اینجا (بقیه یک سانس عقب‌تر)', value:'add', cls:'bg-teal-700 text-white' } ];
+  if(i > 1)  btns.push({ label:'⬆ این نوبت بیاید جلوتر (' + slotStart(i-1) + ')', value:'up', cls:'bg-sky-50 text-sky-800 border border-sky-200' });
+  if(i < 16) btns.push({ label:'⬇ این نوبت برود عقب‌تر (' + slotStart(i+1) + ')', value:'down', cls:'bg-sky-50 text-sky-800 border border-sky-200' });
+  btns.push({ label:'🗑 خالی کردن این نوبت', value:'clear', cls:'bg-red-50 text-red-600' },
+            { label:'✏️ ویرایش اسم و جزئیات', value:'edit', cls:'bg-gray-100 text-gray-800' },
+            { label:'بستن', value:'cancel' });
+  const c = await askChoice((r.client_name || r.status || 'نوبت') + ' · ' + slotStart(i), thName(tid) + ' · ' + fullLabel(date), btns);
+  if(c === 'add'){ openSlot(tid, i, date); $('sf-insert').click(); }
+  else if(c === 'edit') openSlot(tid, i, date);
+  else if(c === 'clear') clearFlow({ tid, i, date, id: r.id });
+  else if(c === 'up') moveOne(tid, i, date, -1);
+  else if(c === 'down') moveOne(tid, i, date, +1);
+}
 function refreshClientList(){ $('client-list').innerHTML = [...clientNames].sort().map(n => '<option value="'+esc(n)+'">').join(''); }
 
 /* ---------------- کپی از هفته‌ی قبل ---------------- */
