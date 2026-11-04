@@ -80,7 +80,7 @@
       <span class="text-2xl">📅</span>
       <div>
         <div class="font-extrabold text-teal-800">دفتر نوبت‌ها</div>
-        <div class="text-xs text-gray-500"><span id="who" dir="ltr"></span> · <span id="role-badge" class="font-bold"></span></div>
+        <div class="text-xs text-gray-500"><span id="who" dir="ltr"></span> · <span id="role-badge" class="font-bold"></span> · <span id="ver" dir="ltr"></span></div>
       </div>
     </div>
     <button id="logout-btn" class="text-red-600 font-bold text-sm">خروج</button>
@@ -646,6 +646,8 @@ $('links-out').addEventListener('click', async (e) => {
 });
 
 /* ---------------- شروع ---------------- */
+const BUILD = 'v5 · 2026-11-04';
+$('ver').textContent = BUILD;
 (async function boot(){
   session = loadSession(); if(!session) return;
   try { if(!(await refreshSession())){ clearSession(); return; } await startApp(); }
@@ -656,7 +658,12 @@ $('links-out').addEventListener('click', async (e) => {
 (function setupInstall(){
   const el = (id) => document.getElementById(id);
   const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', {scope:'./'}).catch(() => {});
+  if('serviceWorker' in navigator){
+    /* وقتی نسخهٔ تازه جای قبلی را گرفت، یک بار صفحه خودکار دوباره باز شود */
+    const hadController = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if(hadController && !reloaded){ reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js', {scope:'./'}).then(r => r.update().catch(() => {})).catch(() => {});
+  }
   if(standalone) return;
   const ua = navigator.userAgent || '';
   const ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
