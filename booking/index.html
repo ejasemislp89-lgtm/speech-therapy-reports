@@ -131,12 +131,23 @@
           <select id="sf-status" class="inp"><option value="">—</option><option>قطعی</option><option>نیازمند تأیید</option><option>انجام شد</option><option>کنسلی</option><option>استراحت</option></select></div>
       </div>
       <div><label class="lbl">توضیحات منشی</label><input id="sf-note" class="inp" autocomplete="off"></div>
+      <p id="sf-insnote" class="hidden text-xs text-teal-800 bg-teal-50 border border-teal-200 rounded-lg p-2 leading-6">نوبت جدید همین ساعت ثبت می‌شود و نوبت‌های پشت‌سرهمِ بعدی هرکدام یک سانس (نیم‌ساعت) می‌روند عقب‌تر.</p>
+      <button type="button" id="sf-insert" class="hidden w-full bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold py-2 rounded-xl border border-teal-200 text-sm">＋ اضافه کردن نوبت جدید در این ساعت (بقیه یک سانس عقب‌تر)</button>
       <div class="flex gap-2 pt-1">
         <button id="sf-save" class="flex-1 bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2.5 rounded-xl">ذخیره</button>
         <button type="button" id="sf-clear" class="bg-red-50 text-red-600 font-bold px-4 rounded-xl">خالی کردن</button>
         <button type="button" id="sf-cancel" class="bg-gray-200 text-gray-800 font-bold px-4 rounded-xl">انصراف</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ================= CHOICE MODAL ================= -->
+<div id="choice-modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center sm:p-3">
+  <div class="card p-4 w-full max-w-md rounded-b-none sm:rounded-b-xl">
+    <h3 id="ch-title" class="font-extrabold text-teal-800 mb-2"></h3>
+    <p id="ch-text" class="text-sm text-gray-700 leading-7 mb-3"></p>
+    <div id="ch-btns" class="flex flex-col gap-2"></div>
   </div>
 </div>
 
@@ -235,6 +246,9 @@ function errHTML(err){ return '<p class="card p-4 text-center '+(missingTables(e
 
 /* ---------------- وضعیت ---------------- */
 let role=null, therapists=[], tab='day', curDate=todayISO(), dayRows=[], weekRows=[], editing=null, clientNames=new Set();
+let lastTid = null;
+try { lastTid = +localStorage.getItem('sch_last_tid') || null; } catch(e){}
+const rememberTid = (id) => { lastTid = id; try { localStorage.setItem('sch_last_tid', String(id)); } catch(e){} };
 const thName = (id) => { const t = therapists.find(x => x.id === id); return t ? t.name : '—'; };
 
 async function loadTherapists(){ therapists = await api('/rest/v1/sch_therapists?select=*&order=sort.asc,id.asc'); }
@@ -314,6 +328,15 @@ function cellHTML(tid, i, r){
     + (bits ? '<div class="text-xs text-gray-500">'+bits+'</div>' : '')
     + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + '</button>';
 }
+/* جای اسکرول (افقی و عمودی) را نگه می‌دارد تا بعد از هر ذخیره، صفحه به اول برنگردد */
+function setKeepingScroll(box, html){
+  const w = box.querySelector('.overflow-x-auto');
+  const sl = w ? w.scrollLeft : 0, st = w ? w.scrollTop : 0, sx = window.scrollX, sy = window.scrollY;
+  box.innerHTML = html;
+  const w2 = box.querySelector('.overflow-x-auto');
+  if(w2){ w2.scrollLeft = sl; w2.scrollTop = st; }
+  window.scrollTo(sx, sy);
+}
 function renderDay(){
   $('daylabel').textContent = fullLabel(curDate) + ' — شیفت عصر';
   const act = therapists.filter(t => t.active);
@@ -326,15 +349,21 @@ function renderDay(){
     const i = idx + 1;
     return '<tr><td class="num text-xs text-gray-600 whitespace-nowrap font-bold">'+toFa(s)+'</td>'
       + act.map(t => '<td>'+cellHTML(t.id, i, byKey.get(t.id+'|'+i))+'</td>').join('') + '</tr>'; }).join('');
-  $('day-out').innerHTML = '<div class="card p-2 overflow-x-auto"><table class="t">'
-    + '<thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+  setKeepingScroll($('day-out'), '<div class="card p-2 overflow-x-auto"><table class="t">'
+    + '<thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>');
 }
+let daySeq = 0, weekSeq = 0;
 async function loadDay(){
-  $('day-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
-  try { dayRows = await api('/rest/v1/sch_appointments?select=*&appt_date=eq.'+curDate);
+  const out = $('day-out'), seq = ++daySeq;
+  if(!out.querySelector('table')) out.innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
+  else out.style.opacity = '.55';
+  try { const rows = await api('/rest/v1/sch_appointments?select=*&appt_date=eq.'+curDate);
+    if(seq !== daySeq) return;
+    dayRows = rows;
     dayRows.forEach(r => { if(r.client_name) clientNames.add(r.client_name); });
     renderDay(); refreshClientList(); }
-  catch(err){ $('day-out').innerHTML = errHTML(err); }
+  catch(err){ if(seq === daySeq) out.innerHTML = errHTML(err); }
+  finally { if(seq === daySeq) out.style.opacity = ''; }
 }
 
 /* ---------------- هفته‌ی یک درمانگر ---------------- */
@@ -353,22 +382,29 @@ function renderWeek(){
           return '<td><button class="w-full text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
             + '<div class="font-bold text-slate-800 text-xs">'+esc(r.client_name||'—')+'</div>'
             + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button></td>'; }).join('') + '</tr>'; }).join('');
-  $('week-out').innerHTML = '<div class="card p-2 overflow-x-auto"><table class="t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+  setKeepingScroll($('week-out'), '<div class="card p-2 overflow-x-auto"><table class="t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>');
 }
 async function loadWeek(){
-  $('week-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
+  const out = $('week-out'), seq = ++weekSeq;
+  if(!out.querySelector('table')) out.innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
+  else out.style.opacity = '.55';
   const start = weekStart(curDate), end = addDaysISO(start, 6);
-  try { weekRows = await api('/rest/v1/sch_appointments?select=*&appt_date=gte.'+start+'&appt_date=lte.'+end);
-    renderWeek(); }
-  catch(err){ $('week-out').innerHTML = errHTML(err); }
+  try { const rows = await api('/rest/v1/sch_appointments?select=*&appt_date=gte.'+start+'&appt_date=lte.'+end);
+    if(seq !== weekSeq) return;
+    weekRows = rows; renderWeek(); }
+  catch(err){ if(seq === weekSeq) out.innerHTML = errHTML(err); }
+  finally { if(seq === weekSeq) out.style.opacity = ''; }
 }
 
 /* ---------------- ویرایش یک سانس ---------------- */
 function openSlot(tid, i, dateISO){
   const d = dateISO || curDate;
-  const rows = dateISO ? weekRows : dayRows;
+  const rows = tab === 'week' ? weekRows : dayRows;
   const r = (tid && i) ? (rows.find(x => x.therapist_id === tid && x.slot_index === i && x.appt_date === d) || {}) : {};
-  editing = { tid, i, date: d, id: r.id || null };
+  editing = { tid, i, date: d, id: r.id || null, insert: false };
+  if(tid) rememberTid(tid);
+  $('sf-th').disabled = false; $('sf-slot').disabled = false;
+  $('sf-insnote').classList.add('hidden');
   $('sf-th').innerHTML = therapists.filter(t => t.active || t.id === tid)
     .map(t => '<option value="'+t.id+'"'+(t.id === tid ? ' selected' : '')+'>'+esc(t.name)+'</option>').join('');
   $('sf-slot').innerHTML = SLOTS.map((s, k) => '<option value="'+(k+1)+'"'+(k+1 === i ? ' selected' : '')+'>'+toFa(s)+'</option>').join('');
@@ -376,6 +412,7 @@ function openSlot(tid, i, dateISO){
   $('sf-name').value = r.client_name || ''; $('sf-service').value = r.service || '';
   $('sf-status').value = r.status || ''; $('sf-note').value = r.note || '';
   $('sf-clear').classList.toggle('hidden', !r.id);
+  $('sf-insert').classList.toggle('hidden', !(r.id && (r.client_name || r.status)));
   $('slot-modal').classList.remove('hidden'); setTimeout(() => $('sf-name').focus(), 50);
 }
 const closeSlot = () => $('slot-modal').classList.add('hidden');
@@ -383,20 +420,62 @@ $('sm-x').addEventListener('click', closeSlot); $('sf-cancel').addEventListener(
 $('b-add').addEventListener('click', () => {
   if(!therapists.length) return toast('لیست درمانگرها خالی است', false);
   const d = tab === 'week' ? curDate : curDate;
-  const tid = tab === 'week' ? +$('th-pick').value : (therapists.find(t => t.active) || therapists[0]).id;
+  const tid = tab === 'week' ? +$('th-pick').value
+    : ((therapists.find(t => t.active && t.id === lastTid) || therapists.find(t => t.active) || therapists[0]).id);
   openSlot(tid, 0, d);
 });
 $('day-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i); });
 $('week-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i, b.dataset.d); });
 
+/* ---------- جابه‌جایی خودکار بقیه‌ی نوبت‌ها ---------- */
+const isFilled = (r) => !!(r && (r.client_name || r.status));
+const slotStart = (k) => toFa(SLOTS[k-1].split(' - ')[0]);
+const fetchTherapistDay = (tid, date) => api('/rest/v1/sch_appointments?select=*&therapist_id=eq.'+tid+'&appt_date=eq.'+date);
+/* نوبت‌های پشت‌سرهم از سانس `from` به بعد، تا اولین ساعت خالی */
+function runFrom(rows, from){
+  const by = new Map(rows.map(r => [r.slot_index, r]));
+  const run = [];
+  for(let k = from; k <= 16 && isFilled(by.get(k)); k++) run.push(by.get(k));
+  return run;
+}
+const asRow = (r, tid, date, slot) => ({ therapist_id: tid, appt_date: date, slot_index: slot,
+  client_name: r.client_name || null, service: r.service || null, status: r.status || null, note: r.note || null });
+const upsertRows = (rows) => api('/rest/v1/sch_appointments?on_conflict=therapist_id,appt_date,slot_index',
+  { method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body: rows });
+
+function askChoice(title, text, buttons){
+  return new Promise((resolve) => {
+    $('ch-title').textContent = title; $('ch-text').textContent = text;
+    const box = $('ch-btns'); box.innerHTML = '';
+    buttons.forEach((b) => {
+      const el = document.createElement('button'); el.type = 'button'; el.textContent = b.label;
+      el.className = 'py-2.5 rounded-xl font-bold ' + (b.cls || 'bg-gray-200 text-gray-800');
+      el.addEventListener('click', () => { $('choice-modal').classList.add('hidden'); resolve(b.value); });
+      box.appendChild(el);
+    });
+    $('choice-modal').classList.remove('hidden');
+  });
+}
+
+$('sf-insert').addEventListener('click', () => {
+  const ed = editing; if(!ed || !ed.id) return;
+  editing = { tid: ed.tid, i: ed.i, date: ed.date, id: null, insert: true };
+  $('sm-title').textContent = 'افزودن نوبت جدید · ساعت ' + slotStart(ed.i) + ' · ' + fullLabel(ed.date);
+  $('sf-th').value = String(ed.tid); $('sf-slot').value = String(ed.i);
+  $('sf-th').disabled = true; $('sf-slot').disabled = true;
+  ['sf-name','sf-note'].forEach(id => $(id).value = ''); $('sf-service').value = ''; $('sf-status').value = 'قطعی';
+  $('sf-clear').classList.add('hidden'); $('sf-insert').classList.add('hidden'); $('sf-insnote').classList.remove('hidden');
+  setTimeout(() => $('sf-name').focus(), 50);
+});
+
 $('slot-form').addEventListener('submit', async (e) => {
   e.preventDefault(); if(!editing) return;
-  const tid = +$('sf-th').value, slot = +$('sf-slot').value;
+  const tid = editing.insert ? editing.tid : +$('sf-th').value, slot = editing.insert ? editing.i : +$('sf-slot').value;
   if(!tid || !slot) return toast('درمانگر و ساعت را انتخاب کنید', false);
   const name = $('sf-name').value.trim();
   if(!name && !$('sf-status').value) return toast('نام مراجع را بنویسید', false);
   const moved = editing.id && (tid !== editing.tid || slot !== editing.i);
-  const rows = editing.date === curDate ? dayRows : weekRows;
+  const rows = tab === 'week' ? weekRows : dayRows;
   if(moved){
     const clash = rows.find(x => x.therapist_id === tid && x.slot_index === slot && x.appt_date === editing.date && (x.client_name || x.status));
     if(clash && !confirm('این ساعت برای «' + (clash.client_name || clash.status) + '» پر است. جایگزین شود؟')) return;
@@ -406,18 +485,55 @@ $('slot-form').addEventListener('submit', async (e) => {
     status: $('sf-status').value || null, note: $('sf-note').value.trim() || null };
   const btn = $('sf-save'); btn.disabled = true;
   try {
-    await api('/rest/v1/sch_appointments?on_conflict=therapist_id,appt_date,slot_index',
-      { method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body });
+    if(editing.insert){
+      /* بقیه‌ی نوبت‌های پشت‌سرهم یک سانس عقب می‌روند؛ همه در یک درخواستِ یکجا */
+      const fresh = await fetchTherapistDay(tid, editing.date);
+      const run = runFrom(fresh, slot);
+      if(run.length && run[run.length-1].slot_index >= 16)
+        return toast('بعد از این ساعت جای خالی نیست؛ نوبت‌های آخر شیفت جا نمی‌شوند', false);
+      await upsertRows(run.map(r => asRow(r, tid, editing.date, r.slot_index + 1)).concat([body]));
+      if(body.client_name) clientNames.add(body.client_name);
+      rememberTid(tid); closeSlot();
+      toast(run.length ? '✔ اضافه شد و ' + toFa(run.length) + ' نوبت بعدی یک سانس رفتند عقب' : '✔ ذخیره شد'); reload();
+      return;
+    }
+    await upsertRows(body);
     if(moved) await api('/rest/v1/sch_appointments?id=eq.' + editing.id, {method:'DELETE'});
     if(body.client_name) clientNames.add(body.client_name);
+    rememberTid(tid);
     closeSlot(); toast(moved ? '✔ جابه‌جا شد' : '✔ ذخیره شد'); reload();
   } catch(err){ toast('ذخیره نشد: '+err.message, false); }
   finally { btn.disabled = false; }
 });
 $('sf-clear').addEventListener('click', async () => {
   if(!editing || !editing.id) return closeSlot();
-  try { await api('/rest/v1/sch_appointments?id=eq.'+editing.id, {method:'DELETE'}); closeSlot(); toast('خالی شد'); reload(); }
-  catch(err){ toast('حذف نشد: '+err.message, false); }
+  const ed = editing;
+  try {
+    let pull = false, run = [];
+    const fresh = await fetchTherapistDay(ed.tid, ed.date);
+    const cur = fresh.find(r => r.slot_index === ed.i);
+    if(cur && cur.id === ed.id){
+      run = runFrom(fresh, ed.i + 1);
+      if(run.length){
+        const last = run[run.length-1].slot_index;
+        const c = await askChoice('این ساعت خالی شود؟',
+          'بعد از این ساعت ' + toFa(run.length) + ' نوبت پشت‌سرهم هست (تا ساعت ' + slotStart(last) + '). بعد از خالی شدن، بقیه هرکدام یک سانس (نیم‌ساعت) بیایند جلو؟',
+          [ { label:'خالی شود و بقیه بیایند جلو', value:'pull', cls:'bg-teal-700 text-white' },
+            { label:'فقط همین ساعت خالی شود', value:'single', cls:'bg-red-50 text-red-600' },
+            { label:'انصراف', value:'cancel' } ]);
+        if(c !== 'pull' && c !== 'single') return;
+        pull = c === 'pull';
+      }
+    }
+    if(pull){
+      /* نوبت‌ها یک سانس بالا می‌آیند (یک درخواست یکجا)، سپس سانس آخرِ بلوک خالی می‌شود */
+      await upsertRows(run.map(r => asRow(r, ed.tid, ed.date, r.slot_index - 1)));
+      await api('/rest/v1/sch_appointments?id=eq.' + run[run.length-1].id, {method:'DELETE'});
+    } else {
+      await api('/rest/v1/sch_appointments?id=eq.'+ed.id, {method:'DELETE'});
+    }
+    closeSlot(); toast(pull ? '✔ خالی شد و بقیه آمدند جلو' : 'خالی شد'); reload();
+  } catch(err){ toast('حذف نشد: '+err.message, false); }
 });
 function refreshClientList(){ $('client-list').innerHTML = [...clientNames].sort().map(n => '<option value="'+esc(n)+'">').join(''); }
 
