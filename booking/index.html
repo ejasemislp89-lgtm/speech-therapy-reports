@@ -37,6 +37,8 @@
   .cellbtn { width:100%; text-align:right; padding:.5rem .6rem; border-radius:.5rem; border:1px dashed #cbd5e1; color:#94a3b8; font-size:.85rem; }
   .cellbtn:hover { background:#f0fdfa; border-color:#0d9488; color:#0f766e }
   .wk { min-width: 120px; }
+  .insbtn { flex:none; width:1.7rem; border-radius:.5rem; border:1px dashed #5eead4; color:#0f766e; background:#f0fdfa; font-weight:800; font-size:1rem; line-height:1 }
+  .insbtn:hover { background:#ccfbf1; border-color:#0d9488 }
   #datebar select { width: auto; min-width: 5.5rem; }
   #th-pick { min-width: 10rem; }
   @media print { body{background:#fff} .no-print{display:none!important} .card{box-shadow:none} }
@@ -323,10 +325,11 @@ function counters(rows){
 function cellHTML(tid, i, r){
   if(!r || (!r.client_name && !r.status)) return '<button class="cellbtn no-print" data-t="'+tid+'" data-i="'+i+'">＋ خالی</button>';
   const bits = [r.service].filter(Boolean).map(esc).join(' · ');
-  return '<button class="w-full text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'">'
+  return '<div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'">'
     + '<div class="font-extrabold text-slate-800 text-sm">'+esc(r.client_name || '—')+(r.status?' <span class="pill">'+esc(r.status)+'</span>':'')+'</div>'
     + (bits ? '<div class="text-xs text-gray-500">'+bits+'</div>' : '')
-    + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + '</button>';
+    + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + '</button>'
+    + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" title="اضافه کردن نوبت جدید در این ساعت (بقیه یک سانس عقب‌تر)" aria-label="اضافه کردن نوبت جدید در این ساعت">＋</button></div>';
 }
 /* جای اسکرول (افقی و عمودی) را نگه می‌دارد تا بعد از هر ذخیره، صفحه به اول برنگردد */
 function setKeepingScroll(box, html){
@@ -379,9 +382,10 @@ function renderWeek(){
     return '<tr><td class="num text-xs text-gray-600 whitespace-nowrap font-bold">'+toFa(s)+'</td>'
       + days.map(d => { const r = byKey.get(d+'|'+i);
           if(!r || (!r.client_name && !r.status)) return '<td><button class="cellbtn no-print" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">＋</button></td>';
-          return '<td><button class="w-full text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
+          return '<td><div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
             + '<div class="font-bold text-slate-800 text-xs">'+esc(r.client_name||'—')+'</div>'
-            + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button></td>'; }).join('') + '</tr>'; }).join('');
+            + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button>'
+            + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'" title="اضافه کردن نوبت جدید در این ساعت (بقیه یک سانس عقب‌تر)" aria-label="اضافه کردن نوبت جدید در این ساعت">＋</button></div></td>'; }).join('') + '</tr>'; }).join('');
   setKeepingScroll($('week-out'), '<div class="card p-2 overflow-x-auto"><table class="t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>');
 }
 async function loadWeek(){
@@ -424,8 +428,14 @@ $('b-add').addEventListener('click', () => {
     : ((therapists.find(t => t.active && t.id === lastTid) || therapists.find(t => t.active) || therapists[0]).id);
   openSlot(tid, 0, d);
 });
-$('day-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i); });
-$('week-out').addEventListener('click', (e) => { const b = e.target.closest('button[data-t]'); if(b) openSlot(+b.dataset.t, +b.dataset.i, b.dataset.d); });
+/* دکمه‌ی ＋ کنار هر نوبت: مستقیم فرم «نوبت جدید در همین ساعت» را باز می‌کند (بقیه یک سانس عقب می‌روند) */
+function onCellClick(e, withDate){
+  const b = e.target.closest('button[data-t]'); if(!b) return;
+  openSlot(+b.dataset.t, +b.dataset.i, withDate ? b.dataset.d : undefined);
+  if(b.dataset.ins) $('sf-insert').click();
+}
+$('day-out').addEventListener('click', (e) => onCellClick(e, false));
+$('week-out').addEventListener('click', (e) => onCellClick(e, true));
 
 /* ---------- جابه‌جایی خودکار بقیه‌ی نوبت‌ها ---------- */
 const isFilled = (r) => !!(r && (r.client_name || r.status));
