@@ -332,6 +332,7 @@ function cellHTML(tid, i, r){
     + '<button type="button" class="insbtn" data-ins="1" data-t="'+tid+'" data-i="'+i+'" title="گزینه‌های این ساعت" aria-label="گزینه‌های این ساعت">⋯</button></div>';
   const bits = [r.service].filter(Boolean).map(esc).join(' · ');
   return '<div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'">'
+    + '<div class="num text-xs font-extrabold text-teal-700">🕐 '+toFa(SLOTS[i-1])+'</div>'
     + '<div class="font-extrabold text-slate-800 text-sm">'+esc(r.client_name || '—')+(r.status?' <span class="pill">'+esc(r.status)+'</span>':'')+'</div>'
     + (bits ? '<div class="text-xs text-gray-500">'+bits+'</div>' : '')
     + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + '</button>'
@@ -347,7 +348,11 @@ function setKeepingScroll(box, html){
   window.scrollTo(sx, sy);
 }
 function renderDay(){
-  $('daylabel').textContent = fullLabel(curDate) + ' — شیفت عصر';
+  const diff = g2d(...Object.values(parseISO(curDate))) - g2d(...Object.values(parseISO(todayISO())));
+  const rel = diff === 0 ? ['امروز','bg-teal-600'] : diff === 1 ? ['فردا','bg-amber-500'] : diff === -1 ? ['دیروز','bg-slate-500']
+    : [(diff > 0 ? toFa(diff)+' روز بعد' : toFa(-diff)+' روز قبل'),'bg-slate-500'];
+  $('daylabel').innerHTML = '<span class="inline-block text-white text-xs px-2 py-0.5 rounded-full ml-2 '+rel[1]+'">'+rel[0]+'</span>'
+    + fullLabel(curDate) + ' — شیفت عصر';
   const act = therapists.filter(t => t.active);
   const byKey = new Map(dayRows.map(r => [r.therapist_id+'|'+r.slot_index, r]));
   const head = '<tr><th class="w-24">ساعت</th>' + act.map(t => {
@@ -390,6 +395,7 @@ function renderWeek(){
           if(!r || (!r.client_name && !r.status)) return '<td><div class="flex items-stretch gap-1 no-print"><button class="cellbtn" style="flex:1;min-width:0;width:auto" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">＋</button>'
             + '<button type="button" class="insbtn" data-ins="1" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'" title="گزینه‌های این ساعت" aria-label="گزینه‌های این ساعت">⋯</button></div></td>';
           return '<td><div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
+            + '<div class="num text-[11px] font-extrabold text-teal-700">🕐 '+toFa(SLOTS[i-1])+'</div>'
             + '<div class="font-bold text-slate-800 text-xs">'+esc(r.client_name||'—')+'</div>'
             + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button>'
             + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'" title="گزینه‌های این نوبت" aria-label="گزینه‌های این نوبت">⋯</button></div></td>'; }).join('') + '</tr>'; }).join('');
@@ -731,6 +737,14 @@ $('links-out').addEventListener('click', async (e) => {
   }
   const b = e.target.closest('button[data-copy]'); if(!b) return;
   copyLink(b.dataset.copy, b.parentElement);
+});
+
+/* اگر برنامه از دیروز باز مانده بود، با تغییر روز به امروز برگردد */
+let lastToday = todayISO();
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden || !role) return;
+  const t = todayISO();
+  if(t !== lastToday){ const wasToday = curDate === lastToday; lastToday = t; if(wasToday){ setPicker(t); reload(); } }
 });
 
 /* ---------------- شروع ---------------- */
