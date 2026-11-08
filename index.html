@@ -1348,17 +1348,36 @@ ${finalEvaluation}`;
             }
         }
 
-        function chatThreads() {
-            const me = currentTherapist;
-            const mine = new Set(groupMyPatients().map(g => normalizeName(g.name)));
-            const groups = {};
-            caseMessages.forEach(m => {
+        // Two spellings of one child (e.g. «سیلابی» / «سیلاوی») differ by at most one letter.
+        function oneEditApart(a, b) {
+            if (Math.abs(a.length - b.length) > 1) return false;
+            let i = 0, j = 0, diff = 0;
+            while (i < a.length && j < b.length) {
+                if (a[i] === b[j]) { i++; j++; continue; }
+                if (++diff > 1) return false;
+                if (a.length > b.length) i++; else if (a.length < b.length) j++; else { i++; j++; }
+            }
+            return diff + (a.length - i) + (b.length - j) <= 1;
+        }
+        function sameChild(a, b) { return a === b || (a.length >= 6 && b.length >= 6 && oneEditApart(a, b)); }
+        function groupCaseMessages(list) {
+            const groups = [];
+            list.forEach(m => {
                 const key = normalizeName(m.patient_name);
                 if (!key) return;
-                (groups[key] = groups[key] || { key, name: (m.patient_name || '').trim(), msgs: [] }).msgs.push(m);
+                let g = groups.find(x => x.keys.some(k => sameChild(k, key)));
+                if (!g) { g = { key, keys: [], name: (m.patient_name || '').trim(), spellings: [], msgs: [] }; groups.push(g); }
+                if (!g.keys.includes(key)) { g.keys.push(key); g.spellings.push((m.patient_name || '').trim()); }
+                g.msgs.push(m);
             });
-            return Object.values(groups)
-                .filter(g => mine.has(g.key) || g.msgs.some(m => m.author_name === me))
+            return groups;
+        }
+
+        function chatThreads() {
+            const me = currentTherapist;
+            const mine = groupMyPatients().map(g => normalizeName(g.name));
+            return groupCaseMessages(caseMessages)
+                .filter(g => g.keys.some(k => mine.some(p => sameChild(p, k))) || g.msgs.some(m => m.author_name === me))
                 .map(g => ({ ...g, last: g.msgs[g.msgs.length - 1].created_at }))
                 .sort((a, b) => b.last.localeCompare(a.last));
         }
@@ -1422,6 +1441,7 @@ ${finalEvaluation}`;
                         <h3 class="font-extrabold text-lg text-gray-800">${escapeHtml(g.name)}</h3>
                         <span class="text-xs text-gray-500">${g.msgs.length} پیام</span>
                     </div>
+                    ${g.spellings.length > 1 ? `<p class="text-xs text-gray-500 -mt-1 mb-3">نام در پیام‌ها: ${g.spellings.map(escapeHtml).join(' / ')}</p>` : ''}
                     <div class="space-y-3 mb-3">${bubbles}</div>
                     <input type="hidden" id="chat-reply-patient-${i}" value="${escapeHtml(g.name)}">
                     <textarea id="chat-reply-body-${i}" rows="2" placeholder="پاسخ به این گفتگو..." class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-gray-50"></textarea>
@@ -1537,13 +1557,7 @@ ${finalEvaluation}`;
             const box = document.getElementById('admin-chat-threads');
             const empty = document.getElementById('admin-chat-empty');
             const q = normalizeName(document.getElementById('admin-chat-search').value);
-            const groups = {};
-            adminChatMessages.forEach(m => {
-                const key = normalizeName(m.patient_name);
-                if (!key) return;
-                (groups[key] = groups[key] || { key, name: (m.patient_name || '').trim(), msgs: [] }).msgs.push(m);
-            });
-            const threads = Object.values(groups)
+            const threads = groupCaseMessages(adminChatMessages)
                 .map(g => ({ ...g, last: g.msgs[g.msgs.length - 1].created_at }))
                 .filter(g => !q || g.key.includes(q) || g.msgs.some(m => normalizeName(m.author_name).includes(q)))
                 .sort((a, b) => b.last.localeCompare(a.last));
