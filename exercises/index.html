@@ -90,6 +90,12 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .sec{margin-top:12px}
 .sec h3{margin:0 0 2px;font-size:13px;color:var(--accent)}
 .sec p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.sec.step{border-inline-start:3px solid var(--line);padding-inline-start:10px}
+.sec.step.down{border-color:var(--star)}
+.sec.step.up{border-color:var(--accent)}
+.grp{margin:20px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:13px;font-weight:800;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted);margin:-2px 0 4px;font-weight:400}
+#sheet-form textarea{min-height:70px}
 .acts{display:flex;gap:8px;margin-top:16px}
 .acts .btn{flex:1}
 .check{display:flex;align-items:center;gap:10px;margin-top:12px}
@@ -207,7 +213,7 @@ async function loadNodes(){
   indexNodes();
   if(cur && !by.has(cur)) cur = null;
 }
-const matches = (n, q) => [n.title, n.goal, n.steps, n.tools, n.levels, n.note].some((v) => v && v.toLowerCase().includes(q));
+const matches = (n, q) => [n.title].concat(FIELDS.map(([k]) => n[k])).some((v) => v && v.toLowerCase().includes(q));
 
 /* ---------- نمایش ---------- */
 function toast(t){
@@ -258,7 +264,20 @@ function render(){
 }
 
 /* ---------- برگه (مشاهده / ویرایش) ---------- */
-const FIELDS = [['goal','هدف تمرین'], ['steps','روش اجرا'], ['tools','ابزار لازم'], ['levels','سطح‌ها (آسان‌تر و سخت‌تر)'], ['note','یادداشت من']];
+// هر فیلد: [ستون، عنوان، راهنمای کوتاه، گروه فرم، کلاس نمایش]
+const FIELDS = [
+  ['goal','هدف تمرین','این تمرین کدام مهارت را هدف می‌گیرد؟','پایه',''],
+  ['prereq','پیش‌نیاز','کودک قبل از این تمرین چه چیزی را باید بلد باشد؟','پایه',''],
+  ['tools','ابزار لازم','','پایه',''],
+  ['steps','روش اجرا','قدم‌به‌قدم، همان‌طور که در جلسه انجام می‌دهید.','پایه',''],
+  ['easier','تقلیل (ساده‌تر)','اگر کودک نتوانست، چطور ساده‌ترش می‌کنید؟','سطح‌بندی','step down'],
+  ['harder','تقویت (قدم بعدی)','اگر راحت انجام داد، چطور سخت‌ترش می‌کنید؟','سطح‌بندی','step up'],
+  ['criterion','معیار موفقیت','چه زمانی سراغ مرحله بعد می‌روید؟','سطح‌بندی',''],
+  ['home','نسخه خانگی برای والدین','خانواده همین تمرین را در خانه چطور انجام دهد؟','بیشتر',''],
+  ['note','نکته بالینی','تجربه خودتان: اشتباه رایج، جایی که جواب نمی‌دهد، ترفندها.','بیشتر',''],
+  ['levels','سطح‌ها (قدیمی)','','',''],   // فقط اگر از قبل پر شده باشد نشان داده می‌شود
+];
+const formFields = (v) => FIELDS.filter(([k]) => k !== 'levels' || v.levels);
 
 let sheetPushed = false;
 function openSheet(s){
@@ -284,12 +303,12 @@ function renderSheet(){
   if(sheet.mode === 'view' && n){
     const path = pathOf(n.parent_id).map((x) => esc(x.title)).join(' ‹ ');
     body = '<button class="back" data-sheet="back">→ برگشت</button><h2>' + esc(n.title) + '</h2><div class="path">' + (path || 'کتابچه') + '</div>'
-      + FIELDS.map(([k, label]) => n[k] ? '<div class="sec"><h3>' + label + '</h3><p>' + esc(n[k]) + '</p></div>' : '').join('')
+      + FIELDS.map(([k, label, , , cls]) => n[k] ? '<div class="sec' + (cls ? ' ' + cls : '') + '"><h3>' + label + '</h3><p>' + esc(n[k]) + '</p></div>' : '').join('')
       + (FIELDS.every(([k]) => !n[k]) ? '<p class="path" style="margin-top:14px">هنوز جزئیاتی نوشته نشده. با «ویرایش» اضافه کنید.</p>' : '')
       + '<div class="acts"><button class="btn" data-sheet="edit">ویرایش</button><button class="btn ghost" data-sheet="back">برگشت</button></div>';
   } else {
     const kind = sheet.kind || (n && n.kind) || 'exercise';
-    const v = n || { title:'', parent_id:sheet.parent || null, goal:'', steps:'', tools:'', levels:'', note:'', starred:false };
+    const v = n || { title:'', parent_id:sheet.parent || null, starred:false };
     const opts = folderOptions(n && n.kind === 'folder' ? n.id : null);
     const bad = n && n.kind === 'folder' ? new Set(descendants(n.id).map((x) => x.id)) : new Set();
     body = '<button class="back" data-sheet="back">→ برگشت</button><h2>' + (n ? (kind === 'folder' ? 'ویرایش پوشه' : 'ویرایش تمرین') : (kind === 'folder' ? 'پوشه جدید' : 'تمرین جدید')) + '</h2>'
@@ -298,7 +317,10 @@ function renderSheet(){
       + '<label for="f-title">' + (kind === 'folder' ? 'نام پوشه' : 'عنوان تمرین') + '</label><input id="f-title" value="' + esc(v.title) + '" autocomplete="off">'
       + '<label for="f-parent">محل</label><select id="f-parent"><option value="">کتابچه (بالاترین سطح)</option>'
       + opts.filter((o) => !bad.has(o.id)).map((o) => '<option value="' + o.id + '"' + (o.id === v.parent_id ? ' selected' : '') + '>' + esc(o.label) + '</option>').join('') + '</select>'
-      + (kind === 'exercise' ? FIELDS.map(([k, label]) => '<label for="f-' + k + '">' + label + '</label><textarea id="f-' + k + '">' + esc(v[k] || '') + '</textarea>').join('')
+      + (kind === 'exercise' ? formFields(v).map(([k, label, hint, grp], i, a) =>
+            (grp && (i === 0 || a[i - 1][3] !== grp) && grp !== 'پایه' ? '<div class="grp">' + grp + '</div>' : '')
+            + '<label for="f-' + k + '">' + label + '</label>' + (hint ? '<div class="hint">' + hint + '</div>' : '')
+            + '<textarea id="f-' + k + '">' + esc(v[k] || '') + '</textarea>').join('')
         + '<div class="check"><input type="checkbox" id="f-star"' + (v.starred ? ' checked' : '') + '><label for="f-star">ستاره‌دار (پرکاربرد)</label></div>' : '')
       + '<div class="acts"><button class="btn" type="submit">ذخیره</button><button class="btn ghost" type="button" data-sheet="back">برگشت</button>'
       + (n ? '<button class="btn danger" type="button" data-sheet="delete">' + (sheet.confirmDel ? 'حذف قطعی' : 'حذف') + '</button>' : '') + '</div>'
@@ -320,7 +342,7 @@ async function saveSheet(e){
   const parent = $('f-parent').value ? Number($('f-parent').value) : null;
   const body = { title, parent_id: parent, kind };
   if(kind === 'exercise'){
-    FIELDS.forEach(([k]) => { body[k] = $('f-' + k).value.trim() || null; });
+    FIELDS.forEach(([k]) => { const el = $('f-' + k); if(el) body[k] = el.value.trim() || null; });
     body.starred = $('f-star').checked;
   }
   try {
@@ -336,7 +358,7 @@ async function saveSheet(e){
 function keepForm(){
   // متن‌های نوشته‌شده حفظ شوند و فقط پیام خطا اضافه شود
   const keep = {};
-  ['f-title','f-parent','f-goal','f-steps','f-tools','f-levels','f-note'].forEach((id) => { const el = $(id); if(el) keep[id] = el.value; });
+  ['f-title','f-parent'].concat(FIELDS.map(([k]) => 'f-' + k)).forEach((id) => { const el = $(id); if(el) keep[id] = el.value; });
   const star = $('f-star') ? $('f-star').checked : null;
   renderSheet();
   Object.keys(keep).forEach((id) => { const el = $(id); if(el) el.value = keep[id]; });
