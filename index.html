@@ -117,6 +117,7 @@
         <div id="ttabs" class="no-print grid grid-cols-2 gap-2 mb-6">
             <button id="ttab-new" onclick="switchTherapistTab('new')" class="py-3 rounded-lg font-bold transition">📝 ثبت گزارش جدید</button>
             <button id="ttab-mine" onclick="switchTherapistTab('mine')" class="py-3 rounded-lg font-bold transition">📁 مراجعین من</button>
+            <button id="ttab-days" onclick="switchTherapistTab('days')" class="py-3 rounded-lg font-bold transition">🗓️ ثبت‌های روزانه</button>
             <button id="ttab-chat" onclick="switchTherapistTab('chat')" class="hidden relative py-3 rounded-lg font-bold transition"><span id="chat-tab-label">💬 صحبت با همکار</span><span id="chat-badge" class="hidden absolute -top-2 -left-2 bg-red-600 text-white text-xs font-extrabold rounded-full min-w-[22px] h-[22px] px-1 flex items-center justify-center"></span></button>
         </div>
 
@@ -135,6 +136,12 @@
             <div id="chat-loader" class="loader mb-4"></div>
             <p id="chat-empty" class="text-center text-gray-500 py-6 hidden"></p>
             <div id="chat-threads" class="space-y-5"></div>
+        </div>
+
+        <!-- DAILY REGISTRATIONS PANE (what I registered on each day) -->
+        <div id="days-pane" class="hidden no-print">
+            <p class="text-gray-600 text-sm mb-4 leading-relaxed">گزارش‌هایی که شما در هر روز ثبت کرده‌اید. با فلش‌ها به روزهای قبل بروید یا از «روزهای اخیر» یک روز را انتخاب کنید. روی اسم مراجع بزنید تا پرونده‌اش باز شود.</p>
+            <div id="days-body"></div>
         </div>
 
         <!-- MY PATIENTS PANE -->
@@ -1050,8 +1057,11 @@ ${finalEvaluation}`;
             document.getElementById('ttab-new').className = tab === 'new' ? on : off;
             document.getElementById('ttab-mine').className = tab === 'mine' ? on : off;
             document.getElementById('ttab-chat').className = chatCls;
+            document.getElementById('ttab-days').className = tab === 'days' ? on : off;
             document.getElementById('new-report-pane').classList.toggle('hidden', tab !== 'new');
             document.getElementById('my-patients-pane').classList.toggle('hidden', tab !== 'mine');
+            document.getElementById('days-pane').classList.toggle('hidden', tab !== 'days');
+            if (tab === 'days') openDaysTab();
             document.getElementById('chat-pane').classList.toggle('hidden', tab !== 'chat');
             if (tab === 'mine') loadTherapistData();
             if (tab === 'chat') openChatTab();
@@ -1073,6 +1083,7 @@ ${finalEvaluation}`;
                 fillPatientSuggestions();
                 renderMyPatients();
                 renderChat();
+                if (therapistTab === 'days') renderDays();
             } catch (e) {
                 console.error(e);
                 document.getElementById('my-patients-list').innerHTML = '';
@@ -1198,6 +1209,83 @@ ${finalEvaluation}`;
             });
         }
 
+        /* ---------------- ثبت‌های روزانه‌ی هر درمانگر ---------------- */
+        // تاریخ ثبت = زمان ثبت گزارش در برنامه (به وقت تهران)؛ تاریخ «جلسه» که درمانگر تایپ کرده کنارش نشان داده می‌شود.
+        const dayKeyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' });
+        const faDayFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'Asia/Tehran', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        const faShortFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'Asia/Tehran', day: 'numeric', month: 'long' });
+        const faTimeFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });
+        const dayKeyOf = (d) => dayKeyFmt.format(d instanceof Date ? d : new Date(d));
+        const dayKeyDate = (k) => new Date(k + 'T12:00:00Z');
+        const shiftDayKey = (k, n) => dayKeyOf(new Date(dayKeyDate(k).getTime() + n * 86400000));
+        let daysSel = '';
+
+        function openDaysTab() {
+            if (!daysSel) daysSel = dayKeyOf(new Date());
+            renderDays();
+            loadTherapistData();   // تازه‌سازی؛ بعد از آمدن داده، renderDays دوباره صدا زده می‌شود
+        }
+        function daysGo(n) { daysSel = shiftDayKey(daysSel || dayKeyOf(new Date()), n); renderDays(); }
+        function daysPick(k) { daysSel = k; renderDays(); }
+        function daysToday() { daysSel = dayKeyOf(new Date()); renderDays(); }
+        function daysOpenPatient(key) {
+            const g = groupMyPatients().find(x => normalizeName(x.name) === key);
+            if (g) openPatientHistory(g.name, g.rows, { therapist: true });
+        }
+
+        function renderDays() {
+            const box = document.getElementById('days-body');
+            if (!box) return;
+            if (!therapistReports.length) { box.innerHTML = '<p class="text-center text-gray-500 py-6">در حال بارگذاری...</p>'; return; }
+            const today = dayKeyOf(new Date());
+            if (!daysSel) daysSel = today;
+            const mine = therapistReports.filter(r => r.therapist_name === currentTherapist && r.created_at);
+            const byDay = {};
+            mine.forEach(r => { (byDay[dayKeyOf(r.created_at)] = byDay[dayKeyOf(r.created_at)] || []).push(r); });
+            const rows = (byDay[daysSel] || []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
+            // یک ردیف برای هر مراجع
+            const per = {};
+            rows.forEach(r => { const k = normalizeName(r.patient_name); if (k) (per[k] = per[k] || { key: k, name: (r.patient_name || '').trim(), rs: [] }).rs.push(r); });
+            const kids = Object.values(per);
+            const fa = (n) => n.toLocaleString('fa-IR');
+
+            const nav = `<div class="flex items-center justify-between gap-2 mb-4">
+                <button type="button" onclick="daysGo(-1)" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg px-4 py-3 font-bold" aria-label="روز قبل">&rarr; روز قبل</button>
+                <div class="text-center flex-1">
+                    <div class="font-extrabold text-blue-900">${escapeHtml(faDayFmt.format(dayKeyDate(daysSel)))}</div>
+                    ${daysSel === today ? '<span class="text-xs font-bold bg-emerald-600 text-white rounded-full px-2 py-0.5">امروز</span>' : '<button type="button" onclick="daysToday()" class="text-xs font-bold text-blue-700 underline">برو به امروز</button>'}
+                </div>
+                <button type="button" onclick="daysGo(1)" ${daysSel >= today ? 'disabled' : ''} class="bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg px-4 py-3 font-bold ${daysSel >= today ? 'opacity-40' : ''}" aria-label="روز بعد">روز بعد &larr;</button>
+            </div>`;
+
+            let list;
+            if (!kids.length) {
+                list = '<p class="text-center text-gray-500 py-6 bg-gray-50 rounded-xl border border-gray-200">در این روز گزارشی ثبت نکرده‌اید.</p>';
+            } else {
+                list = `<div class="text-emerald-900 font-bold text-sm mb-2">${fa(kids.length)} مراجع · ${fa(rows.length)} گزارش</div>
+                    <div class="space-y-2">` + kids.map(g => {
+                        const bits = g.rs.map(r => {
+                            const t = faTimeFmt.format(new Date(r.created_at));
+                            const sn = (r.session_number || '').toString().trim();
+                            const sd = (r.session_date || '').toString().trim();
+                            return escapeHtml(t) + (sn ? ' · جلسه ' + escapeHtml(sn) : '') + (sd ? ' · تاریخ جلسه: ' + escapeHtml(sd) : '');
+                        });
+                        return `<button type="button" onclick="daysOpenPatient(this.dataset.k)" data-k="${escapeHtml(g.key)}" class="w-full text-right bg-white border-2 border-gray-100 hover:border-blue-400 rounded-xl p-3 transition">
+                            <div class="font-bold text-gray-800">${escapeHtml(g.name)}${g.rs.length > 1 ? ' <span class="text-xs bg-amber-100 text-amber-800 rounded-full px-2 py-0.5">' + fa(g.rs.length) + ' گزارش</span>' : ''}</div>
+                            <div class="text-xs text-gray-500 mt-1">${bits.map(b => '<div>' + b + '</div>').join('')}</div>
+                        </button>`;
+                    }).join('') + '</div>';
+            }
+
+            const recent = Object.keys(byDay).sort().reverse().slice(0, 30);
+            const chips = recent.length
+                ? `<div class="mt-6"><div class="text-gray-700 font-bold text-sm mb-2">روزهای اخیر که ثبت داشته‌اید:</div><div class="flex flex-wrap gap-2">` +
+                    recent.map(k => `<button type="button" onclick="daysPick('${k}')" class="text-sm font-bold px-3 py-1.5 rounded-full border transition ${k === daysSel ? 'bg-blue-700 text-white border-blue-700' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}">${escapeHtml(faShortFmt.format(dayKeyDate(k)))} · ${fa(new Set(byDay[k].map(r => normalizeName(r.patient_name))).size)}</button>`).join('') +
+                    '</div></div>'
+                : '';
+            box.innerHTML = nav + list + chips;
+        }
+
         function therapistBadge(tName) {
             if (tName.includes('موسوی')) return "bg-purple-100 text-purple-800 border-purple-200";
             if (tName.includes('پریسا')) return "bg-pink-100 text-pink-800 border-pink-200";
@@ -1316,8 +1404,8 @@ ${finalEvaluation}`;
             const role = myChatRole();
             const tabs = document.getElementById('ttabs');
             const btn = document.getElementById('ttab-chat');
-            tabs.classList.toggle('grid-cols-3', !!role);
-            tabs.classList.toggle('grid-cols-2', !role);
+            tabs.classList.toggle('grid-cols-3', !role);
+            tabs.classList.toggle('grid-cols-2', !!role);
             btn.classList.toggle('hidden', !role);
             if (!role) return;
             const other = ROLE_LABEL[otherRole()];
