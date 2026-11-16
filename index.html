@@ -192,7 +192,13 @@
                 </div>
                 <div>
                     <label class="block text-blue-900 font-bold mb-2">تاریخ مراجعه:</label>
-                    <input type="text" id="f_date" class="w-full border-2 border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition" placeholder="۱۴۰۵/۰۸/۱۲" required>
+                    <div class="flex gap-2">
+                        <select id="f_date_d" aria-label="روز" class="w-1/4 border-2 border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></select>
+                        <select id="f_date_m" aria-label="ماه" class="flex-1 border-2 border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></select>
+                        <select id="f_date_y" aria-label="سال" class="w-1/3 border-2 border-gray-200 rounded-lg px-2 py-2 focus:outline-none focus:border-blue-500 bg-gray-50 transition"></select>
+                    </div>
+                    <input type="hidden" id="f_date">
+                    <button type="button" id="f_date_today" class="mt-1 text-xs font-bold text-blue-700 underline">امروز</button>
                 </div>
                 <div id="performance-div">
                     <label class="block text-blue-900 font-bold mb-2">وضعیت عملکرد کودک در این جلسه:</label>
@@ -1132,6 +1138,43 @@ ${finalEvaluation}`;
             return best;
         }
         function faDate(iso) { try { return new Date(iso).toLocaleDateString('fa-IR'); } catch (e) { return ''; } }
+
+        /* ---------------- انتخاب تاریخ شمسی (به‌جای تایپ دستی) ---------------- */
+        const FA_MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+        const faDigits = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+        function todayJalali() {
+            const parts = new Intl.DateTimeFormat('en-u-ca-persian-nu-latn', { timeZone: 'Asia/Tehran', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date());
+            const g = (t) => parseInt(parts.find(x => x.type === t).value, 10);
+            return { y: g('year'), m: g('month'), d: g('day') };
+        }
+        (function initJalaliPicker() {
+            const dSel = document.getElementById('f_date_d'), mSel = document.getElementById('f_date_m'), ySel = document.getElementById('f_date_y');
+            const hidden = document.getElementById('f_date');
+            if (!dSel || !mSel || !ySel || !hidden) return;
+            let touched = false;
+            const fillDays = (keep) => {
+                const m = +mSel.value, max = m <= 6 ? 31 : 30;
+                dSel.innerHTML = Array.from({ length: max }, (_, i) => `<option value="${i + 1}">${faDigits(i + 1)}</option>`).join('');
+                dSel.value = String(Math.min(keep || 1, max));
+            };
+            const sync = () => { hidden.value = faDigits(ySel.value) + '/' + faDigits(String(mSel.value).padStart(2, '0')) + '/' + faDigits(String(dSel.value).padStart(2, '0')); };
+            const setToday = () => {
+                const t = todayJalali();
+                ySel.innerHTML = [t.y - 1, t.y].map(y => `<option value="${y}">${faDigits(y)}</option>`).join('');
+                mSel.innerHTML = FA_MONTHS.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('');
+                ySel.value = String(t.y); mSel.value = String(t.m);
+                fillDays(t.d);
+                sync(); touched = false;
+            };
+            mSel.addEventListener('change', () => { fillDays(+dSel.value); sync(); touched = true; });
+            dSel.addEventListener('change', () => { sync(); touched = true; });
+            ySel.addEventListener('change', () => { sync(); touched = true; });
+            document.getElementById('f_date_today').addEventListener('click', setToday);
+            document.getElementById('report-form').addEventListener('reset', () => setTimeout(setToday, 0));
+            // اگر برنامه از دیروز باز مانده و تاریخ دست نخورده، با برگشتن به برنامه امروز را بگذار
+            document.addEventListener('visibilitychange', () => { if (!document.hidden && !touched) setToday(); });
+            setToday();
+        })();
 
         // وقتی نام مراجع در فرم نوشته می‌شود، برنامهٔ جلسهٔ قبل را نشان بده
         function updatePatientHint() {
