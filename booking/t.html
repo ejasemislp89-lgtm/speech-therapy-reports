@@ -95,17 +95,19 @@ function dayBlock(iso){
   const sure = list.filter(r => r.status === 'قطعی').length;
   const head = '<div class="flex items-baseline justify-between mb-2">'
     + '<h2 class="font-extrabold text-teal-900">'+fullLabel(iso)+(iso===todayISO()?' <span class="text-xs text-teal-600">(امروز)</span>':'')+'</h2>'
-    + '<span class="text-xs text-gray-500">'+toFa(list.length)+' نوبت'+(sure?' · '+toFa(sure)+' قطعی':'')+'</span></div>';
+    + '<span class="text-xs text-gray-500">'+toFa(list.length)+' نوبت'+(sure?' · '+toFa(sure)+' قطعی':'')+(list.some(r=>r.arrived_at)?' · ✅ '+toFa(list.filter(r=>r.arrived_at && r.status!=='کنسلی').length)+' حاضر':'')+'</span></div>';
   if(!list.length) return '<div class="mb-5">'+head+'<p class="card p-4 text-center text-gray-400 text-sm">نوبتی ثبت نشده است</p></div>';
   const items = list.map(r => '<div class="card slot '+stClass(r.status)+' p-3">'
     + '<div class="flex items-center justify-between gap-2">'
     + '<span class="num font-extrabold text-slate-700 text-sm">'+toFa(SLOTS[r.slot_index-1])+'</span>'
     + (r.status ? '<span class="pill">'+esc(r.status)+'</span>' : '') + '</div>'
+    + (r.arrived_at ? '<div class="text-xs font-extrabold text-green-700 mt-1">✅ حاضر شد · '+arrT(r.arrived_at)+'</div>' : '')
     + '<div class="font-extrabold text-teal-900 mt-1">'+esc(r.client_name || '—')+'</div>'
     + (r.service ? '<div class="text-xs text-gray-500">'+esc(r.service)+'</div>' : '')
     + (r.note ? '<div class="text-xs text-amber-700 mt-0.5">'+esc(r.note)+'</div>' : '') + '</div>').join('');
   return '<div class="mb-5">'+head+'<div class="space-y-2">'+items+'</div></div>';
 }
+const arrT = (iso) => { try { return new Date(iso).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tehran'}); } catch(e){ return ''; } };
 function render(){
   document.querySelectorAll('#views .chip').forEach(c => c.classList.toggle('on', c.dataset.v === view));
   if(view === 'today')    return void ($('out').innerHTML = dayBlock(todayISO()));

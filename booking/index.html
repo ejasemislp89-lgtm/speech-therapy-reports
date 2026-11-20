@@ -32,6 +32,9 @@
   .st-کنسلی     { border-right-color:#dc2626 } .st-کنسلی .pill     { background:#fee2e2; color:#991b1b }
   .st-انجام     { border-right-color:#2563eb } .st-انجام .pill     { background:#dbeafe; color:#1e3a8a }
   .st-استراحت   { border-right-color:#94a3b8 } .st-استراحت .pill   { background:#f1f5f9; color:#475569 }
+  .arrbtn { flex:none; width:1.7rem; border-radius:.5rem; border:1px solid #86efac; color:#166534; background:#f0fdf4; font-weight:800; font-size:.95rem; line-height:1 }
+  .arrbtn.on { background:#16a34a; color:#fff; border-color:#15803d }
+  .arrived-tag { display:inline-block; margin-top:.15rem; padding:.05rem .45rem; border-radius:999px; background:#dcfce7; color:#166534; font-size:.68rem; font-weight:800 }
   .pill { display:inline-block; padding:.05rem .5rem; border-radius:999px; font-size:.7rem; font-weight:800 }
   .empty { background: #fafafa; }
   .cellbtn { width:100%; text-align:right; padding:.5rem .6rem; border-radius:.5rem; border:1px dashed #cbd5e1; color:#94a3b8; font-size:.85rem; }
@@ -325,8 +328,13 @@ function counters(rows){
   const filled = rows.filter(r => r.client_name && r.status !== 'استراحت').length;
   const sure   = rows.filter(r => r.status === 'قطعی').length;
   const cancel = rows.filter(r => r.status === 'کنسلی').length;
-  return {filled, sure, cancel};
+  const arrived = rows.filter(r => r.arrived_at && r.status !== 'کنسلی').length;
+  return {filled, sure, cancel, arrived};
 }
+const canArrive = (r) => !!(r && r.id && r.client_name && r.status !== 'استراحت' && r.status !== 'کنسلی');
+const arrTime = (r) => { try { return new Date(r.arrived_at).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tehran'}); } catch(e){ return ''; } };
+const arrTag = (r) => r.arrived_at ? '<div class="arrived-tag">✅ حاضر · '+arrTime(r)+'</div>' : '';
+const arrBtn = (r, tid, i, d) => canArrive(r) ? '<button type="button" class="arrbtn no-print'+(r.arrived_at?' on':'')+'" data-arr="1" data-t="'+tid+'" data-i="'+i+'"'+(d?' data-d="'+d+'"':'')+' title="'+(r.arrived_at?'برگرداندن حضور':'مراجع حاضر شد')+'" aria-label="حضور مراجع">'+(r.arrived_at?'✔':'✓')+'</button>' : '';
 function cellHTML(tid, i, r){
   if(!r || (!r.client_name && !r.status)) return '<div class="flex items-stretch gap-1 no-print"><button class="cellbtn" style="flex:1;min-width:0;width:auto" data-t="'+tid+'" data-i="'+i+'">＋ خالی</button>'
     + '<button type="button" class="insbtn" data-ins="1" data-t="'+tid+'" data-i="'+i+'" title="گزینه‌های این ساعت" aria-label="گزینه‌های این ساعت">⋯</button></div>';
@@ -335,7 +343,7 @@ function cellHTML(tid, i, r){
     + '<div class="num text-xs font-extrabold text-teal-700">🕐 '+toFa(SLOTS[i-1])+'</div>'
     + '<div class="font-extrabold text-slate-800 text-sm">'+esc(r.client_name || '—')+(r.status?' <span class="pill">'+esc(r.status)+'</span>':'')+'</div>'
     + (bits ? '<div class="text-xs text-gray-500">'+bits+'</div>' : '')
-    + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + '</button>'
+    + (r.note ? '<div class="text-xs text-amber-700">'+esc(r.note)+'</div>' : '') + arrTag(r) + '</button>' + arrBtn(r, tid, i)
     + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" title="گزینه‌های این نوبت" aria-label="گزینه‌های این نوبت">⋯</button></div>';
 }
 /* جای اسکرول (افقی و عمودی) را نگه می‌دارد تا بعد از هر ذخیره، صفحه به اول برنگردد */
@@ -358,7 +366,7 @@ function renderDay(){
   const head = '<tr><th class="w-24">ساعت</th>' + act.map(t => {
     const c = counters(dayRows.filter(r => r.therapist_id === t.id));
     return '<th class="wk"><div>'+esc(t.name)+'</div><div class="text-xs font-normal text-gray-500">'
-      + toFa(c.filled)+' نوبت · '+toFa(c.sure)+' قطعی'+(c.cancel?' · '+toFa(c.cancel)+' کنسل':'')+'</div></th>'; }).join('') + '</tr>';
+      + toFa(c.filled)+' نوبت · '+toFa(c.sure)+' قطعی'+(c.cancel?' · '+toFa(c.cancel)+' کنسل':'')+'</div><div class="text-xs font-extrabold text-green-700">✅ '+toFa(c.arrived)+' حاضر</div></th>'; }).join('') + '</tr>';
   const body = SLOTS.map((s, idx) => {
     const i = idx + 1;
     return '<tr><td class="num text-xs text-gray-600 whitespace-nowrap font-bold">'+toFa(s)+'</td>'
@@ -397,7 +405,7 @@ function renderWeek(){
           return '<td><div class="flex items-stretch gap-1"><button class="flex-1 min-w-0 text-right slot '+stClass(r.status)+' bg-white rounded-lg px-2 py-1.5 border border-slate-200" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'">'
             + '<div class="num text-[11px] font-extrabold text-teal-700">🕐 '+toFa(SLOTS[i-1])+'</div>'
             + '<div class="font-bold text-slate-800 text-xs">'+esc(r.client_name||'—')+'</div>'
-            + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + '</button>'
+            + (r.status?'<span class="pill">'+esc(r.status)+'</span>':'') + arrTag(r) + '</button>' + arrBtn(r, tid, i, d)
             + '<button type="button" class="insbtn no-print" data-ins="1" data-t="'+tid+'" data-i="'+i+'" data-d="'+d+'" title="گزینه‌های این نوبت" aria-label="گزینه‌های این نوبت">⋯</button></div></td>'; }).join('') + '</tr>'; }).join('');
   setKeepingScroll($('week-out'), '<div class="card p-2 overflow-x-auto"><table class="t"><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>');
 }
@@ -442,8 +450,22 @@ $('b-add').addEventListener('click', () => {
   openSlot(tid, 0, d);
 });
 /* دکمه‌ی ⋯ کنار هر نوبت: منوی کارهای آن نوبت (اضافه، جلو، عقب، خالی کردن، ویرایش) */
+async function toggleArrived(tid, i, date){
+  const rows = tab === 'week' ? weekRows : dayRows;
+  const r = rows.find(x => x.therapist_id === tid && x.slot_index === i && x.appt_date === date);
+  if(!r || !r.id) return;
+  const now = r.arrived_at ? null : new Date().toISOString();
+  try {
+    await api('/rest/v1/sch_appointments?id=eq.'+r.id, { method:'PATCH', headers:{Prefer:'return=minimal'},
+      body: { arrived_at: now, arrived_by: now ? ((session && session.user && session.user.email) || role || null) : null } });
+    r.arrived_at = now; r.arrived_by = now ? 'me' : null;
+    if(tab === 'week') renderWeek(); else renderDay();
+    toast(now ? '✅ حاضر ثبت شد' : 'حضور برداشته شد');
+  } catch(err){ toast('خطا: '+err.message, false); }
+}
 function onCellClick(e, withDate){
   const b = e.target.closest('button[data-t]'); if(!b) return;
+  if(b.dataset.arr) return toggleArrived(+b.dataset.t, +b.dataset.i, withDate ? b.dataset.d : curDate);
   if(b.dataset.ins || b.classList.contains('slot')) return openMenu(+b.dataset.t, +b.dataset.i, withDate ? b.dataset.d : curDate);
   openSlot(+b.dataset.t, +b.dataset.i, withDate ? b.dataset.d : undefined);
 }
