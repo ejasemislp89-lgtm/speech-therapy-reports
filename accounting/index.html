@@ -506,7 +506,18 @@ const jMonthLen = (jy, jm) => (jm <= 6 ? 31 : jm <= 11 ? 30 : (isJLeap(jy) ? 30 
 const pad2 = (n) => String(n).padStart(2, '0');
 const isoFromG = (g) => g.gy + '-' + pad2(g.gm) + '-' + pad2(g.gd);
 function isoFromJ(jy, jm, jd) { return isoFromG(toGregorian(jy, jm, jd)); }
-function todayISO() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date()); }
+/* تاریخ امروز به وقت تهران به‌صورت YYYY-MM-DD؛ مستقل از قالب 'en-CA' که روی بعضی کامپیوترها/مرورگرها درست برنمی‌گردد */
+function tehISO(d){
+  d = d || new Date();
+  try {
+    const o = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).forEach(x => { o[x.type] = x.value; });
+    const y = parseInt(o.year, 10), m = parseInt(o.month, 10), dd = parseInt(o.day, 10);
+    if(y > 2000 && y < 2200 && m >= 1 && m <= 12 && dd >= 1 && dd <= 31) return y + '-' + String(m).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+  } catch(e){}
+  const t = new Date(d.getTime() + 210 * 60000);
+  return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');
+}
+function todayISO() { return tehISO(new Date()); }
 function parseISO(iso) { const p = iso.split('-').map(Number); return { gy: p[0], gm: p[1], gd: p[2] }; }
 function jalaliLabel(iso) {
   const g = parseISO(iso); const j = toJalali(g.gy, g.gm, g.gd);
@@ -1132,7 +1143,7 @@ function openLead(l, opts = {}) {
   setLfStatus(opts.status || (l ? l.status : null));
   $('lf-note').value = opts.note || '';
   const log = (l && Array.isArray(l.log)) ? l.log.slice().reverse() : [];
-  $('lf-log').innerHTML = log.map((x) => '<div class="py-1 border-b border-gray-200"><b>' + esc(jalaliLabel(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(x.at)))) + ' ' + esc(timeLabel(x.at)) + '</b> · ' + esc(ST[x.st] || '') + (x.text ? ': ' + esc(x.text) : '') + '</div>').join('');
+  $('lf-log').innerHTML = log.map((x) => '<div class="py-1 border-b border-gray-200"><b>' + esc(jalaliLabel(tehISO(new Date(x.at)))) + ' ' + esc(timeLabel(x.at)) + '</b> · ' + esc(ST[x.st] || '') + (x.text ? ': ' + esc(x.text) : '') + '</div>').join('');
   $('lf-log').classList.toggle('hidden', !log.length);
   $('lf-del').classList.toggle('hidden', !(l && role === 'admin'));
   checkDup();
@@ -1356,7 +1367,7 @@ function openChurn(c) {
   $('cf-reason').value = v.reason || 'هزینه'; $('cf-note').value = '';
   setCfStatus(v.status || 'open');
   const log = (c && Array.isArray(c.log)) ? c.log.slice().reverse() : [];
-  $('cf-log').innerHTML = log.map((x) => '<div class="py-1 border-b border-gray-200"><b>' + esc(jalaliLabel(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date(x.at)))) + '</b> · ' + esc(CST[x.st] || '') + (x.text ? ': ' + esc(x.text) : '') + '</div>').join('');
+  $('cf-log').innerHTML = log.map((x) => '<div class="py-1 border-b border-gray-200"><b>' + esc(jalaliLabel(tehISO(new Date(x.at)))) + '</b> · ' + esc(CST[x.st] || '') + (x.text ? ': ' + esc(x.text) : '') + '</div>').join('');
   $('cf-log').classList.toggle('hidden', !log.length);
   $('cf-del').classList.toggle('hidden', !(c && c.id && role === 'admin'));
   $('churn-modal').classList.remove('hidden');

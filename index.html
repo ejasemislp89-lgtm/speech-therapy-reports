@@ -1254,7 +1254,7 @@ ${finalEvaluation}`;
 
         /* ---------------- ثبت‌های روزانه‌ی هر درمانگر ---------------- */
         // تاریخ ثبت = زمان ثبت گزارش در برنامه (به وقت تهران)؛ تاریخ «جلسه» که درمانگر تایپ کرده کنارش نشان داده می‌شود.
-        const dayKeyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' });
+        const dayKeyFmt = { format: (d) => { try { const o = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).forEach(x => { o[x.type] = x.value; }); return o.year + '-' + o.month + '-' + o.day; } catch(e){ const t = new Date(d.getTime() + 210*60000); return t.toISOString().slice(0,10); } } };
         const faDayFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'Asia/Tehran', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         const faShortFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'Asia/Tehran', day: 'numeric', month: 'long' });
         const faTimeFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'Asia/Tehran', hour: '2-digit', minute: '2-digit' });

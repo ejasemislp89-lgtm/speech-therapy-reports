@@ -215,7 +215,18 @@ const pad2 = (n) => String(n).padStart(2,'0');
 const isoFromG = (g) => g.gy+'-'+pad2(g.gm)+'-'+pad2(g.gd);
 const isoFromJ = (jy,jm,jd) => isoFromG(d2g(j2d(jy,jm,jd)));
 const parseISO = (iso) => { const p = iso.split('-').map(Number); return {gy:p[0],gm:p[1],gd:p[2]}; };
-const todayISO = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tehran'}).format(new Date());
+/* تاریخ امروز به وقت تهران به‌صورت YYYY-MM-DD؛ مستقل از قالب 'en-CA' که روی بعضی کامپیوترها/مرورگرها درست برنمی‌گردد */
+function tehISO(d){
+  d = d || new Date();
+  try {
+    const o = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).forEach(x => { o[x.type] = x.value; });
+    const y = parseInt(o.year, 10), m = parseInt(o.month, 10), dd = parseInt(o.day, 10);
+    if(y > 2000 && y < 2200 && m >= 1 && m <= 12 && dd >= 1 && dd <= 31) return y + '-' + String(m).padStart(2, '0') + '-' + String(dd).padStart(2, '0');
+  } catch(e){}
+  const t = new Date(d.getTime() + 210 * 60000);
+  return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');
+}
+const todayISO = () => tehISO(new Date());
 const addDaysISO = (iso,n) => { const g=parseISO(iso); return isoFromG(d2g(g2d(g.gy,g.gm,g.gd)+n)); };
 function jalaliLabel(iso){ const g=parseISO(iso), j=toJalali(g.gy,g.gm,g.gd);
   return toFa(j.jd)+' '+MONTHS[j.jm-1]+' '+toFa(j.jy); }
