@@ -43,6 +43,30 @@
   .st-active { background: #dbeafe; color: #1e3a8a; } .st-lost { background: #f3f4f6; color: #6b7280; }
   .lead { border-right: 4px solid #e5e7eb; }
   .lead.late { border-right-color: #dc2626; } .lead.due { border-right-color: #f59e0b; } .lead.ok { border-right-color: #16a34a; }
+  /* --- مراجعین جدید: چیدمان ساده --- */
+  #intake-out { max-width: 42rem; margin: 0 auto; }
+  .isum { display:flex; gap:.5rem; margin-bottom:1rem; }
+  .isum > div { flex:1; text-align:center; background:#fff; border:1px solid #e5e7eb; border-radius:.9rem; padding:.55rem .25rem; }
+  .isum b { display:block; font-size:1.5rem; line-height:1.2; color:#1e3a8a; } .isum span { font-size:.72rem; color:#6b7280; font-weight:700; }
+  .isum .zero b { color:#9ca3af; }
+  .isec { margin-bottom:1.4rem; } .isec > h3 { font-weight:800; color:#1e3a8a; margin-bottom:.5rem; font-size:1rem; display:flex; align-items:center; gap:.4rem; }
+  .isec > h3 i { font-style:normal; background:#1e3a8a; color:#fff; font-size:.72rem; border-radius:999px; padding:.05rem .5rem; }
+  .icard { background:#fff; border:1px solid #e5e7eb; border-right:4px solid #cbd5e1; border-radius:.9rem; padding:.8rem .9rem; margin-bottom:.5rem; }
+  .icard.t-appt { border-right-color:#16a34a; } .icard.t-result { border-right-color:#2563eb; } .icard.t-fu { border-right-color:#f59e0b; } .icard.t-old { border-right-color:#cbd5e1; background:#f9fafb; }
+  .icard .nm { font-weight:800; color:#111827; } .icard .sub { font-size:.78rem; color:#6b7280; margin-top:.1rem; }
+  .icard .when { font-size:.82rem; font-weight:700; color:#374151; margin-top:.4rem; } .icard .when.warn { color:#b45309; }
+  .icard .row { display:flex; gap:.5rem; align-items:center; margin-top:.65rem; }
+  .pbtn { flex:1; text-align:center; background:#16a34a; color:#fff; font-weight:800; padding:.6rem .5rem; border-radius:.7rem; font-size:.95rem; }
+  .pbtn.blue { background:#1d4ed8; } .pbtn.amber { background:#d97706; } .pbtn.grey { background:#e5e7eb; color:#374151; }
+  .sbtn { background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; font-weight:700; padding:.55rem .8rem; border-radius:.7rem; font-size:.85rem; }
+  .imenu { position:relative; } .imenu > summary { list-style:none; cursor:pointer; width:2.5rem; height:2.5rem; display:flex; align-items:center; justify-content:center; border:1px solid #e5e7eb; border-radius:.7rem; font-size:1.2rem; color:#6b7280; background:#fff; }
+  .imenu > summary::-webkit-details-marker { display:none; }
+  .imenu .pop { position:absolute; left:0; top:2.8rem; z-index:20; background:#fff; border:1px solid #e5e7eb; border-radius:.7rem; box-shadow:0 8px 24px rgba(0,0,0,.15); min-width:11rem; overflow:hidden; }
+  .imenu .pop button { display:block; width:100%; text-align:right; padding:.6rem .9rem; font-size:.88rem; font-weight:700; color:#374151; border-bottom:1px solid #f3f4f6; }
+  .imenu .pop button:hover { background:#f9fafb; }
+  details.fold > summary { cursor:pointer; list-style:none; font-weight:800; color:#6b7280; padding:.6rem .9rem; background:#f3f4f6; border-radius:.8rem; margin-bottom:.5rem; display:flex; justify-content:space-between; }
+  details.fold > summary::-webkit-details-marker { display:none; }
+  details.fold[open] > summary { color:#1e3a8a; }
   .qbtn { padding: .3rem .7rem; border-radius: .5rem; font-weight: 700; font-size: .8rem; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
   @media print {
     body { background: #fff; }
@@ -1000,44 +1024,58 @@ function updateBadge() {
 }
 async function refreshIntakeBadge() { try { await fetchLeads(); updateBadge(); } catch (e) { /* جدول هنوز ساخته نشده */ } }
 
+const OLD_DAYS = 14;
 function leadCard(l, kind) {
-  const t = todayISO(); let cls = '', info = '', btns = '';
+  const t = todayISO(); const id = l.id;
+  const sub = [l.parent_name ? 'والد: ' + esc(l.parent_name) : '', esc(l.child_age || ''), esc(l.service || ''), l.referral ? 'از ' + esc(l.referral) : ''].filter(Boolean).join(' · ');
+  const menu = (items) => '<details class="imenu"><summary aria-label="گزینه‌های بیشتر">⋯</summary><div class="pop">' +
+    items.map((x) => '<button type="button" data-act="' + x[0] + '" data-id="' + id + '">' + x[1] + '</button>').join('') + '</div></details>';
+  const tel = '<a href="tel:' + esc(l.phone) + '" class="pbtn" dir="ltr"><span class="num">📞 ' + esc(l.phone) + '</span></a>';
+  const phoneLine = '<a href="tel:' + esc(l.phone) + '" class="num text-xs text-gray-500" dir="ltr">' + esc(l.phone) + '</a>';
+  let cls = '', when = '', warn = false, row = '';
   if (l.status === 'followup') {
     const d = l.next_followup ? diffDays(t, l.next_followup) : 0;
-    cls = d > 0 ? 'late' : (d === 0 ? 'due' : '');
-    info = !l.next_followup ? '⏰ تاریخ پیگیری ندارد' : d > 0 ? '⏰ ' + toFa(d) + ' روز عقب افتاده' : d === 0 ? '⏰ پیگیری امروز' : '📆 پیگیری: ' + weekdayOf(l.next_followup) + ' ' + jalaliLabel(l.next_followup);
-    if (l.followup_count) info += ' · ' + toFa(l.followup_count) + ' بار پیگیری شده';
-    btns = '<button class="qbtn" data-act="fu" data-id="' + l.id + '">ثبت نتیجه‌ی پیگیری</button>' +
-      '<button class="qbtn" style="' + ((l.followup_count || 0) >= 3 ? 'background:#fde68a;' : '') + '" data-act="closefu" data-id="' + l.id + '">🗂 پیگیری تموم شد، ببند</button>';
+    const old = d >= OLD_DAYS || (l.followup_count || 0) >= 3;
+    cls = old ? 't-old' : 't-fu';
+    when = !l.next_followup ? 'تاریخ پیگیری ندارد' : d > 0 ? toFa(d) + ' روز عقب افتاده' : d === 0 ? 'پیگیری امروز' : 'پیگیری: ' + weekdayOf(l.next_followup) + ' ' + jalaliLabel(l.next_followup);
+    if (l.followup_count) when += ' · ' + toFa(l.followup_count) + ' بار پیگیری شده';
+    warn = d > 0 && !old;
+    row = old
+      ? '<button type="button" class="pbtn amber" data-act="closefu" data-id="' + id + '">🗂 ببندش؟</button><button type="button" class="sbtn" data-act="fu" data-id="' + id + '">یک بار دیگر</button>' + menu([['edit', '✏️ ویرایش']])
+      : tel + '<button type="button" class="sbtn" data-act="fu" data-id="' + id + '">ثبت نتیجه</button>' + menu([['closefu', '🗂 پیگیری تموم شد، ببند'], ['edit', '✏️ ویرایش']]);
   } else if (l.status === 'booked') {
-    cls = kind === 'result' ? 'late' : 'ok';
-    info = '📅 ارزیابی: ' + (l.appt_date ? weekdayOf(l.appt_date) + ' ' + jalaliLabel(l.appt_date) : 'تاریخ ندارد') + (l.appt_time ? ' ساعت ' + toFa(esc(l.appt_time)) : '') +
+    when = (l.appt_date ? weekdayOf(l.appt_date) + ' ' + jalaliLabel(l.appt_date) : 'تاریخ ندارد') + (l.appt_time ? ' · ساعت ' + toFa(esc(l.appt_time)) : '') +
       (l.assessor_id ? ' · ' + esc(thName(l.assessor_id)) : '') + (l.deposit_amount ? ' · بیعانه ' + fa(l.deposit_amount) : '');
-    btns = kind === 'result'
-      ? '<button class="qbtn" style="background:#dbeafe" data-act="assessed" data-id="' + l.id + '">🩺 ارزیابی شد، تعیین درمانگر</button><button class="qbtn" data-act="noshow" data-id="' + l.id + '">↩ نیامد</button><button class="qbtn" data-act="lostafter" data-id="' + l.id + '">✖ ادامه نداد</button>'
-      : '<button class="qbtn" data-act="edit" data-id="' + l.id + '">✏️ جزئیات</button>';
+    if (kind === 'result') {
+      cls = 't-result';
+      row = '<button type="button" class="pbtn blue" data-act="assessed" data-id="' + id + '">🩺 ارزیابی شد، درمانگر را تعیین کن</button>' +
+        menu([['noshow', '↩ نیامد'], ['lostafter', '✖ ادامه نداد'], ['edit', '✏️ جزئیات']]);
+    } else {
+      cls = 't-appt';
+      row = tel + '<button type="button" class="sbtn" data-act="edit" data-id="' + id + '">✏️ جزئیات</button>';
+    }
   } else if (l.status === 'active') {
-    cls = 'ok';
-    info = '🩺 ' + esc(thName(l.therapist_id)) + ' · ' + toFa(l.sessions_per_week || '؟') + ' جلسه در هفته' + (l.start_date ? ' · شروع ' + jalaliLabel(l.start_date) : '');
-    btns = '<button class="qbtn" data-act="edit" data-id="' + l.id + '">✏️ جزئیات</button>';
+    when = esc(thName(l.therapist_id)) + ' · ' + toFa(l.sessions_per_week || '؟') + ' جلسه در هفته' + (l.start_date ? ' · شروع ' + jalaliLabel(l.start_date) : '');
+    row = '<button type="button" class="sbtn" data-act="edit" data-id="' + id + '">✏️ جزئیات</button>';
   } else {
-    info = '✖ ' + esc(l.lost_reason || 'منصرف شد');
-    btns = '<button class="qbtn" data-act="edit" data-id="' + l.id + '">✏️ جزئیات</button>';
+    when = esc(l.lost_reason || 'منصرف شد'); cls = 't-old';
+    row = '<button type="button" class="sbtn" data-act="edit" data-id="' + id + '">✏️ جزئیات</button>';
   }
-  const sub = [l.parent_name ? 'والد: ' + esc(l.parent_name) : '', esc(l.child_age || ''), esc(l.service || ''), l.referral ? 'از ' + esc(l.referral) : ''].filter(Boolean).join(' · ');
-  return '<div class="card lead ' + cls + ' p-3">' +
-    '<div class="flex items-start justify-between gap-2"><div class="min-w-0">' +
-      '<div class="font-extrabold text-blue-900">' + esc(l.child_name) + ' <span class="st st-' + l.status + '">' + ST[l.status] + '</span></div>' +
-      (sub ? '<div class="text-xs text-gray-500 mt-0.5">' + sub + '</div>' : '') + '</div>' +
-      '<a href="tel:' + esc(l.phone) + '" class="shrink-0 bg-green-600 text-white font-bold text-sm px-3 py-1.5 rounded-lg num" dir="ltr">📞 ' + esc(l.phone) + '</a></div>' +
-    (l.concern ? '<div class="text-sm text-gray-700 mt-1">' + esc(l.concern) + '</div>' : '') +
-    '<div class="text-sm mt-2 font-bold text-gray-700">' + info + '</div>' +
-    '<div class="flex flex-wrap gap-2 mt-2">' + btns + '</div></div>';
+  return '<div class="icard ' + cls + '">' +
+    '<div class="flex items-start justify-between gap-2"><div class="min-w-0"><div class="nm">' + esc(l.child_name) + '</div>' +
+    (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>' +
+    (kind === 'all' ? '<span class="st st-' + l.status + '">' + ST[l.status] + '</span>' : '') + '</div>' +
+    (l.concern ? '<div class="text-sm text-gray-600 mt-1">' + esc(l.concern) + '</div>' : '') +
+    '<div class="when' + (warn ? ' warn' : '') + '">' + when + '</div>' +
+    (kind === 'all' && !row.includes('tel:') ? '<div class="mt-1">' + phoneLine + '</div>' : '') +
+    '<div class="row">' + row + '</div></div>';
 }
-function section(title, list, kind, empty, hideIfEmpty) {
+function section(title, list, kind, empty, hideIfEmpty, fold) {
   if (hideIfEmpty && !list.length) return '';
-  return '<div class="mb-5"><h3 class="font-extrabold text-blue-900 mb-2">' + title + ' <span class="text-gray-400 text-sm">(' + toFa(list.length) + ')</span></h3>' +
-    (list.length ? '<div class="grid md:grid-cols-2 gap-2">' + list.map((l) => leadCard(l, kind)).join('') + '</div>' : '<p class="text-sm text-gray-400 card p-3">' + empty + '</p>') + '</div>';
+  const cnt = '<i>' + toFa(list.length) + '</i>';
+  const body = list.length ? list.map((l) => leadCard(l, kind)).join('') : '<p class="text-sm text-gray-400 card p-3">' + empty + '</p>';
+  if (fold) return '<details class="fold isec"><summary><span>' + title + '</span><span>' + toFa(list.length) + '</span></summary>' + body + '</details>';
+  return '<div class="isec"><h3>' + title + ' ' + cnt + '</h3>' + body + '</div>';
 }
 
 function renderIntake() {
@@ -1049,19 +1087,26 @@ function renderIntake() {
     const q = normDigits($('i-search').value.trim()).toLowerCase(); const qp = normPhone(q);
     const list = leads.filter((l) => (!intakeFilter || l.status === intakeFilter) &&
       (!q || String(l.child_name).toLowerCase().includes(q) || String(l.parent_name || '').toLowerCase().includes(q) || (qp.length >= 3 && String(l.phone).includes(qp))));
-    $('intake-out').innerHTML = list.length ? '<div class="grid md:grid-cols-2 gap-2">' + list.map((l) => leadCard(l, 'all')).join('') + '</div>' : '<p class="text-center text-gray-400 card p-4">موردی پیدا نشد</p>';
+    $('intake-out').innerHTML = list.length ? list.map((l) => leadCard(l, 'all')).join('') : '<p class="text-center text-gray-400 card p-4">موردی پیدا نشد</p>';
     return;
   }
   // هر مراجع فقط یک بار و در مهم‌ترین بخش خودش نشان داده می‌شود
   const b = buckets(); const seen = new Set();
   const once = (list) => list.filter((l) => !seen.has(l.id) && seen.add(l.id));
+  const t = todayISO();
+  const fuNow = once(b.fu.filter((l) => !l.next_followup || l.next_followup >= t));
+  const fuOver = once(b.fu.filter((l) => l.next_followup && l.next_followup < t));
+  const res = once(b.result), appt = once(b.apptToday);
+  const sum = (n, label) => '<div class="' + (n ? '' : 'zero') + '"><b>' + toFa(n) + '</b><span>' + label + '</span></div>';
   $('intake-out').innerHTML =
-    section('🔔 پیگیری‌های امروز و عقب‌افتاده', once(b.fu), 'fu', 'پیگیری امروزی نداری 👌') +
-    section('⏳ ارزیابی‌شده‌ها: نتیجه را ثبت کنید', once(b.result), 'result', '', true) +
-    section('📅 نوبت‌های ارزیابی امروز', once(b.apptToday), 'appt', 'امروز نوبت ارزیابی نداریم') +
-    section('🗓 نوبت‌های ارزیابی روزهای بعد', once(b.upcoming), 'appt', '', true) +
-    section('🔁 پیگیری‌های روزهای بعد', once(b.laterFu), 'later', '', true) +
-    section('📞 تماس‌های امروز (بدون کار باز)', once(b.today), 'today', '', true);
+    '<div class="isum">' + sum(appt.length, 'نوبت ارزیابی امروز') + sum(res.length, 'نتیجه‌ی ارزیابی') + sum(fuNow.length, 'پیگیری امروز') + sum(fuOver.length, 'عقب‌افتاده') + '</div>' +
+    section('📅 نوبت‌های ارزیابی امروز', appt, 'appt', '', true) +
+    section('🩺 ارزیابی‌شده‌ها: نتیجه را ثبت کنید', res, 'result', '', true) +
+    section('📞 پیگیری‌های امروز', fuNow, 'fu', 'پیگیری امروزی نداری 👌') +
+    section('⏰ عقب‌افتاده‌ها', fuOver, 'fu', '', true, true) +
+    section('🗓 نوبت‌های ارزیابی روزهای بعد', once(b.upcoming), 'appt', '', true, true) +
+    section('🔁 پیگیری‌های روزهای بعد', once(b.laterFu), 'later', '', true, true) +
+    section('📝 تماس‌های امروز (بدون کار باز)', once(b.today), 'today', '', true, true);
 }
 async function loadIntake() {
   $('intake-out').innerHTML = '<p class="text-center text-gray-500 p-6">در حال بارگذاری...</p>';
@@ -1199,7 +1244,7 @@ $('lf-del').addEventListener('click', async () => {
 $('intake-out').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
   const l = leads.find((x) => x.id === +b.dataset.id); if (!l) return;
-  const a = b.dataset.act;
+  const a = b.dataset.act; const dm = b.closest('details.imenu'); if (dm) dm.open = false;
   if (a === 'fu') openLead(l, { countCall: true });
   else if (a === 'closefu') openLead(l, { status: 'lost', lost: 'جواب تماس را نداد', note: 'بعد از ' + toFa(l.followup_count || 0) + ' بار پیگیری بسته شد' });
   else if (a === 'assessed') openLead(l, { status: 'active' });
